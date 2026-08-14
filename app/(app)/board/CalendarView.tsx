@@ -178,7 +178,11 @@ export function CalendarView({
                 isSelected ? 'bg-accent text-accent-ink' : 'text-ink active:bg-canvas-soft'
               )}
             >
-              <span className="flex items-center justify-center gap-1 px-1">
+              {/*
+                날짜는 칸 한가운데 고정한다. 배지를 같은 흐름에 두면 할 일이 있는 날만
+                숫자가 옆으로 밀려서 줄이 들쭉날쭉해진다 — 배지는 띄워서 옆에 붙인다.
+              */}
+              <span className="relative flex items-center justify-center px-1">
                 <span
                   className={cn('text-[13px] tabular-nums', !isSelected && isToday && 'font-bold')}
                 >
@@ -187,8 +191,10 @@ export function CalendarView({
                 {remaining > 0 && (
                   <span
                     className={cn(
-                      'grid min-w-[15px] rounded-full px-1 text-[10px] font-semibold',
-                      isSelected ? 'bg-accent-ink/25 text-accent-ink' : 'bg-canvas-soft text-ink-secondary'
+                      'absolute right-0 top-1/2 grid min-w-[14px] -translate-y-1/2 rounded-full px-1 text-[9px] leading-[14px] font-semibold',
+                      isSelected
+                        ? 'bg-accent-ink/25 text-accent-ink'
+                        : 'bg-canvas-soft text-ink-secondary'
                     )}
                   >
                     {remaining}
@@ -200,7 +206,7 @@ export function CalendarView({
                 일정 띠. 칸 사이 간격(gap-x-1)만큼 좌우로 넓혀서 기간이 끊기지 않고 이어져 보이게 한다.
                 시작일·종료일에서만 모서리를 둥글게 해 어디서 시작하고 끝나는지 드러낸다.
               */}
-              <span className="flex min-h-[14px] flex-col gap-[2px]">
+              <span className="flex min-h-[18px] flex-col gap-[3px]">
                 {dayEvents.slice(0, MAX_BARS).map(e => {
                   const color = getEventColor(e.color);
                   const isStart = e.start_date === date;
@@ -210,7 +216,7 @@ export function CalendarView({
                       key={e.id}
                       title={e.title}
                       className={cn(
-                        'h-[3px]',
+                        'h-[5px]',
                         isStart ? 'ml-0.5 rounded-l-full' : '-ml-1',
                         isEnd ? 'mr-0.5 rounded-r-full' : '-mr-1'
                       )}

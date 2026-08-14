@@ -231,10 +231,8 @@ export default function MeClient() {
             )}
           </button>
           <span className="min-w-0">
-            <span className="block text-[15px] text-ink">완료한 할 일도 보기</span>
-            <span className="block text-caption text-ink-muted">
-              끄면 아직 남은 일만 보여요.
-            </span>
+            <span className="block text-[15px] text-ink">완료한 todo도 보기</span>
+
           </span>
         </label>
       </Card>

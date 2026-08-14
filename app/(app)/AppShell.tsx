@@ -24,7 +24,7 @@ import { AppContextProvider, type OrgWithRole } from './OrgContext';
  */
 const MENU = [
   { href: '/team', label: '팀', hint: '멤버 초대·역할' },
-  { href: '/me', label: 'General', hint: '이름·아바타·테마' },
+  { href: '/me', label: '설정', hint: '이름·아바타·테마' },
 ];
 
 export default function AppShell({
