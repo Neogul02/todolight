@@ -111,13 +111,14 @@ export async function fetchXxx(): Promise<ApiResponse<T>> {
 
 ```
 profiles        id (FK auth.users), email, display_name, avatar_color, theme, created_at
-organizations   id, name, owner_id, created_at
+organizations   id, name, owner_id, discord_webhook_url, created_at
 org_members     id, org_id, user_id, role('owner'|'admin'|'member'), joined_at   UNIQUE(org_id,user_id)
 org_invites     id, org_id, email, invited_by, status('pending'|'accepted'|'declined'|'revoked'),
                 created_at, responded_at
                 — (org_id, lower(email)) WHERE status='pending' 부분 유니크 인덱스
 todos           id, org_id, owner_id, title, status('todo'|'doing'|'done'), due_date,
-                position(double), created_by, handled_by, completed_at, created_at, updated_at
+                position(double), created_by, handled_by, completed_at, deleted_at,
+                created_at, updated_at
 todo_notes      id, todo_id, author_id, content, created_at
 ```
 
@@ -125,6 +126,9 @@ todo_notes      id, todo_id, author_id, content, created_at
   남이 대신 꽂아 넣은 할 일이다.
 - `handled_by`가 `owner_id`와 다르면 "남이 대신 처리해 줌" 배지가 뜬다.
 - `position`은 double이라 앞/사이에 끼워 넣을 때 뒤 항목들을 다시 쓸 필요가 없다.
+- **삭제는 전부 소프트 삭제다.** `deleted_at`만 찍고 행은 남긴다 — 카드 오른쪽 X는 확인 창 없이
+  바로 눌리므로 실수해도 되돌릴 수 있어야 한다. 모든 조회에 `.is('deleted_at', null)`를
+  빠뜨리지 말 것(부분 인덱스 `todos_org_owner_alive_idx`도 이 조건 기준이다).
 
 ### RLS
 
@@ -135,12 +139,31 @@ todo_notes      id, todo_id, author_id, content, created_at
 `todos`는 조직 멤버라면 누구나 SELECT/INSERT/UPDATE할 수 있다(대신 처리가 핵심 기능이라
 의도된 것). 다만 DELETE만은 주인 본인이나 방장으로 제한한다.
 
+### Discord 알림
+
+`lib/discord.ts`의 `notifyDiscord()`로 웹훅에 임베드를 쏜다. 알림을 보내는 시점:
+
+- **할 일 추가** (`createTodo`) — 누가 누구 목록에 무엇을 넣었는지
+- **대신 처리** (`handleForMember`) — 처리자·주인·내용·남긴 메모
+
+원칙 두 가지:
+
+1. **알림 실패가 본래 작업을 되돌리면 안 된다.** `notifyDiscord()`는 절대 throw하지 않고
+   실패를 로그로만 남긴다.
+2. **응답을 막지 않는다.** 호출은 `next/server`의 `after()` 안에서 한다. 서버리스에서도
+   응답 후 실행이 보장된다.
+
+웹훅 URL은 `organizations.discord_webhook_url`(방장이 `/team`에서 설정)이 우선이고,
+비어 있으면 서버 환경 변수 `DISCORD_WEBHOOK_URL`로 떨어진다.
+
 ### 실시간
 
 `lib/supabase-realtime.ts` 싱글턴 클라이언트로 채널을 만든다:
 
 - `board-{orgId}` — `todos` 변경을 `org_id` 필터로 구독. INSERT/UPDATE는 TanStack Query
   캐시에 직접 병합하고, `todo_notes` 변경은 작성자 이름 조인이 필요해서 invalidate로 처리한다.
+  **소프트 삭제는 DELETE가 아니라 `deleted_at`을 채우는 UPDATE로 오므로**, 병합 전에
+  `row.deleted_at`을 보고 캐시에서 걷어낸다.
 - `presence-{orgId}` — 접속자 표시용 Presence
 
 `todos` / `todo_notes`는 `replica identity full` + `supabase_realtime` publication에 등록되어 있다.
@@ -172,6 +195,12 @@ todo_notes      id, todo_id, author_id, content, created_at
 이게 빠지면 `pb-safe` · `board-viewport`의 홈 인디케이터 회피가 통째로 무효가 된다.
 유틸리티는 `pb-safe` · `pt-safe` · `px-safe`.
 
+### 할 일 카드 정렬
+
+체크박스 · 제목 · X 세 칸은 **모두 `py-2`로 위 패딩을 맞춰** 첫 줄 기준선이 겹치게 한다.
+그 패딩이 곧 터치 영역이다(아이콘 20px + 상하 8px = 36px).
+음수 마진으로 위치를 미세 조정하지 말 것 — 폰트나 줄 높이가 바뀌면 바로 어긋난다.
+
 ### 터치 타깃
 
 `components/ui.tsx`의 `Button` / `Input`은 모바일에서 크고 `sm:`에서 조밀해진다
@@ -179,17 +208,25 @@ todo_notes      id, todo_id, author_id, content, created_at
 할 일 체크박스처럼 시각 요소가 작아야 하는 경우에는 **패딩으로 탭 영역만 넓힌다**
 (`TodoCard`의 `-my-1 p-2.5` 패턴).
 
-### 보드 캐러셀
+### 보드 / 대시보드 두 모드
 
-컬럼은 가로 스냅 캐러셀 하나다. 폭은 화면 크기가 정하고 사용자 토글은 없다 —
-모바일은 `calc(100vw-2.75rem)`(다음 컬럼이 살짝 보여 스와이프 힌트가 된다),
-`sm:` 이상은 330px로 여러 명이 한눈에 들어온다.
+**보드**(기본) — 멤버별 컬럼의 가로 스냅 캐러셀. 손가락으로 좌우로 밀어 팀원을 오간다.
+내 컬럼이 항상 첫 번째라 열자마자 내 할 일부터 보인다.
+
+- 모바일은 **한 화면에 한 명만** 보여야 한다. 컬럼 폭은 `w-full`(스크롤 컨테이너의 콘텐츠
+  폭)이고, 스크롤러에 `scroll-pl-3`을 준다. 이 `scroll-pl`이 없으면 두 번째 컬럼부터
+  스냅 기준이 패딩을 무시해 옆 컬럼이 삐져나온다. `100vw`로 잡는 것도 금물 —
+  스크롤바 폭만큼 어긋난다.
+- `sm:` 이상은 330px 고정이라 여러 명이 한눈에 들어온다.
+- 현재 위치는 스크롤 위치에서 역산해(`syncActiveIndex`) 상단 멤버 칩 하이라이트에 반영한다.
+  멤버 칩을 탭하면 `scrollIntoView`로 그 컬럼으로 이동한다.
+
+**대시보드** — 툴바의 대시보드 버튼으로 전환. 모든 멤버를 세로로 쌓아 위아래 스크롤로 한 번에
+훑는다(`sm:`부터 2열, `lg:`부터 3열). `MemberColumn`에 `stacked`를 주면 뷰포트 높이 고정과
+내부 스크롤을 끄고 내용만큼만 자란다.
 
 완료한 할 일은 **기본으로 보인다**(`showDone` 초기값 `true`). 팀원이 뭘 끝냈는지가 곧 공유의
 목적이라서 숨기는 쪽을 선택지로 뒀다.
-
-현재 위치는 스크롤 위치에서 역산해(`syncActiveIndex`) 상단 멤버 칩 하이라이트에 반영한다.
-멤버 칩을 탭하면 `scrollIntoView`로 그 컬럼으로 이동한다.
 
 ### 그 밖의 iOS 대응
 
@@ -201,6 +238,12 @@ todo_notes      id, todo_id, author_id, content, created_at
   메뉴가 먼저 닫혀버린다. 아래로 끌어내리면 닫힌다
 - 크롬 UI(헤더·툴바·버튼)에는 `no-select`를 붙이되, 할 일 제목·메모는 복사할 수 있어야 하므로
   `body` 전체에 `user-select: none`을 걸지 말 것
+
+### 아이콘
+
+`app/icon.svg`(파비콘)와 `app/apple-icon.tsx`(홈 화면용 180px PNG, `next/og`의 ImageResponse)
+둘 다 베이지 배경 + 검정 "Todo" 텍스트다. iOS는 SVG 터치 아이콘을 제대로 다루지 않아
+apple-icon만 PNG로 그린다.
 
 ### 아바타
 

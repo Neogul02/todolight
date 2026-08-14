@@ -73,5 +73,7 @@ export interface Todo {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+  /** 소프트 삭제 시각 — 값이 있으면 보드에서 감춘다 */
+  deleted_at: string | null;
   notes?: TodoNote[];
 }

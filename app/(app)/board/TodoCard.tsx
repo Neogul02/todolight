@@ -21,6 +21,7 @@ export default function TodoCard({
   isMine,
   members,
   currentUserId,
+  isManager,
   onMutated,
   onHandoff,
 }: {
@@ -28,6 +29,7 @@ export default function TodoCard({
   isMine: boolean;
   members: MemberSummary[];
   currentUserId: string;
+  isManager: boolean;
   onMutated: () => void;
   onHandoff: (todo: Todo) => void;
 }) {
@@ -39,6 +41,7 @@ export default function TodoCard({
   const handler = todo.handled_by ? members.find(m => m.user_id === todo.handled_by) : null;
   const handledByOther = done && todo.handled_by && todo.handled_by !== todo.owner_id;
   const due = dueState(todo.due_date);
+  const canRemove = isMine || todo.created_by === currentUserId || isManager;
 
   async function toggleDone() {
     if (busy) return;
@@ -81,7 +84,6 @@ export default function TodoCard({
       showMsg(res.error, 'error');
       return;
     }
-    showMsg('삭제했습니다.', 'success');
     onMutated();
   }
 
@@ -95,21 +97,22 @@ export default function TodoCard({
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ duration: 0.16 }}
       className={cn(
-        'rounded-xl border border-hairline bg-surface px-3 py-2.5 transition-colors',
+        'rounded-xl border border-hairline bg-surface px-3 py-1.5 transition-colors',
         done && 'bg-surface-alt'
       )}
     >
-      <div className="flex items-start gap-1">
-        {/*
-          체크 자체는 20px이지만 패딩으로 실제 탭 영역을 44px 가까이 넓힌다.
-          손가락으로 옆 카드가 아니라 이 체크가 눌려야 한다.
-        */}
+      {/*
+        체크 · 제목 · X 세 칸 모두 위쪽 패딩을 py-2로 맞춰서 첫 줄 기준선이 정확히 겹치게 한다.
+        그 패딩이 곧 터치 영역이기도 하다 (아이콘 20px + 상하 8px = 36px).
+        음수 마진으로 위치를 미세 조정하지 말 것 — 폰트가 바뀌면 바로 어긋난다.
+      */}
+      <div className="flex items-start">
         <button
           type="button"
           onClick={toggleDone}
           disabled={busy}
           aria-label={done ? '완료 취소' : '완료로 표시'}
-          className="-my-1 shrink-0 p-2.5 transition-transform active:scale-90"
+          className="shrink-0 py-2 pr-2.5 transition-transform active:scale-90"
         >
           <span
             className={cn(
@@ -136,7 +139,7 @@ export default function TodoCard({
         <button
           type="button"
           onClick={() => setOpen(v => !v)}
-          className="-mx-1 min-w-0 flex-1 px-1 py-1 text-left"
+          className="min-w-0 flex-1 py-2 text-left"
         >
           <p
             className={cn(
@@ -147,16 +150,43 @@ export default function TodoCard({
             {todo.title}
           </p>
 
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            {todo.due_date && (
-              <Badge tone={DUE_TONE[due]}>{formatRelativeDay(`${todo.due_date}T00:00:00Z`)}</Badge>
-            )}
-            {handledByOther && (
-              <Badge tone="success">{handler?.display_name ?? '누군가'}가 대신 처리</Badge>
-            )}
-            {noteCount > 0 && <Badge>메모 {noteCount}</Badge>}
-          </div>
+          {(todo.due_date || handledByOther || noteCount > 0) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {todo.due_date && (
+                <Badge tone={DUE_TONE[due]}>
+                  {formatRelativeDay(`${todo.due_date}T00:00:00Z`)}
+                </Badge>
+              )}
+              {handledByOther && (
+                <Badge tone="success">{handler?.display_name ?? '누군가'}가 대신 처리</Badge>
+              )}
+              {noteCount > 0 && <Badge>메모 {noteCount}</Badge>}
+            </div>
+          )}
         </button>
+
+        {/* 소프트 삭제 — 확인 창 없이 바로 치우고, 복구는 DB에 남은 deleted_at으로 한다 */}
+        {canRemove && (
+          <button
+            type="button"
+            onClick={remove}
+            disabled={busy}
+            aria-label="할 일 지우기"
+            className="shrink-0 py-2 pl-2.5 text-ink-faint transition-[color,transform] active:scale-90 sm:hover:text-danger"
+          >
+            <span className="grid size-5 place-items-center">
+              <svg
+                viewBox="0 0 16 16"
+                className="size-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="m4 4 8 8M12 4l-8 8" strokeLinecap="round" />
+              </svg>
+            </span>
+          </button>
+        )}
       </div>
 
       <AnimatePresence initial={false}>
@@ -209,18 +239,13 @@ export default function TodoCard({
                 </Button>
               </form>
 
-              <div className="mt-2.5 flex items-center gap-1.5">
-                {!isMine && !done && (
+              {!isMine && !done && (
+                <div className="mt-2.5">
                   <Button size="sm" variant="outline" onClick={() => onHandoff(todo)}>
                     대신 처리
                   </Button>
-                )}
-                {(isMine || todo.created_by === currentUserId) && (
-                  <Button size="sm" variant="ghost" onClick={remove} disabled={busy}>
-                    삭제
-                  </Button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

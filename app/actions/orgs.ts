@@ -319,6 +319,44 @@ export async function updateMemberRole(
   });
 }
 
+/** 조직의 Discord 웹훅 조회 (방장 화면에서 현재 설정 확인용) */
+export async function fetchOrgWebhook(orgId: string): Promise<ApiResponse<string | null>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    await requireManager(orgId, user.id);
+
+    const { data, error } = await getSupabaseAdmin()
+      .from('organizations')
+      .select('discord_webhook_url')
+      .eq('id', orgId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data?.discord_webhook_url ?? null;
+  });
+}
+
+/** Discord 웹훅 설정 — 빈 문자열이면 해제(서버 기본 웹훅으로 떨어진다) */
+export async function updateOrgWebhook(
+  orgId: string,
+  webhookUrl: string
+): Promise<ApiResponse<null>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    await requireManager(orgId, user.id);
+
+    const trimmed = webhookUrl.trim();
+    if (trimmed && !/^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\//.test(trimmed))
+      throw new Error('Discord 웹훅 URL이 아닙니다.');
+
+    const { error } = await getSupabaseAdmin()
+      .from('organizations')
+      .update({ discord_webhook_url: trimmed || null })
+      .eq('id', orgId);
+    if (error) throw new Error(error.message);
+    return null;
+  });
+}
+
 /** 조직 이름 변경 */
 export async function renameOrg(orgId: string, name: string): Promise<ApiResponse<null>> {
   return wrap(async () => {

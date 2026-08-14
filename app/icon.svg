@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" fill="#f3eee5" />
+  <text
+    x="256"
+    y="256"
+    text-anchor="middle"
+    dominant-baseline="central"
+    font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+    font-size="180"
+    font-weight="700"
+    letter-spacing="-8"
+    textLength="376"
+    lengthAdjust="spacingAndGlyphs"
+    fill="#14120f"
+  >Todo</text>
+</svg>

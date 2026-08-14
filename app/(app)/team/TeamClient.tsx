@@ -6,11 +6,13 @@ import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchOrgInvites,
+  fetchOrgWebhook,
   inviteMember,
   removeMember,
   renameOrg,
   revokeInvite,
   updateMemberRole,
+  updateOrgWebhook,
 } from '@/app/actions/orgs';
 import { useOrgMembers } from '@/hooks/useOrgBoard';
 import { useApp } from '../OrgContext';
@@ -29,6 +31,7 @@ export default function TeamClient() {
   const members = useOrgMembers(activeOrgId);
   const [email, setEmail] = useState('');
   const [orgName, setOrgName] = useState('');
+  const [webhook, setWebhook] = useState<string | null>(null);
 
   const invites = useQuery({
     queryKey: ['org-invites', activeOrgId],
@@ -85,6 +88,30 @@ export default function TeamClient() {
     onSuccess: () => {
       showMsg('역할을 바꿨습니다.', 'success');
       queryClient.invalidateQueries({ queryKey: ['members', activeOrgId] });
+    },
+    onError: (e: Error) => showMsg(e.message, 'error'),
+  });
+
+  // 저장된 웹훅을 불러와 입력창 초기값으로 쓴다 (아직 안 건드렸으면 null)
+  const savedWebhook = useQuery({
+    queryKey: ['org-webhook', activeOrgId],
+    enabled: !!activeOrgId && isManager,
+    queryFn: async () => {
+      const res = await fetchOrgWebhook(activeOrgId!);
+      if (!res.success) throw new Error(res.error);
+      return res.data ?? '';
+    },
+  });
+
+  const saveWebhook = useMutation({
+    mutationFn: async (value: string) => {
+      const res = await updateOrgWebhook(activeOrgId!, value);
+      if (!res.success) throw new Error(res.error);
+      return value;
+    },
+    onSuccess: value => {
+      showMsg(value ? 'Discord 알림을 켰습니다.' : 'Discord 알림을 껐습니다.', 'success');
+      queryClient.invalidateQueries({ queryKey: ['org-webhook', activeOrgId] });
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
   });
@@ -250,6 +277,37 @@ export default function TeamClient() {
           })}
         </ul>
       </Card>
+
+      {isManager && (
+        <Card className="p-5">
+          <h2 className="text-title text-ink">Discord 알림</h2>
+          <p className="mt-1 text-caption text-ink-muted">
+            할 일이 추가되거나 누가 대신 처리하면 이 채널로 알림이 갑니다.
+            채널 설정 → 연동 → 웹후크에서 URL을 복사해 붙여 넣으세요. 비우면 알림을 끕니다.
+          </p>
+          <form
+            onSubmit={e => {
+              e.preventDefault();
+              saveWebhook.mutate(webhook ?? savedWebhook.data ?? '');
+            }}
+            className="mt-3 flex flex-col gap-2 sm:flex-row"
+          >
+            <Input
+              type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={webhook ?? savedWebhook.data ?? ''}
+              onChange={e => setWebhook(e.target.value)}
+              placeholder="https://discord.com/api/webhooks/..."
+            />
+            <Button type="submit" variant="outline" disabled={saveWebhook.isPending}>
+              저장
+            </Button>
+          </form>
+        </Card>
+      )}
 
       {isManager && (
         <Card className="p-5">

@@ -18,8 +18,11 @@ import type { MemberSummary, Todo } from '@/types/db';
 import MemberColumn from './MemberColumn';
 import HandoffModal from './HandoffModal';
 
+/** board = 멤버별 가로 캐러셀(기본), dashboard = 세로로 전부 쌓아 한 번에 훑기 */
+type Mode = 'board' | 'dashboard';
+
 export default function BoardClient() {
-  const { activeOrgId, userId, orgs } = useApp();
+  const { activeOrgId, userId, orgs, isManager } = useApp();
   const queryClient = useQueryClient();
 
   const members = useOrgMembers(activeOrgId);
@@ -29,6 +32,7 @@ export default function BoardClient() {
 
   // 완료한 일도 기본으로 보여 준다 — 팀원이 뭘 끝냈는지가 곧 공유의 목적이다.
   const [showDone, setShowDone] = useState(true);
+  const [mode, setMode] = useState<Mode>('board');
   const [handoff, setHandoff] = useState<Todo | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -119,10 +123,10 @@ export default function BoardClient() {
 
   return (
     <main className="mx-auto w-full max-w-[1400px]">
-      {/* ── 툴바 : 멤버 칩 + 완료 토글. 그 외 버튼은 두지 않는다 ── */}
+      {/* ── 툴바 : 멤버 칩 + 대시보드/완료 토글 ── */}
       <div className="flex h-[var(--board-toolbar-h)] items-center gap-2 px-3 sm:px-4">
-        {orderedMembers.length > 0 && (
-          <div className="-mx-1 flex flex-1 gap-2 overflow-x-auto px-1 py-1 sm:hidden [&::-webkit-scrollbar]:hidden">
+        {mode === 'board' && orderedMembers.length > 0 && (
+          <div className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-1 sm:hidden [&::-webkit-scrollbar]:hidden">
             {orderedMembers.map((m, i) => (
               <MemberChip
                 key={m.user_id}
@@ -138,20 +142,37 @@ export default function BoardClient() {
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={() => setShowDone(v => !v)}
-          aria-pressed={showDone}
-          // 라벨이 상태를 말해 주지 않으므로 켜짐/꺼짐을 채움 여부로 확실히 구분한다
-          className={cn(
-            'ml-auto h-9 shrink-0 rounded-lg border px-3 text-[13px] font-medium no-select transition-colors active:scale-[0.97]',
-            showDone
-              ? 'border-accent bg-accent text-accent-ink'
-              : 'border-hairline bg-transparent text-ink-faint'
-          )}
-        >
-          완료
-        </button>
+        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setMode(m => (m === 'board' ? 'dashboard' : 'board'))}
+            aria-pressed={mode === 'dashboard'}
+            className={cn(
+              'flex h-9 items-center gap-1.5 rounded-lg border px-3 text-[13px] font-medium no-select transition-colors active:scale-[0.97]',
+              mode === 'dashboard'
+                ? 'border-accent bg-accent text-accent-ink'
+                : 'border-hairline bg-transparent text-ink-muted'
+            )}
+          >
+            <DashboardIcon className="size-4" />
+            대시보드
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowDone(v => !v)}
+            aria-pressed={showDone}
+            // 라벨이 상태를 말해 주지 않으므로 켜짐/꺼짐을 채움 여부로 확실히 구분한다
+            className={cn(
+              'h-9 rounded-lg border px-3 text-[13px] font-medium no-select transition-colors active:scale-[0.97]',
+              showDone
+                ? 'border-accent bg-accent text-accent-ink'
+                : 'border-hairline bg-transparent text-ink-faint'
+            )}
+          >
+            완료
+          </button>
+        </div>
       </div>
 
       {loading && (
@@ -166,14 +187,19 @@ export default function BoardClient() {
         </Card>
       )}
 
-      {/* ── 컬럼 캐러셀 ──
+      {/* ── 보드 : 가로 캐러셀 ──
           페이지 전체를 늘리는 대신 이 영역 높이를 뷰포트에 고정하고 컬럼 내부만 스크롤한다.
-          그래야 하단 탭바가 밀려 올라가지 않고, 컬럼마다 페이지 높이가 널뛰지 않는다. */}
-      {!loading && !error && (
+          내 컬럼이 항상 첫 번째라 처음 열면 내 할 일부터 보이고, 양옆으로 넘기면 팀원이 나온다. */}
+      {!loading && !error && mode === 'board' && (
         <div
           ref={scrollerRef}
           onScroll={syncActiveIndex}
-          className="snap-board board-viewport flex gap-3 overflow-x-auto px-3 pb-3 sm:px-4"
+          /*
+            scroll-pl은 스냅 기준선을 좌측 패딩만큼 밀어 준다.
+            없으면 두 번째 컬럼부터 패딩을 무시하고 화면 왼쪽 끝에 붙어서, 오른쪽에 다음 컬럼이
+            패딩 폭만큼 삐져나온다.
+          */
+          className="snap-board board-viewport flex gap-3 overflow-x-auto scroll-pl-3 px-3 pb-3 sm:scroll-pl-4 sm:px-4"
         >
           {orderedMembers.map((m, i) => (
             <MemberColumn
@@ -185,12 +211,38 @@ export default function BoardClient() {
               todos={todosByOwner.get(m.user_id) ?? []}
               orgId={activeOrgId!}
               currentUserId={userId}
+              isManager={isManager}
               members={orderedMembers}
               showDone={showDone}
               onMutated={refresh}
               onHandoff={setHandoff}
-              // 모바일은 한 컬럼이 화면을 채우고 다음 컬럼이 살짝 보여 스와이프 힌트가 된다
-              className="w-[calc(100vw-2.75rem)] max-w-[420px] sm:w-[330px]"
+              /*
+                모바일은 한 화면에 한 명만 보인다 — w-full은 스크롤 컨테이너의 콘텐츠 폭이라
+                좌우 패딩(px-3)과 정확히 맞아떨어져 옆 컬럼이 삐져나오지 않는다.
+                (100vw로 잡으면 스크롤바 폭만큼 어긋난다)
+              */
+              className="w-full sm:w-[330px]"
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ── 대시보드 : 세로로 전부 쌓아 위아래 스크롤로 한 번에 훑는다 ── */}
+      {!loading && !error && mode === 'dashboard' && (
+        <div className="flex flex-col gap-3 px-3 pb-safe sm:grid sm:grid-cols-2 sm:px-4 lg:grid-cols-3">
+          {orderedMembers.map(m => (
+            <MemberColumn
+              key={m.user_id}
+              member={m}
+              todos={todosByOwner.get(m.user_id) ?? []}
+              orgId={activeOrgId!}
+              currentUserId={userId}
+              isManager={isManager}
+              members={orderedMembers}
+              showDone={showDone}
+              stacked
+              onMutated={refresh}
+              onHandoff={setHandoff}
             />
           ))}
         </div>
@@ -247,5 +299,14 @@ function MemberChip({
         </span>
       )}
     </button>
+  );
+}
+
+function DashboardIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="3.5" y="4" width="17" height="5.5" rx="1.6" />
+      <rect x="3.5" y="12.5" width="17" height="7.5" rx="1.6" />
+    </svg>
   );
 }

@@ -1,7 +1,9 @@
 'use server';
 
 import { z } from 'zod';
+import { after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { notifyDiscord, truncate } from '@/lib/discord';
 import { requireAuth, wrap } from './_base';
 import type { ApiResponse } from '@/types/api';
 import type { Todo, TodoNote, TodoStatus } from '@/types/db';
@@ -32,6 +34,7 @@ async function loadTodoForMember(todoId: string, userId: string): Promise<Todo> 
     .from('todos')
     .select('*')
     .eq('id', todoId)
+    .is('deleted_at', null)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error('할 일을 찾을 수 없습니다.');
@@ -40,7 +43,19 @@ async function loadTodoForMember(todoId: string, userId: string): Promise<Todo> 
 }
 
 const TODO_COLUMNS =
-  'id, org_id, owner_id, title, status, due_date, position, created_by, handled_by, completed_at, created_at, updated_at';
+  'id, org_id, owner_id, title, status, due_date, position, created_by, handled_by, completed_at, created_at, updated_at, deleted_at';
+
+/** 알림 문구에 쓸 이름들과 조직 웹훅을 한 번에 읽는다 */
+async function loadNotifyContext(orgId: string, userIds: string[]) {
+  const db = getSupabaseAdmin();
+  const [{ data: org }, { data: profiles }] = await Promise.all([
+    db.from('organizations').select('name, discord_webhook_url').eq('id', orgId).maybeSingle(),
+    db.from('profiles').select('id, display_name').in('id', [...new Set(userIds)]),
+  ]);
+  const nameOf = (id: string) =>
+    profiles?.find(p => p.id === id)?.display_name ?? '알 수 없음';
+  return { orgName: org?.name ?? '조직', webhook: org?.discord_webhook_url ?? null, nameOf };
+}
 
 /** 조직 전체의 할 일 + 메모를 한 번에 — 보드가 이걸로 모든 컬럼을 그린다 */
 export async function fetchOrgTodos(orgId: string): Promise<ApiResponse<Todo[]>> {
@@ -52,6 +67,7 @@ export async function fetchOrgTodos(orgId: string): Promise<ApiResponse<Todo[]>>
       .from('todos')
       .select(TODO_COLUMNS)
       .eq('org_id', orgId)
+      .is('deleted_at', null)
       .order('position', { ascending: true })
       .order('created_at', { ascending: true });
     if (error) throw new Error(error.message);
@@ -112,6 +128,7 @@ export async function createTodo(input: {
       .select('position')
       .eq('org_id', input.orgId)
       .eq('owner_id', ownerId)
+      .is('deleted_at', null)
       .order('position', { ascending: true })
       .limit(1)
       .maybeSingle();
@@ -131,6 +148,27 @@ export async function createTodo(input: {
       .select(TODO_COLUMNS)
       .single();
     if (error) throw new Error(error.message);
+
+    // 알림은 응답 뒤에 보낸다 — 웹훅이 느려도 추가 자체는 즉시 끝나야 한다
+    after(async () => {
+      const { orgName, webhook, nameOf } = await loadNotifyContext(input.orgId, [user.id, ownerId]);
+      const actor = nameOf(user.id);
+      const owner = nameOf(ownerId);
+      await notifyDiscord(
+        webhook,
+        '새 할 일',
+        ownerId === user.id
+          ? `**${actor}**님이 할 일을 추가했습니다.`
+          : `**${actor}**님이 **${owner}**님 목록에 할 일을 추가했습니다.`,
+        [
+          { name: '내용', value: truncate(title) },
+          { name: '담당', value: owner, inline: true },
+          { name: '마감', value: dueDate ?? '없음', inline: true },
+          { name: '조직', value: orgName, inline: true },
+        ]
+      );
+    });
+
     return { ...(data as Todo), notes: [] };
   });
 }
@@ -194,13 +232,17 @@ export async function updateTodo(
   });
 }
 
-/** 삭제 — 주인 본인이나 방장만 */
+/**
+ * 삭제 — 실제로 지우지 않고 deleted_at만 찍는다(소프트 삭제).
+ * 카드 오른쪽 X는 확인 절차 없이 바로 눌리므로, 잘못 눌러도 DB에는 남아 있어야 한다.
+ * 지울 수 있는 사람: 할 일의 주인 · 그 할 일을 만든 사람 · 방장/관리자
+ */
 export async function deleteTodo(todoId: string): Promise<ApiResponse<null>> {
   return wrap(async () => {
     const user = await requireAuth();
     const todo = await loadTodoForMember(todoId, user.id);
 
-    if (todo.owner_id !== user.id) {
+    if (todo.owner_id !== user.id && todo.created_by !== user.id) {
       const { data: me } = await getSupabaseAdmin()
         .from('org_members')
         .select('role')
@@ -208,10 +250,13 @@ export async function deleteTodo(todoId: string): Promise<ApiResponse<null>> {
         .eq('user_id', user.id)
         .maybeSingle();
       if (!me || (me.role !== 'owner' && me.role !== 'admin'))
-        throw new Error('본인 할 일이나 방장만 삭제할 수 있습니다.');
+        throw new Error('본인 할 일이나 방장만 지울 수 있습니다.');
     }
 
-    const { error } = await getSupabaseAdmin().from('todos').delete().eq('id', todo.id);
+    const { error } = await getSupabaseAdmin()
+      .from('todos')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', todo.id);
     if (error) throw new Error(error.message);
     return null;
   });
@@ -279,6 +324,23 @@ export async function handleForMember(
       .select('display_name, avatar_color')
       .eq('id', user.id)
       .maybeSingle();
+
+    after(async () => {
+      const { orgName, webhook, nameOf } = await loadNotifyContext(todo.org_id, [
+        user.id,
+        todo.owner_id,
+      ]);
+      await notifyDiscord(
+        webhook,
+        '대신 처리',
+        `**${nameOf(user.id)}**님이 **${nameOf(todo.owner_id)}**님의 할 일을 대신 처리했습니다.`,
+        [
+          { name: '내용', value: truncate(todo.title) },
+          { name: '메모', value: truncate(parsedNote, 900) },
+          { name: '조직', value: orgName, inline: true },
+        ]
+      );
+    });
 
     return {
       todo: updated as Todo,

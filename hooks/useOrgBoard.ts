@@ -63,6 +63,9 @@ export function useBoardRealtime(orgId: string | null) {
             }
 
             const row = payload.new as Todo;
+            // 소프트 삭제는 DELETE가 아니라 deleted_at을 찍는 UPDATE로 온다
+            if (row.deleted_at) return prev.filter(t => t.id !== row.id);
+
             const existing = prev.find(t => t.id === row.id);
             // 메모는 이 페이로드에 없다 — 기존 캐시의 notes를 유지한다.
             const merged: Todo = { ...row, notes: existing?.notes ?? [] };

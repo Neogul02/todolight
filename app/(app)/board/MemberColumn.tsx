@@ -15,15 +15,30 @@ interface Props {
   todos: Todo[];
   orgId: string;
   currentUserId: string;
+  isManager: boolean;
   members: MemberSummary[];
   showDone: boolean;
+  /** 대시보드 모드 — 가로 캐러셀이 아니라 세로로 쌓여서 페이지와 함께 스크롤된다 */
+  stacked?: boolean;
   onMutated: () => void;
   onHandoff: (todo: Todo) => void;
   className?: string;
 }
 
 const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
-  { member, todos, orgId, currentUserId, members, showDone, onMutated, onHandoff, className },
+  {
+    member,
+    todos,
+    orgId,
+    currentUserId,
+    isManager,
+    members,
+    showDone,
+    stacked = false,
+    onMutated,
+    onHandoff,
+    className,
+  },
   ref
 ) {
   const [title, setTitle] = useState('');
@@ -61,7 +76,10 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     <section
       ref={ref}
       className={cn(
-        'snap-col flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-hairline bg-canvas-soft/60',
+        'flex flex-col rounded-2xl border border-hairline bg-canvas-soft/60',
+        // 캐러셀에서는 컬럼이 뷰포트 높이를 채우고 내부만 스크롤한다.
+        // 대시보드에서는 내용만큼만 자라고 페이지가 통째로 스크롤된다.
+        stacked ? 'w-full' : 'snap-col h-full shrink-0 overflow-hidden',
         isMine && 'border-hairline-strong bg-surface-alt',
         className
       )}
@@ -104,8 +122,12 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
         )}
       </form>
 
-      {/* 컬럼 내부만 세로 스크롤 — 페이지 전체가 늘어나면 탭바가 밀린다 */}
-      <ul className="flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-3 pb-3">
+      <ul
+        className={cn(
+          'flex flex-1 flex-col gap-2 px-3 pb-3',
+          !stacked && 'overflow-y-auto overscroll-contain'
+        )}
+      >
         <AnimatePresence initial={false}>
           {visible.map(todo => (
             <TodoCard
@@ -114,6 +136,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
               isMine={isMine}
               members={members}
               currentUserId={currentUserId}
+              isManager={isManager}
               onMutated={onMutated}
               onHandoff={onHandoff}
             />
