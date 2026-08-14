@@ -22,6 +22,8 @@ export default function TodoCard({
   members,
   currentUserId,
   isManager,
+  open,
+  onToggleOpen,
   onHandoff,
 }: {
   todo: Todo;
@@ -29,9 +31,11 @@ export default function TodoCard({
   members: MemberSummary[];
   currentUserId: string;
   isManager: boolean;
+  /** 보드 전체에서 하나만 펼쳐진다 — 상태는 위에서 관리한다 */
+  open: boolean;
+  onToggleOpen: () => void;
   onHandoff: (todo: Todo) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [note, setNote] = useState('');
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(todo.title);
@@ -137,7 +141,7 @@ export default function TodoCard({
 
         <button
           type="button"
-          onClick={() => setOpen(v => !v)}
+          onClick={onToggleOpen}
           aria-expanded={open}
           className="min-w-0 flex-1 py-2 text-left"
         >

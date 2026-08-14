@@ -14,10 +14,17 @@ export const metadata: Metadata = {
 
 // viewportFit: cover — 이게 없으면 env(safe-area-inset-*)가 전부 0으로 계산돼
 // 홈 인디케이터 회피(pb-safe, board-viewport)가 무효화된다.
-// maximumScale/userScalable은 건드리지 않는다 — 확대를 막으면 접근성이 깨진다.
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  /*
+    입력에 포커스할 때 iOS가 화면을 제멋대로 확대하는 걸 막는다.
+    iOS 10부터 Safari는 접근성을 위해 사용자의 핀치 줌은 이 값과 무관하게 늘 허용하므로,
+    막히는 건 자동 확대뿐이다. userScalable: false는 쓰지 않는다 — 그건 의도가 다르다.
+  */
+  maximumScale: 1,
+  /* 키보드가 올라오면 뷰포트 자체를 줄여 준다. 콘텐츠가 키보드 뒤로 숨지 않는다 */
+  interactiveWidget: 'resizes-content',
   viewportFit: 'cover',
   themeColor: '#ffffff',
 };

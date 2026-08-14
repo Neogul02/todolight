@@ -50,6 +50,24 @@ export default function BoardClient() {
   const showDone = profile?.show_done ?? true;
   const [mode, setMode] = useState<Mode>('board');
   const [handoff, setHandoff] = useState<Todo | null>(null);
+  /*
+    펼쳐 둔 카드는 보드 전체에서 하나뿐이다.
+    여러 개가 동시에 열려 있으면 컬럼이 길어져 무엇이 남았는지 한눈에 안 들어온다.
+  */
+  const [openTodoId, setOpenTodoId] = useState<string | null>(null);
+  const toggleOpenTodo = (todoId: string) =>
+    setOpenTodoId(current => (current === todoId ? null : todoId));
+
+  /** 다른 곳으로 시선을 옮기면 펼쳐 둔 카드는 접는다 */
+  function switchMode(next: Mode) {
+    setMode(next);
+    setOpenTodoId(null);
+  }
+
+  function goToMember(index: number) {
+    goTo(index);
+    setOpenTodoId(null);
+  }
 
   // 내 컬럼을 항상 맨 앞으로 — 내 할 일을 먼저 보게 한다.
   const orderedMembers = useMemo(() => {
@@ -154,7 +172,7 @@ export default function BoardClient() {
                 remaining={
                   (todosByOwner.get(m.user_id) ?? []).filter(t => t.status !== 'done').length
                 }
-                onClick={() => goTo(i)}
+                onClick={() => goToMember(i)}
               />
             ))}
           </div>
@@ -166,7 +184,7 @@ export default function BoardClient() {
             <button
               key={key}
               type="button"
-              onClick={() => setMode(key)}
+              onClick={() => switchMode(key)}
               aria-pressed={mode === key}
               aria-label={label}
               title={label}
@@ -217,6 +235,8 @@ export default function BoardClient() {
                   isManager={isManager}
                   members={orderedMembers}
                   showDone={showDone}
+                  openTodoId={openTodoId}
+                  onToggleOpen={toggleOpenTodo}
                   onCreated={refresh}
                   onHandoff={setHandoff}
                   /*
@@ -253,6 +273,8 @@ export default function BoardClient() {
                 members={orderedMembers}
                 showDone={showDone}
                 stacked
+                openTodoId={openTodoId}
+                onToggleOpen={toggleOpenTodo}
                 onCreated={refresh}
                 onHandoff={setHandoff}
               />

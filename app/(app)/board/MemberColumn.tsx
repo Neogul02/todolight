@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useState } from 'react';
+import { forwardRef, useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { createTodo } from '@/app/actions/todos';
 import { showMsg } from '@/lib/toast';
@@ -21,6 +21,9 @@ interface Props {
   showDone: boolean;
   /** 대시보드 모드 — 가로 캐러셀이 아니라 세로로 쌓여서 페이지와 함께 스크롤된다 */
   stacked?: boolean;
+  /** 지금 펼쳐 둔 할 일. 보드 전체에서 하나만 열린다 */
+  openTodoId: string | null;
+  onToggleOpen: (todoId: string) => void;
   onCreated: () => void;
   onHandoff: (todo: Todo) => void;
   className?: string;
@@ -36,6 +39,8 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     members,
     showDone,
     stacked = false,
+    openTodoId,
+    onToggleOpen,
     onCreated,
     onHandoff,
     className,
@@ -48,9 +53,35 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
   const [busy, setBusy] = useState(false);
 
   const isMine = member.user_id === currentUserId;
-  const open = todos.filter(t => t.status !== 'done');
-  const done = todos.filter(t => t.status === 'done');
-  const visible = showDone ? [...open, ...done] : open;
+
+  /*
+    급한 것부터 위로: 지난 마감 → 오늘 → 나중 → 마감 없음.
+    마감이 같으면 나중에 넣은 것이 위로 온다(position은 새 할 일일수록 작다).
+    완료한 일은 맨 아래에 최근 끝낸 순으로 쌓는다 — 방금 뭘 끝냈는지가 먼저 보여야 한다.
+  */
+  const { open, done, visible } = useMemo(() => {
+    const openList = todos
+      .filter(t => t.status !== 'done')
+      .sort((a, b) => {
+        if (a.due_date !== b.due_date) {
+          // 마감 없는 건 급할 게 없으니 맨 뒤로
+          if (!a.due_date) return 1;
+          if (!b.due_date) return -1;
+          return a.due_date < b.due_date ? -1 : 1;
+        }
+        return a.position - b.position;
+      });
+
+    const doneList = todos
+      .filter(t => t.status === 'done')
+      .sort((a, b) => (b.completed_at ?? '').localeCompare(a.completed_at ?? ''));
+
+    return {
+      open: openList,
+      done: doneList,
+      visible: showDone ? [...openList, ...doneList] : openList,
+    };
+  }, [todos, showDone]);
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
@@ -140,6 +171,8 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
               members={members}
               currentUserId={currentUserId}
               isManager={isManager}
+              open={openTodoId === todo.id}
+              onToggleOpen={() => onToggleOpen(todo.id)}
               onHandoff={onHandoff}
             />
           ))}
