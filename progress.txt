@@ -30,3 +30,12 @@ US-004 할 일 제목 인라인 수정 — 완료
 - 수정 권한은 삭제와 동일(canRemove: 주인/작성자/방장) — 남의 할 일 제목이 실수로 바뀌는 걸 막음
 - 검증: yarn build 성공, yarn lint 경고 0
 
+US-005 다크 테마 시각 디테일 + 모션 배려 — 완료
+- shadow-level-1/2가 테마 변수(--shadow-1/2)를 참조. 흰 배경은 옅게, 검은 배경은 진하고 넓게
+  (옅은 검정 그림자는 검은 배경에서 아예 보이지 않아 층이 사라졌음)
+- success/warning/danger 도 테마 변수로 이동. 검은 배경은 칩 배경을 어둡게 깔고 글자를 밝게
+- --danger-ink 토큰 신설: 꽉 채운 danger 버튼의 글자색. 다크에서 danger가 밝아져
+  text-white로는 대비가 무너지므로 테마별로 반전
+- prefers-reduced-motion 전역 블록은 US-003에서 이미 추가됨
+- 검증: 빌드 CSS에 .shadow-level-1{box-shadow:var(--shadow-1)}, text-danger-ink 확인
+

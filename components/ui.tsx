@@ -11,7 +11,7 @@ const VARIANT: Record<ButtonVariant, string> = {
   outline: 'bg-surface text-ink border border-hairline-strong hover:bg-surface-alt',
   ghost: 'bg-transparent text-ink-muted hover:bg-surface-alt hover:text-ink',
   // 되돌릴 수 없는 동작 전용. 눌러도 되는 버튼처럼 보이면 안 되므로 채워서 쓴다.
-  danger: 'bg-danger text-white hover:opacity-90 active:opacity-80',
+  danger: 'bg-danger text-danger-ink hover:opacity-90 active:opacity-80',
 };
 
 // 모바일 우선 — 터치 타깃을 Apple HIG 최소치(44pt)에 가깝게 두고, sm 이상에서만 조밀하게 줄인다.

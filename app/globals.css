@@ -26,12 +26,14 @@
   --color-accent-soft: var(--accent-soft);
   --color-accent-ink: var(--accent-ink);
 
-  --color-success: #2f7a53;
-  --color-success-soft: #e4f1e9;
-  --color-warning: #a8720f;
-  --color-warning-soft: #f8eeda;
-  --color-danger: #b03a34;
-  --color-danger-soft: #f7e6e4;
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  /* 꽉 채운 danger 버튼 위에 올라가는 글자색 */
+  --color-danger-ink: var(--danger-ink);
 }
 
 /* 기본값. 흰 배경에 따뜻한 검정을 얹어 대비는 또렷하고 톤은 차갑지 않게 잡았다 */
@@ -54,6 +56,23 @@
   --accent: #14120f;
   --accent-soft: #efece5;
   --accent-ink: #ffffff;
+
+  --success: #2f7a53;
+  --success-soft: #e4f1e9;
+  --warning: #a8720f;
+  --warning-soft: #f8eeda;
+  --danger: #b03a34;
+  --danger-soft: #f7e6e4;
+  --danger-ink: #ffffff;
+
+  /* 흰 배경에서는 아주 옅은 그림자로 층만 만든다 */
+  --shadow-1:
+    rgba(0, 0, 0, 0.012) 0 0.175px 1.041px, rgba(0, 0, 0, 0.022) 0 0.8px 2.925px,
+    rgba(0, 0, 0, 0.028) 0 2.025px 7.847px, rgba(0, 0, 0, 0.04) 0 4px 18px;
+  --shadow-2:
+    rgba(0, 0, 0, 0.012) 0 0.175px 1.041px, rgba(0, 0, 0, 0.022) 0 0.8px 2.925px,
+    rgba(0, 0, 0, 0.028) 0 2.025px 7.847px, rgba(0, 0, 0, 0.04) 0 4px 18px,
+    rgba(0, 0, 0, 0.05) 0 23px 52px;
 }
 
 /* 잉크 블랙 — 위 팔레트의 명암을 뒤집되 잉크의 따뜻한 기운은 유지한다 */
@@ -75,6 +94,22 @@
   --accent: #f5f2ec;
   --accent-soft: #2d2c2a;
   --accent-ink: #101010;
+
+  /* 검은 배경에서는 칩 배경을 어둡게 깔고 글자를 밝게 — 밝은 칩은 눈을 찌른다 */
+  --success: #86cfa2;
+  --success-soft: #1a3226;
+  --warning: #e2ba6a;
+  --warning-soft: #33280f;
+  --danger: #ef8b83;
+  --danger-soft: #3a1f1d;
+  --danger-ink: #2a100e;
+
+  /* 옅은 그림자는 검은 배경에서 보이지 않는다. 층을 만들려면 더 진하고 넓게 깔아야 한다 */
+  --shadow-1:
+    rgba(0, 0, 0, 0.5) 0 1px 2px, rgba(0, 0, 0, 0.42) 0 4px 14px;
+  --shadow-2:
+    rgba(0, 0, 0, 0.5) 0 1px 2px, rgba(0, 0, 0, 0.5) 0 8px 24px,
+    rgba(0, 0, 0, 0.42) 0 24px 48px;
 }
 
 :root {
@@ -146,22 +181,13 @@ a {
   height: calc(100dvh - var(--header-h) - var(--board-toolbar-h) - env(safe-area-inset-bottom));
 }
 
-/* ── Elevation ── */
+/* ── Elevation ── 실제 값은 테마 블록의 --shadow-1/2에 있다 */
 @utility shadow-level-1 {
-  box-shadow:
-    rgba(0, 0, 0, 0.012) 0 0.175px 1.041px,
-    rgba(0, 0, 0, 0.022) 0 0.8px 2.925px,
-    rgba(0, 0, 0, 0.028) 0 2.025px 7.847px,
-    rgba(0, 0, 0, 0.04) 0 4px 18px;
+  box-shadow: var(--shadow-1);
 }
 
 @utility shadow-level-2 {
-  box-shadow:
-    rgba(0, 0, 0, 0.012) 0 0.175px 1.041px,
-    rgba(0, 0, 0, 0.022) 0 0.8px 2.925px,
-    rgba(0, 0, 0, 0.028) 0 2.025px 7.847px,
-    rgba(0, 0, 0, 0.04) 0 4px 18px,
-    rgba(0, 0, 0, 0.05) 0 23px 52px;
+  box-shadow: var(--shadow-2);
 }
 
 /* ── Typography scale ── */
