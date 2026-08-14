@@ -23,6 +23,16 @@ function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }
 
+/** YYYY-MM 의 말일 */
+function lastDayOfMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number);
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+}
+
+function minDate(...dates: string[]): string {
+  return dates.reduce((a, b) => (a < b ? a : b));
+}
+
 /**
  * 일정마다 고정 줄(lane)을 매긴다.
  *
@@ -149,6 +159,8 @@ export function CalendarView({
   }, [members]);
 
   const days = monthGrid(month);
+  const monthFirst = `${month}-01`;
+  const monthLast = lastDayOfMonth(month);
   const selectedTodos = todosByDate.get(selected) ?? [];
   const selectedEvents = eventsByDate.get(selected) ?? [];
   const undated = visible.filter(t => !t.due_date);
@@ -242,48 +254,58 @@ export function CalendarView({
               </span>
 
               {/*
-                일정 띠. 줄(lane)은 일정마다 고정이라 기간 중간에 위아래로 꺾이지 않는다.
-                시작일과 주의 첫날에서만 이름을 얹고, 그 주에 이어지는 칸 수만큼 폭을 늘려
-                옆 칸 위로 흘려보낸다 — 칸 하나에 가두면 두 글자도 못 넣는다.
+                일정 띠.
+
+                한 칸씩 그리지 않고 "세그먼트" 단위로 그린다 — 한 주 안에서 이어지는 구간
+                하나가 span 하나다. 칸마다 그리면 두 가지가 어긋난다:
+                모서리 둥글기를 칸 기준으로 판정해 기간 중간에서 둥글어지고,
+                이름을 얹은 넓은 띠 아래에 칸별 띠가 겹쳐 그려진다.
+
+                세그먼트는 주 경계와 달 경계에서 끊는다. 달 경계를 안 끊으면 말일 다음
+                빈 칸(다음 달 자리) 위로 띠가 흘러간다.
               */}
               <span className="flex min-h-[45px] flex-col gap-[2px]">
                 {Array.from({ length: MAX_LANES }, (_, lane) => {
                   const event = dayEvents.find(e => laneOf.get(e.id) === lane);
                   if (!event) return <span key={lane} className="h-[13px]" />;
 
+                  // 세그먼트는 일정이 시작하거나, 주가 바뀌거나, 달이 바뀌는 칸에서 시작한다
+                  const startsHere =
+                    event.start_date === date || weekdayOf(date) === 0 || date === monthFirst;
+                  // 그 밖의 칸은 이미 앞 세그먼트가 덮고 있다 — 줄 높이만 유지한다
+                  if (!startsHere) return <span key={lane} className="h-[13px]" />;
+
+                  const segEnd = minDate(
+                    event.end_date,
+                    addDays(date, 6 - weekdayOf(date)),
+                    monthLast
+                  );
+                  const span = daysBetween(date, segEnd) + 1;
                   const color = getEventColor(event.color);
-                  const isStart = event.start_date === date;
-                  const isEnd = event.end_date === date;
-                  // 주가 바뀌면 이름을 다시 적어 준다. 안 그러면 긴 일정이 이름 없는 띠가 된다
-                  const showLabel = isStart || weekdayOf(date) === 0;
-                  const spanDays = showLabel
-                    ? Math.min(6 - weekdayOf(date), daysBetween(date, event.end_date)) + 1
-                    : 1;
+
+                  // 잘린 쪽은 각지게 둔다 — 그래야 다음 줄/다음 주로 이어진다는 게 보인다
+                  const roundStart = event.start_date === date;
+                  const roundEnd = event.end_date === segEnd;
 
                   return (
                     <span
                       key={lane}
                       title={event.title}
                       className={cn(
-                        'relative flex h-[13px] items-center overflow-hidden',
-                        isStart ? 'ml-0.5 rounded-l-full pl-1.5' : '-ml-1',
-                        isEnd ? 'mr-0.5 rounded-r-full' : '-mr-1',
-                        // 이름을 얹은 띠가 옆 칸의 띠에 덮이지 않게 한 겹 올린다
-                        showLabel && 'z-10'
+                        'relative z-10 flex h-[13px] items-center overflow-hidden px-1.5',
+                        roundStart && 'rounded-l-full',
+                        roundEnd && 'rounded-r-full'
                       )}
                       style={{
                         background: color.bar,
                         color: color.ink,
-                        width: showLabel
-                          ? `calc(100% * ${spanDays} + ${CELL_GAP_PX * (spanDays - 1)}px)`
-                          : undefined,
+                        // 칸 폭(100%) × 칸 수 + 칸 사이 간격
+                        width: `calc(100% * ${span} + ${CELL_GAP_PX * (span - 1)}px)`,
                       }}
                     >
-                      {showLabel && (
-                        <span className="truncate text-[9px] leading-none font-medium">
-                          {event.title}
-                        </span>
-                      )}
+                      <span className="truncate text-[9px] leading-none font-medium">
+                        {event.title}
+                      </span>
                     </span>
                   );
                 })}
