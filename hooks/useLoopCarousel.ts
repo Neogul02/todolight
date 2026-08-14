@@ -53,7 +53,10 @@ export function useLoopCarousel<T>(
     let nearest = 0;
     let best = Infinity;
     nodeRefs.current.forEach((el, i) => {
-      if (!el) return;
+      // 멤버가 줄면 예전 인덱스의 ref가 떨어져 나간 노드로 남는다.
+      // 그런 노드의 getBoundingClientRect()는 전부 0이라 스냅 기준선에 가장 가깝다고
+      // 잘못 뽑힐 수 있다 — 붙어 있는 노드만 본다.
+      if (!el || !el.isConnected) return;
       const distance = Math.abs(offsetFromSnapLine(scroller, el));
       if (distance < best) {
         best = distance;
@@ -93,6 +96,8 @@ export function useLoopCarousel<T>(
   // 복제본을 앞에 뒀으므로 처음에는 두 번째 슬라이드(= 진짜 첫 번째)에서 시작해야 한다.
   // 멤버 수가 바뀌면 슬라이드 배열이 통째로 달라지므로 다시 맞춘다.
   useEffect(() => {
+    // 슬라이드 수가 줄었을 때 남는 뒤쪽 ref를 잘라 낸다
+    nodeRefs.current.length = loop ? count + 2 : count;
     if (!loop) return;
     const id = requestAnimationFrame(() => jumpTo(1, false));
     return () => cancelAnimationFrame(id);
