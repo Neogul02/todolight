@@ -23,3 +23,6 @@ next-env.d.ts
 coverage/
 
 .omc/
+
+# codegraph 인덱스 DB — 로컬에서 codegraph init 으로 다시 만든다
+.codegraph/
