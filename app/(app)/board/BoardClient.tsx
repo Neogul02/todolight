@@ -288,9 +288,12 @@ export default function BoardClient() {
         {!loading && !error && mode === 'calendar' && (
           <motion.div key="calendar" {...viewMotion}>
             <CalendarView
+              orgId={activeOrgId}
               todos={todos.data ?? []}
               members={orderedMembers}
               showDone={showDone}
+              currentUserId={userId}
+              isManager={isManager}
             />
           </motion.div>
         )}

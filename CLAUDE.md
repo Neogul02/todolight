@@ -127,6 +127,9 @@ todos           id, org_id, owner_id, title, status('todo'|'doing'|'done'), due_
                 position(double), created_by, handled_by, completed_at, deleted_at,
                 created_at, updated_at
 todo_notes      id, todo_id, author_id, content, created_at
+org_events      id, org_id, title, color, start_date, end_date, created_by,
+                created_at, updated_at, deleted_at
+                — CHECK (end_date >= start_date)
 ```
 
 - `todos.owner_id`가 보드에서 어느 컬럼에 놓일지를 결정한다. `created_by`와 다르면
@@ -136,6 +139,21 @@ todo_notes      id, todo_id, author_id, content, created_at
 - **삭제는 전부 소프트 삭제다.** `deleted_at`만 찍고 행은 남긴다 — 카드 오른쪽 X는 확인 창 없이
   바로 눌리므로 실수해도 되돌릴 수 있어야 한다. 모든 조회에 `.is('deleted_at', null)`를
   빠뜨리지 말 것(부분 인덱스 `todos_org_owner_alive_idx`도 이 조건 기준이다).
+
+### 일정(org_events)은 할 일이 아니다
+
+**테이블을 나눈 이유**: 기간을 갖고, 담당자가 없고, 보드에 뜨지 않는다.
+`todos`에 억지로 얹으면 모든 보드 조회에 "일정 제외" 조건이 붙고 한 번 빠뜨리면 새어 나온다.
+지금은 `fetchOrgTodos`가 `todos`만 읽으므로 보드에 섞일 길 자체가 없다.
+
+- 색은 키 문자열이고 실제 값은 `lib/event-colors.ts`가 갖는다(아바타 색보다 진하다 —
+  아바타는 사람을 구분하는 배경이고 일정은 얇은 띠라 눈에 걸려야 한다).
+- 시작·끝을 거꾸로 넣으면 막지 않고 **뒤집어서 저장한다**(`normalizeRange`).
+- 지우는 건 만든 사람이나 방장만. 할 일과 같이 소프트 삭제다.
+- 달력에서 날짜별로 쓰려면 기간을 펼쳐야 한다 — 하루마다 전체 일정을 훑으면
+  O(날짜 × 일정)이라, `CalendarView`가 시작일부터 종료일까지 한 번만 훑어 map을 만든다.
+- 달력 띠는 칸 사이 간격만큼 좌우로 넓혀(`-ml-1` / `-mr-1`) 기간이 끊기지 않고 이어져 보이게
+  하고, 시작일·종료일에서만 모서리를 둥글게 해 어디서 시작하고 끝나는지 드러낸다.
 
 ### RLS
 

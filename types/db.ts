@@ -85,3 +85,22 @@ export interface Todo {
   deleted_at: string | null;
   notes?: TodoNote[];
 }
+
+/**
+ * 조직 일정. 할 일과 다른 것이다 —
+ * 기간을 갖고, 담당자가 없고, 보드에는 뜨지 않는다(달력 전용).
+ */
+export interface OrgEvent {
+  id: string;
+  org_id: string;
+  title: string;
+  /** 색 키. 실제 값은 lib/event-colors.ts */
+  color: string;
+  start_date: string;
+  /** 하루짜리면 start_date와 같다 */
+  end_date: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}

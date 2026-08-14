@@ -23,8 +23,8 @@ import { AppContextProvider, type OrgWithRole } from './OrgContext';
  * 받은 초대는 결국 "어느 조직을 볼지"의 문제라 별도 탭 없이 조직 시트 안에서 바로 처리한다.
  */
 const MENU = [
-  { href: '/team', label: '팀 관리', hint: '멤버 초대·역할' },
-  { href: '/me', label: '내 설정', hint: '이름·아바타·테마' },
+  { href: '/team', label: '팀', hint: '멤버 초대·역할' },
+  { href: '/me', label: 'General', hint: '이름·아바타·테마' },
 ];
 
 export default function AppShell({
