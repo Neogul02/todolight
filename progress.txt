@@ -14,3 +14,11 @@ US-002 삭제 실행취소 토스트 — 완료
 - remove.onSuccess에서 실행취소 토스트를 띄우고 restore.mutate로 되살림
 - 검증: yarn build 성공, yarn lint 경고 0
 
+US-003 보드 로딩 스켈레톤 — 완료
+- app/(app)/board/BoardSkeleton.tsx 신설. board-viewport와 컬럼 폭(w-full / sm:w-[330px])을
+  실제 컬럼과 동일하게 써서 로딩이 끝나도 레이아웃이 튀지 않음
+- animate-pulse-soft 유틸 추가 (기본 pulse는 투명도 0까지 떨어져 깜빡임이 셈)
+- prefers-reduced-motion: reduce 전역 블록 추가 — 애니메이션/트랜지션/스무스 스크롤 무력화
+  (US-005의 모션 배려 기준 일부를 여기서 미리 충족)
+- 검증: 빌드 산출 CSS에 .animate-pulse-soft, prefers-reduced-motion 존재 확인
+

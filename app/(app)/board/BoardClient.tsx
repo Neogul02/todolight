@@ -14,11 +14,12 @@ import { useLoopCarousel } from '@/hooks/useLoopCarousel';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useApp } from '../OrgContext';
 import { Avatar } from '@/components/Avatar';
-import { Button, Card, Spinner } from '@/components/ui';
+import { Button, Card } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import type { MemberSummary, Todo } from '@/types/db';
 import MemberColumn from './MemberColumn';
 import HandoffModal from './HandoffModal';
+import { BoardSkeleton } from './BoardSkeleton';
 
 /** board = 멤버별 가로 캐러셀(기본), dashboard = 세로로 전부 쌓아 한 번에 훑기 */
 type Mode = 'board' | 'dashboard';
@@ -159,11 +160,7 @@ export default function BoardClient() {
         </div>
       </div>
 
-      {loading && (
-        <div className="flex items-center gap-2 px-4 py-16 text-ink-muted">
-          <Spinner /> 불러오는 중…
-        </div>
-      )}
+      {loading && <BoardSkeleton />}
 
       {error && (
         <Card className="mx-3 p-5 text-[14px] text-danger sm:mx-4">

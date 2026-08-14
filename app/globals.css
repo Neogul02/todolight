@@ -227,6 +227,21 @@ a {
   scroll-snap-stop: always;
 }
 
+/* 스켈레톤 — 기본 pulse는 투명도가 0까지 떨어져 깜빡임이 세다 */
+@utility animate-pulse-soft {
+  animation: pulse-soft 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
 /* ── 모바일 입력 확대 방지 (iOS Safari) ── */
 @media (max-width: 767px) {
   input:not([type='checkbox']):not([type='radio']),
@@ -247,4 +262,18 @@ a {
 ::-webkit-scrollbar-thumb {
   background: var(--hairline-strong);
   border-radius: 9999px;
+}
+
+/* ── 모션 최소화 설정 존중 ──
+   멀미·전정기관 문제로 애니메이션을 끈 사용자에게는 전환을 없앤다.
+   framer-motion도 이 설정을 읽지만, CSS 애니메이션은 여기서 직접 막아야 한다. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
