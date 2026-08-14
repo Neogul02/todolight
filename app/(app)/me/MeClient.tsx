@@ -7,7 +7,7 @@ import { updateMyProfile } from '@/app/actions/profile';
 import { applyTheme } from '@/app/providers';
 import { THEMES } from '@/lib/themes';
 import { AVATAR_COLORS, getAvatarColor } from '@/lib/avatar';
-import { removeAvatar, uploadAvatar } from '@/lib/avatar-upload';
+import { removeAvatar, uploadAvatar } from '@/lib/image-upload';
 import { Avatar } from '@/components/Avatar';
 import { Badge, Button, Card, Input } from '@/components/ui';
 import { showMsg } from '@/lib/toast';

@@ -1,6 +1,5 @@
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 
-const BUCKET = 'avatars';
 const SIZE = 256;
 
 /**
@@ -29,29 +28,38 @@ async function toSquareWebp(file: File): Promise<Blob> {
 }
 
 /**
- * 아바타를 올리고 공개 URL을 돌려준다.
- * 경로는 사용자마다 하나로 고정(`{userId}/avatar.webp`)하고 덮어쓴다 —
- * 파일이 쌓이지 않고, 대신 URL 끝에 버전 쿼리를 붙여 브라우저 캐시를 무효화한다.
+ * 정사각형 이미지를 올리고 공개 URL을 돌려준다.
+ * 경로는 대상마다 하나로 고정하고 덮어쓴다 — 파일이 쌓이지 않는 대신 브라우저가 옛 이미지를
+ * 캐시하므로, 돌려주는 URL 끝에 버전 쿼리를 붙여 무효화한다.
  */
-export async function uploadAvatar(userId: string, file: File): Promise<string> {
+async function uploadSquare(bucket: string, path: string, file: File): Promise<string> {
   if (!file.type.startsWith('image/')) throw new Error('이미지 파일만 올릴 수 있어요.');
 
   const blob = await toSquareWebp(file);
-  const path = `${userId}/avatar.webp`;
   const supabase = createSupabaseBrowserClient();
 
   const { error } = await supabase.storage
-    .from(BUCKET)
+    .from(bucket)
     .upload(path, blob, { contentType: 'image/webp', upsert: true });
   if (error) throw new Error(error.message);
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return `${data.publicUrl}?v=${Date.now()}`;
 }
 
-export async function removeAvatar(userId: string): Promise<void> {
+async function removeFile(bucket: string, path: string): Promise<void> {
   const supabase = createSupabaseBrowserClient();
-  const { error } = await supabase.storage.from(BUCKET).remove([`${userId}/avatar.webp`]);
-  // 파일이 이미 없어도 프로필의 URL은 지워야 하므로 실패를 삼킨다
-  if (error) console.error('[avatar]', error.message);
+  const { error } = await supabase.storage.from(bucket).remove([path]);
+  // 파일이 이미 없어도 DB의 URL은 지워야 하므로 실패를 삼킨다
+  if (error) console.error('[storage]', error.message);
 }
+
+export const uploadAvatar = (userId: string, file: File) =>
+  uploadSquare('avatars', `${userId}/avatar.webp`, file);
+
+export const removeAvatar = (userId: string) => removeFile('avatars', `${userId}/avatar.webp`);
+
+export const uploadOrgImage = (orgId: string, file: File) =>
+  uploadSquare('org-images', `${orgId}/icon.webp`, file);
+
+export const removeOrgImage = (orgId: string) => removeFile('org-images', `${orgId}/icon.webp`);

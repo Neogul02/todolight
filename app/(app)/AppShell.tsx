@@ -9,6 +9,7 @@ import { fetchMyInvites, respondToInvite } from '@/app/actions/orgs';
 import { useActiveOrg } from '@/hooks/useActiveOrg';
 import { applyTheme } from '@/app/providers';
 import { Avatar } from '@/components/Avatar';
+import { OrgIcon } from '@/components/OrgIcon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { Button } from '@/components/ui';
 import { showMsg } from '@/lib/toast';
@@ -126,6 +127,14 @@ export default function AppShell({
               onClick={() => setOrgSheetOpen(true)}
               className="flex min-w-0 flex-1 items-center gap-1.5 rounded-xl px-2 py-1.5 text-left no-select transition-colors active:bg-canvas-soft sm:hover:bg-canvas-soft"
             >
+              {activeOrg && (
+                <OrgIcon
+                  name={activeOrg.name}
+                  imageUrl={activeOrg.image_url}
+                  seed={activeOrg.id}
+                  size="sm"
+                />
+              )}
               <span className="truncate text-[16px] font-semibold tracking-tight text-ink sm:text-[15px]">
                 {activeOrg?.name ?? 'todolight'}
               </span>
@@ -215,6 +224,7 @@ export default function AppShell({
                   o.id === activeOrgId ? 'bg-canvas-soft' : ''
                 )}
               >
+                <OrgIcon name={o.name} imageUrl={o.image_url} seed={o.id} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[15px] font-medium text-ink">{o.name}</span>
                   <span className="block text-[12px] text-ink-faint">

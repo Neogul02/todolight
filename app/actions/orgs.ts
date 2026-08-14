@@ -35,7 +35,7 @@ export async function fetchMyOrgs(): Promise<ApiResponse<(Organization & { role:
     const user = await requireAuth();
     const { data, error } = await getSupabaseAdmin()
       .from('org_members')
-      .select('role, organizations!inner (id, name, owner_id, created_at)')
+      .select('role, organizations!inner (id, name, owner_id, image_url, created_at)')
       .eq('user_id', user.id)
       .order('joined_at', { ascending: true });
     if (error) throw new Error(error.message);
@@ -69,7 +69,7 @@ export async function createOrg(name: string): Promise<ApiResponse<Organization>
     const { data: org, error } = await getSupabaseAdmin()
       .from('organizations')
       .insert({ name: parsed, owner_id: user.id })
-      .select('id, name, owner_id, created_at')
+      .select('id, name, owner_id, image_url, created_at')
       .single();
     if (error) throw new Error(error.message);
 
@@ -321,6 +321,26 @@ export async function updateMemberRole(
       .eq('org_id', orgId)
       .eq('user_id', userId);
     if (error) throw new Error(error.message);
+    return null;
+  });
+}
+
+/** 조직 아이콘 설정 — 업로드는 클라이언트가 Storage에 직접 하고, 여기서는 URL만 붙인다 */
+export async function updateOrgImage(
+  orgId: string,
+  imageUrl: string | null
+): Promise<ApiResponse<null>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    await requireManager(orgId, user.id);
+
+    const { error } = await getSupabaseAdmin()
+      .from('organizations')
+      .update({ image_url: imageUrl || null })
+      .eq('id', orgId);
+    if (error) throw new Error(error.message);
+
+    revalidatePath('/board');
     return null;
   });
 }

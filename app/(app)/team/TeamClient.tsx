@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,11 +12,14 @@ import {
   renameOrg,
   revokeInvite,
   updateMemberRole,
+  updateOrgImage,
   updateOrgWebhook,
 } from '@/app/actions/orgs';
+import { removeOrgImage, uploadOrgImage } from '@/lib/image-upload';
 import { useOrgMembers } from '@/hooks/useOrgBoard';
 import { useApp } from '../OrgContext';
 import { Avatar } from '@/components/Avatar';
+import { OrgIcon } from '@/components/OrgIcon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { Badge, Button, Card, EmptyState, Input, Spinner } from '@/components/ui';
 import { showMsg } from '@/lib/toast';
@@ -36,6 +39,44 @@ export default function TeamClient() {
   const [webhook, setWebhook] = useState<string | null>(null);
   // 내보내기는 되돌릴 수 없다 — 빨간 버튼 하나로 끝내지 않고 시트에서 한 번 더 확인받는다
   const [pendingKick, setPendingKick] = useState<MemberSummary | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const orgFileRef = useRef<HTMLInputElement | null>(null);
+
+  // 아이콘도 아바타와 같게 — 고르는 즉시 올리고 반영한다
+  async function pickOrgImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !activeOrgId || uploading) return;
+
+    setUploading(true);
+    try {
+      const url = await uploadOrgImage(activeOrgId, file);
+      const res = await updateOrgImage(activeOrgId, url);
+      if (!res.success) throw new Error(res.error);
+      showMsg('조직 이미지를 바꿨어요.', 'success');
+      router.refresh();
+    } catch (err) {
+      showMsg(err instanceof Error ? err.message : String(err), 'error');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function clearOrgImage() {
+    if (!activeOrgId || uploading) return;
+    setUploading(true);
+    try {
+      await removeOrgImage(activeOrgId);
+      const res = await updateOrgImage(activeOrgId, null);
+      if (!res.success) throw new Error(res.error);
+      showMsg('조직 이미지를 지웠어요.', 'success');
+      router.refresh();
+    } catch (err) {
+      showMsg(err instanceof Error ? err.message : String(err), 'error');
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const invites = useQuery({
     queryKey: ['org-invites', activeOrgId],
@@ -147,11 +188,19 @@ export default function TeamClient() {
 
   return (
     <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-5 pb-safe sm:py-6">
-      <div>
-        <h1 className="text-heading-2 text-ink">{activeOrg.name}</h1>
-        <p className="mt-0.5 text-caption text-ink-muted">
-          멤버 {activeOrg.member_count}명 · 내 역할 {ROLE_LABEL[activeOrg.role]}
-        </p>
+      <div className="flex items-center gap-3">
+        <OrgIcon
+          name={activeOrg.name}
+          imageUrl={activeOrg.image_url}
+          seed={activeOrg.id}
+          size="lg"
+        />
+        <div className="min-w-0">
+          <h1 className="truncate text-heading-2 text-ink">{activeOrg.name}</h1>
+          <p className="mt-0.5 text-caption text-ink-muted">
+            멤버 {activeOrg.member_count}명 · 내 역할 {ROLE_LABEL[activeOrg.role]}
+          </p>
+        </div>
       </div>
 
       {isManager && (
@@ -316,6 +365,43 @@ export default function TeamClient() {
               저장
             </Button>
           </form>
+        </Card>
+      )}
+
+      {isManager && (
+        <Card className="p-5">
+          <h2 className="text-title text-ink">조직 이미지</h2>
+          <p className="mt-1 text-caption text-ink-muted">
+            헤더와 조직 목록에 보여요. 없으면 이름 첫 글자로 그려요.
+          </p>
+          <input
+            ref={orgFileRef}
+            type="file"
+            accept="image/*"
+            onChange={pickOrgImage}
+            className="hidden"
+          />
+          <div className="mt-3 flex items-center gap-3">
+            <OrgIcon
+              name={activeOrg.name}
+              imageUrl={activeOrg.image_url}
+              seed={activeOrg.id}
+              size="lg"
+            />
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => orgFileRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? '올리는 중…' : activeOrg.image_url ? '이미지 바꾸기' : '이미지 올리기'}
+            </Button>
+            {activeOrg.image_url && (
+              <Button variant="ghost" onClick={clearOrgImage} disabled={uploading}>
+                지우기
+              </Button>
+            )}
+          </div>
         </Card>
       )}
 

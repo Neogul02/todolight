@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -10,6 +10,8 @@ import {
   useOrgPresence,
   useOrgTodos,
 } from '@/hooks/useOrgBoard';
+import { useLoopCarousel } from '@/hooks/useLoopCarousel';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useApp } from '../OrgContext';
 import { Avatar } from '@/components/Avatar';
 import { Button, Card, Spinner } from '@/components/ui';
@@ -34,10 +36,6 @@ export default function BoardClient() {
   const [showDone, setShowDone] = useState(true);
   const [mode, setMode] = useState<Mode>('board');
   const [handoff, setHandoff] = useState<Todo | null>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  const scrollerRef = useRef<HTMLDivElement | null>(null);
-  const columnRefs = useRef<(HTMLElement | null)[]>([]);
 
   // 내 컬럼을 항상 맨 앞으로 — 내 할 일을 먼저 보게 한다.
   const orderedMembers = useMemo(() => {
@@ -59,32 +57,16 @@ export default function BoardClient() {
     return map;
   }, [todos.data]);
 
-  // 스와이프로 넘어간 위치를 아바타 스트립·인디케이터에 반영한다.
-  const syncActiveIndex = useCallback(() => {
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
-    const center = scroller.scrollLeft + scroller.clientWidth / 2;
-    let nearest = 0;
-    let nearestDistance = Infinity;
-    columnRefs.current.forEach((el, i) => {
-      if (!el) return;
-      const elCenter = el.offsetLeft + el.offsetWidth / 2;
-      const distance = Math.abs(elCenter - center);
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearest = i;
-      }
-    });
-    setActiveIndex(nearest);
-  }, []);
-
-  function goToMember(index: number) {
-    columnRefs.current[index]?.scrollIntoView({
-      behavior: 'smooth',
-      inline: 'start',
-      block: 'nearest',
-    });
-  }
+  /*
+    한 화면에 한 명만 보이는 모바일에서만 순환시킨다.
+    데스크톱은 컬럼이 여러 개 동시에 보여서, 끝에서 되감기면 화면이 뚝 끊긴 것처럼 보인다.
+  */
+  const oneAtATime = !useMediaQuery('(min-width: 640px)');
+  const { scrollerRef, slides, activeIndex, onScroll, goTo, registerNode } = useLoopCarousel(
+    orderedMembers,
+    m => m.user_id,
+    oneAtATime
+  );
 
   function refresh() {
     if (activeOrgId) queryClient.invalidateQueries({ queryKey: boardKeys.todos(activeOrgId) });
@@ -138,7 +120,7 @@ export default function BoardClient() {
                 remaining={
                   (todosByOwner.get(m.user_id) ?? []).filter(t => t.status !== 'done').length
                 }
-                onClick={() => goToMember(i)}
+                onClick={() => goTo(i)}
               />
             ))}
           </div>
@@ -195,7 +177,7 @@ export default function BoardClient() {
       {!loading && !error && mode === 'board' && (
         <div
           ref={scrollerRef}
-          onScroll={syncActiveIndex}
+          onScroll={onScroll}
           /*
             scroll-pl은 스냅 기준선을 좌측 패딩만큼 밀어 준다.
             없으면 두 번째 컬럼부터 패딩을 무시하고 화면 왼쪽 끝에 붙어서, 오른쪽에 다음 컬럼이
@@ -203,14 +185,12 @@ export default function BoardClient() {
           */
           className="snap-board board-viewport flex gap-3 overflow-x-auto scroll-pl-3 px-3 pb-3 sm:scroll-pl-4 sm:px-4"
         >
-          {orderedMembers.map((m, i) => (
+          {slides.map((slide, i) => (
             <MemberColumn
-              key={m.user_id}
-              ref={el => {
-                columnRefs.current[i] = el;
-              }}
-              member={m}
-              todos={todosByOwner.get(m.user_id) ?? []}
+              key={slide.key}
+              ref={registerNode(i)}
+              member={slide.item}
+              todos={todosByOwner.get(slide.item.user_id) ?? []}
               orgId={activeOrgId!}
               currentUserId={userId}
               isManager={isManager}

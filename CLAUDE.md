@@ -118,7 +118,7 @@ export async function fetchXxx(): Promise<ApiResponse<T>> {
 
 ```
 profiles        id (FK auth.users), email, display_name, avatar_color, avatar_url, theme, created_at
-organizations   id, name, owner_id, discord_webhook_url, created_at
+organizations   id, name, owner_id, image_url, discord_webhook_url, created_at
 org_members     id, org_id, user_id, role('owner'|'admin'|'member'), joined_at   UNIQUE(org_id,user_id)
 org_invites     id, org_id, email, invited_by, status('pending'|'accepted'|'declined'|'revoked'),
                 created_at, responded_at
@@ -238,8 +238,21 @@ todo_notes      id, todo_id, author_id, content, created_at
   스냅 기준이 패딩을 무시해 옆 컬럼이 삐져나온다. `100vw`로 잡는 것도 금물 —
   스크롤바 폭만큼 어긋난다.
 - `sm:` 이상은 330px 고정이라 여러 명이 한눈에 들어온다.
-- 현재 위치는 스크롤 위치에서 역산해(`syncActiveIndex`) 상단 멤버 칩 하이라이트에 반영한다.
-  멤버 칩을 탭하면 `scrollIntoView`로 그 컬럼으로 이동한다.
+- **모바일에서는 순환한다** (`hooks/useLoopCarousel.ts`). 내 컬럼에서 왼쪽으로 밀면 맨 끝
+  팀원이, 맨 끝에서 오른쪽으로 밀면 내가 나온다.
+  구현은 양 끝 항목의 **복제본을 앞뒤에 하나씩 덧대고**, 스크롤이 멎었을 때 복제본 위에 있으면
+  같은 내용의 진짜 항목 위치로 순간 이동시키는 방식이다. 화면이 똑같아서 이동이 보이지 않는다.
+  - 되감기는 **관성이 멎은 뒤**(120ms 디바운스)에만 한다. 스크롤 도중에 옮기면 손가락과 화면이
+    어긋난다.
+  - 순간 이동은 `scrollLeft` 직접 대입으로 한다(`scroll-behavior`가 auto라 즉시 이동).
+  - 위치 계산은 `getBoundingClientRect()` 기준이다 — `offsetLeft`는 `offsetParent`가 무엇이냐에
+    따라 기준점이 달라져서 어긋난다.
+  - 드래그를 직접 구현하지 않은 이유: 네이티브 스크롤을 버리면 컬럼 내부의 세로 스크롤과
+    충돌한다. 관성·스냅도 직접 만들어야 한다.
+  - 데스크톱(`sm:` 이상)은 순환하지 않는다 — 컬럼이 여러 개 동시에 보여서 되감기면 화면이
+    뚝 끊긴 것처럼 보인다.
+- 현재 위치는 스크롤 위치에서 역산해 상단 멤버 칩 하이라이트에 반영한다.
+  멤버 칩을 탭하면 그 컬럼으로 부드럽게 이동한다.
 
 **대시보드** — 툴바의 대시보드 버튼으로 전환. 모든 멤버를 세로로 쌓아 위아래 스크롤로 한 번에
 훑는다(`sm:`부터 2열, `lg:`부터 3열). `MemberColumn`에 `stacked`를 주면 뷰포트 높이 고정과
@@ -288,7 +301,8 @@ apple-icon만 PNG로 그린다.
 (색 키 문자열, 예: `sea`). 팔레트는 12색이고, 늘릴 때는 `AVATAR_COLORS`에만 추가하면 된다.
 색은 화이트·블랙 두 테마 위에서 모두 읽히도록 중간 밝기로 골랐다.
 
-**사진 업로드**(`lib/avatar-upload.ts`)는 Supabase Storage의 `avatars` 버킷을 쓴다.
+**사진 업로드**(`lib/image-upload.ts`)는 Supabase Storage를 쓴다.
+사람 아바타는 `avatars`, 조직 아이콘은 `org-images` 버킷이다.
 
 - 원본을 그대로 올리지 않는다 — 캔버스로 가운데를 정사각형으로 잘라 **256px webp**로 줄인다
   (폰 사진 3~5MB → 보통 20KB대).
@@ -300,6 +314,11 @@ apple-icon만 PNG로 그린다.
   즉 남의 폴더에는 못 올린다.
 - 사진은 "저장" 버튼을 기다리지 않고 고르는 즉시 업로드·반영한다. 업로드가 끝났는데 저장을
   또 눌러야 하면 올라간 건지 알 수 없다.
+
+**조직 아이콘**(`components/OrgIcon.tsx`)은 사람 아바타와 구분되도록 원이 아니라 **둥근 사각형**이다.
+없으면 조직 이름 첫 글자 + 조직 id에서 뽑은 색. 헤더의 조직 이름 왼쪽, 조직 시트, 팀 화면에 나온다.
+업로드는 방장/관리자만 — `org-images` 버킷 정책이
+`public.is_org_manager((storage.foldername(name))[1]::uuid)`로 막는다(경로 첫 폴더가 조직 id).
 
 ### 상태를 effect로 만들지 말 것
 

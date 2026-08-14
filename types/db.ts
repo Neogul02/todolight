@@ -17,6 +17,8 @@ export interface Organization {
   id: string;
   name: string;
   owner_id: string;
+  /** 조직 아이콘. 없으면 이름 첫 글자 + id에서 뽑은 색으로 그린다 */
+  image_url: string | null;
   created_at: string;
 }
 
