@@ -29,6 +29,9 @@ interface Props {
   className?: string;
 }
 
+/** 완료 항목을 접기 전에 보여 줄 개수. 최근 끝낸 몇 개만 보이면 충분하다 */
+const VISIBLE_DONE = 3;
+
 const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
   {
     member,
@@ -48,6 +51,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
   ref
 ) {
   const [title, setTitle] = useState('');
+  const [showAllDone, setShowAllDone] = useState(false);
   // 마감은 오늘이 기본 — 대부분 오늘 할 일이고, 아니면 스테퍼로 하루씩 밀면 된다
   const [due, setDue] = useState<string | null>(todayKST());
   const [busy, setBusy] = useState(false);
@@ -59,7 +63,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     마감이 같으면 나중에 넣은 것이 위로 온다(position은 새 할 일일수록 작다).
     완료한 일은 맨 아래에 최근 끝낸 순으로 쌓는다 — 방금 뭘 끝냈는지가 먼저 보여야 한다.
   */
-  const { open, done, visible } = useMemo(() => {
+  const { open, done } = useMemo(() => {
     const openList = todos
       .filter(t => t.status !== 'done')
       .sort((a, b) => {
@@ -76,12 +80,17 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
       .filter(t => t.status === 'done')
       .sort((a, b) => (b.completed_at ?? '').localeCompare(a.completed_at ?? ''));
 
-    return {
-      open: openList,
-      done: doneList,
-      visible: showDone ? [...openList, ...doneList] : openList,
-    };
-  }, [todos, showDone]);
+    return { open: openList, done: doneList };
+  }, [todos]);
+
+  /*
+    완료가 쌓이면 컬럼을 통째로 잠식해서 남은 일이 스크롤 밖으로 밀린다.
+    최근 끝낸 몇 개만 두고 나머지는 접는다 — 지우는 게 아니라 접는 것이라 언제든 펼 수 있다.
+  */
+  const hiddenDone = showDone && !showAllDone ? Math.max(0, done.length - VISIBLE_DONE) : 0;
+  const visible = showDone
+    ? [...open, ...(showAllDone ? done : done.slice(0, VISIBLE_DONE))]
+    : open;
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
@@ -177,6 +186,30 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
             />
           ))}
         </AnimatePresence>
+
+        {hiddenDone > 0 && (
+          <li>
+            <button
+              type="button"
+              onClick={() => setShowAllDone(true)}
+              className="w-full rounded-xl border border-dashed border-hairline py-2 text-caption text-ink-muted transition-colors active:bg-canvas-soft"
+            >
+              완료 {hiddenDone}개 더 보기
+            </button>
+          </li>
+        )}
+
+        {showDone && showAllDone && done.length > VISIBLE_DONE && (
+          <li>
+            <button
+              type="button"
+              onClick={() => setShowAllDone(false)}
+              className="w-full rounded-xl border border-dashed border-hairline py-2 text-caption text-ink-muted transition-colors active:bg-canvas-soft"
+            >
+              완료 접기
+            </button>
+          </li>
+        )}
 
         {visible.length === 0 && (
           <li className="rounded-xl border border-dashed border-hairline px-3 py-8 text-center text-caption text-ink-faint">
