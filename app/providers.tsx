@@ -43,8 +43,28 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeSync />
       {children}
-      {/* sticky 헤더에 가리지 않도록 헤더 높이만큼 내려서 띄운다 */}
-      <Toaster position="top-center" richColors offset="calc(var(--header-h) + 8px)" />
+      {/*
+        sticky 헤더에 가리지 않도록 헤더 높이만큼 내려서 띄운다.
+        richColors는 sonner가 자체 팔레트를 쓰게 만들어 잉크 블랙에서 흰 박스로 튄다 —
+        시맨틱 토큰으로 직접 칠한다.
+      */}
+      <Toaster
+        position="top-center"
+        offset="calc(var(--header-h) + 8px)"
+        toastOptions={{
+          classNames: {
+            toast:
+              'bg-surface text-ink border border-hairline shadow-level-2 rounded-xl text-[14px]',
+            title: 'text-ink',
+            description: 'text-ink-muted',
+            actionButton: 'bg-accent text-accent-ink rounded-lg px-2.5 h-8 text-[13px] font-medium',
+            cancelButton: 'bg-canvas-soft text-ink-muted rounded-lg',
+            icon: 'text-ink-muted',
+            success: 'text-ink',
+            error: 'text-danger',
+          },
+        }}
+      />
     </QueryClientProvider>
   );
 }

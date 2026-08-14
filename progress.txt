@@ -75,3 +75,12 @@ deslop (Step 7.5)
 - BoardSkeleton: 폭 하나 때문에 열어 둔 style 프롭 제거
 - 회귀 재검증(Step 7.6): yarn build 성공, yarn lint 경고 0, / /login /reset 200
 
+US-008/009/010/013 — 완료
+- 토스트: richColors 제거하고 toastOptions.classNames로 시맨틱 토큰 적용
+  (richColors는 sonner 자체 팔레트를 써서 잉크 블랙에서 흰 박스로 튐)
+- 라벨 "완료" → "완료 보기"
+- 보드↔대시보드 전환을 AnimatePresence mode="wait" + opacity로. transform은 쓰지 않음
+  (스크롤 스냅 컨테이너에 transform을 걸면 스냅 위치가 어긋남)
+- useReducedMotion()으로 모션 최소화 (framer-motion은 CSS 미디어 쿼리를 따르지 않음)
+- resetKey에 mode를 섞어 대시보드에서 돌아와도 내 컬럼부터 보이게 (US-013)
+
