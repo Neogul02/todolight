@@ -1,7 +1,13 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { addTodoNote, deleteTodo, restoreTodo, setTodoStatus } from '@/app/actions/todos';
+import {
+  addTodoNote,
+  deleteTodo,
+  restoreTodo,
+  setTodoStatus,
+  updateTodo,
+} from '@/app/actions/todos';
 import { showMsg, showUndo } from '@/lib/toast';
 import { boardKeys } from './useOrgBoard';
 import type { Todo, TodoStatus } from '@/types/db';
@@ -85,6 +91,23 @@ export function useTodoMutations(orgId: string | null) {
     onSettled: resync,
   });
 
+  const edit = useMutation({
+    mutationFn: async (input: { todo: Todo; title: string; dueDate: string | null }) => {
+      const res = await updateTodo(input.todo.id, { title: input.title, dueDate: input.dueDate });
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onMutate: input => ({
+      snapshot: patch(todos =>
+        todos.map(t =>
+          t.id === input.todo.id ? { ...t, title: input.title, due_date: input.dueDate } : t
+        )
+      ),
+    }),
+    onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
+    onSettled: resync,
+  });
+
   // 메모는 작성자 이름·아바타 조인이 필요해서 낙관적으로 그리지 않고 서버 결과를 기다린다.
   const addNote = useMutation({
     mutationFn: async (input: { todoId: string; content: string }) => {
@@ -96,5 +119,5 @@ export function useTodoMutations(orgId: string | null) {
     onSuccess: resync,
   });
 
-  return { toggleStatus, remove, restore, addNote, resync };
+  return { toggleStatus, edit, remove, restore, addNote, resync };
 }

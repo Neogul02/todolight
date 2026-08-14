@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useTodoMutations } from '@/hooks/useTodoMutations';
 import { cn, dueState, formatRelativeDay } from '@/lib/utils';
 import { Avatar } from '@/components/Avatar';
+import { DueStepper } from '@/components/DueStepper';
 import { Badge, Button, Input } from '@/components/ui';
 import type { MemberSummary, Todo } from '@/types/db';
 
@@ -32,7 +33,10 @@ export default function TodoCard({
 }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState('');
-  const { toggleStatus, remove, addNote } = useTodoMutations(todo.org_id);
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(todo.title);
+  const [draftDue, setDraftDue] = useState<string | null>(todo.due_date);
+  const { toggleStatus, edit, remove, addNote } = useTodoMutations(todo.org_id);
   const busy = toggleStatus.isPending || remove.isPending || addNote.isPending;
 
   const done = todo.status === 'done';
@@ -48,6 +52,22 @@ export default function TodoCard({
       return;
     }
     toggleStatus.mutate({ todo, next: done ? 'todo' : 'done', actorId: currentUserId });
+  }
+
+  function startEditing() {
+    // 편집을 시작할 때마다 지금 값으로 초안을 다시 채운다 — 실시간으로 바뀐 값을 덮어쓰지 않게
+    setDraftTitle(todo.title);
+    setDraftDue(todo.due_date);
+    setEditing(true);
+  }
+
+  function submitEdit(e: React.FormEvent) {
+    e.preventDefault();
+    const title = draftTitle.trim();
+    if (!title) return;
+    setEditing(false);
+    if (title === todo.title && draftDue === todo.due_date) return;
+    edit.mutate({ todo, title, dueDate: draftDue });
   }
 
   function submitNote(e: React.FormEvent) {
@@ -170,6 +190,53 @@ export default function TodoCard({
             className="overflow-hidden"
           >
             <div className="mt-3 border-t border-hairline pt-3">
+              {canRemove &&
+                (editing ? (
+                  <form onSubmit={submitEdit} className="mb-3 flex flex-col gap-1.5">
+                    <Input
+                      value={draftTitle}
+                      onChange={e => setDraftTitle(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Escape') setEditing(false);
+                      }}
+                      maxLength={500}
+                      enterKeyHint="done"
+                      autoFocus
+                      className="h-11 sm:h-9"
+                    />
+                    <div className="flex gap-1.5">
+                      <DueStepper
+                        value={draftDue}
+                        onChange={setDraftDue}
+                        className="min-w-0 flex-1"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-11 sm:h-9"
+                        onClick={() => setEditing(false)}
+                      >
+                        취소
+                      </Button>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        className="h-11 sm:h-9"
+                        disabled={!draftTitle.trim()}
+                      >
+                        저장
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="mb-3">
+                    <Button size="sm" variant="outline" onClick={startEditing}>
+                      수정
+                    </Button>
+                  </div>
+                ))}
+
               {noteCount > 0 && (
                 <ul className="mb-3 flex flex-col gap-2">
                   {todo.notes!.map(n => (
