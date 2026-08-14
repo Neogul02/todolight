@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { addTodoNote, deleteTodo, setTodoStatus } from '@/app/actions/todos';
-import { showMsg } from '@/lib/toast';
+import { useTodoMutations } from '@/hooks/useTodoMutations';
 import { cn, dueState, formatRelativeDay } from '@/lib/utils';
 import { Avatar } from '@/components/Avatar';
 import { Badge, Button, Input } from '@/components/ui';
@@ -22,7 +21,6 @@ export default function TodoCard({
   members,
   currentUserId,
   isManager,
-  onMutated,
   onHandoff,
 }: {
   todo: Todo;
@@ -30,12 +28,12 @@ export default function TodoCard({
   members: MemberSummary[];
   currentUserId: string;
   isManager: boolean;
-  onMutated: () => void;
   onHandoff: (todo: Todo) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
+  const { toggleStatus, remove, addNote } = useTodoMutations(todo.org_id);
+  const busy = toggleStatus.isPending || remove.isPending || addNote.isPending;
 
   const done = todo.status === 'done';
   const handler = todo.handled_by ? members.find(m => m.user_id === todo.handled_by) : null;
@@ -43,48 +41,21 @@ export default function TodoCard({
   const due = dueState(todo.due_date);
   const canRemove = isMine || todo.created_by === currentUserId || isManager;
 
-  async function toggleDone() {
-    if (busy) return;
+  function toggleDone() {
     // 남의 할 일을 완료로 바꾸는 건 "대신 처리" — 메모를 반드시 받는다.
     if (!done && !isMine) {
       onHandoff(todo);
       return;
     }
-    setBusy(true);
-    const res = await setTodoStatus(todo.id, done ? 'todo' : 'done');
-    setBusy(false);
-    if (!res.success) {
-      showMsg(res.error, 'error');
-      return;
-    }
-    onMutated();
+    toggleStatus.mutate({ todo, next: done ? 'todo' : 'done', actorId: currentUserId });
   }
 
-  async function submitNote(e: React.FormEvent) {
+  function submitNote(e: React.FormEvent) {
     e.preventDefault();
     const content = note.trim();
-    if (!content || busy) return;
-    setBusy(true);
-    const res = await addTodoNote(todo.id, content);
-    setBusy(false);
-    if (!res.success) {
-      showMsg(res.error, 'error');
-      return;
-    }
+    if (!content) return;
     setNote('');
-    onMutated();
-  }
-
-  async function remove() {
-    if (busy) return;
-    setBusy(true);
-    const res = await deleteTodo(todo.id);
-    setBusy(false);
-    if (!res.success) {
-      showMsg(res.error, 'error');
-      return;
-    }
-    onMutated();
+    addNote.mutate({ todoId: todo.id, content });
   }
 
   const noteCount = todo.notes?.length ?? 0;
@@ -169,7 +140,7 @@ export default function TodoCard({
         {canRemove && (
           <button
             type="button"
-            onClick={remove}
+            onClick={() => remove.mutate(todo)}
             disabled={busy}
             aria-label="할 일 지우기"
             className="shrink-0 py-2 pl-2.5 text-ink-faint transition-[color,transform] active:scale-90 sm:hover:text-danger"
@@ -234,7 +205,7 @@ export default function TodoCard({
                   size="sm"
                   variant="outline"
                   className="h-11 sm:h-9"
-                  disabled={busy || !note.trim()}
+                  disabled={addNote.isPending || !note.trim()}
                 >
                   등록
                 </Button>

@@ -139,7 +139,6 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
               members={members}
               currentUserId={currentUserId}
               isManager={isManager}
-              onMutated={onMutated}
               onHandoff={onHandoff}
             />
           ))}

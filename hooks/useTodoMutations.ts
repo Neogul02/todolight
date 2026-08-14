@@ -1,0 +1,87 @@
+'use client';
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { addTodoNote, deleteTodo, setTodoStatus } from '@/app/actions/todos';
+import { showMsg } from '@/lib/toast';
+import { boardKeys } from './useOrgBoard';
+import type { Todo, TodoStatus } from '@/types/db';
+
+/**
+ * 보드의 할 일 쓰기 동작을 한곳에 모은다.
+ *
+ * 체크와 삭제는 낙관적으로 반영한다 — 모바일에서 서버 왕복(200~500ms)을 기다리면
+ * 탭이 씹힌 것처럼 느껴진다. 실패하면 직전 캐시로 되돌리고 이유를 알린다.
+ */
+export function useTodoMutations(orgId: string | null) {
+  const queryClient = useQueryClient();
+  const key = boardKeys.todos(orgId ?? '');
+
+  /** 캐시를 즉시 바꾸고 되돌릴 스냅샷을 반환한다 */
+  function patch(updater: (todos: Todo[]) => Todo[]): Todo[] | undefined {
+    const snapshot = queryClient.getQueryData<Todo[]>(key);
+    queryClient.setQueryData<Todo[]>(key, old => (old ? updater(old) : old));
+    return snapshot;
+  }
+
+  function rollback(snapshot: Todo[] | undefined, error: Error) {
+    if (snapshot) queryClient.setQueryData<Todo[]>(key, snapshot);
+    showMsg(error.message, 'error');
+  }
+
+  /** 서버가 보낸 최종 상태로 맞춘다 — 실시간 이벤트와 순서가 엇갈려도 여기서 수렴한다 */
+  function resync() {
+    queryClient.invalidateQueries({ queryKey: key });
+  }
+
+  const toggleStatus = useMutation({
+    mutationFn: async (input: { todo: Todo; next: TodoStatus; actorId: string }) => {
+      const res = await setTodoStatus(input.todo.id, input.next);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onMutate: input => {
+      const done = input.next === 'done';
+      return {
+        snapshot: patch(todos =>
+          todos.map(t =>
+            t.id === input.todo.id
+              ? {
+                  ...t,
+                  status: input.next,
+                  // 서버가 채우는 값과 같은 규칙으로 미리 채워야 "대신 처리" 배지가 깜빡이지 않는다
+                  handled_by: done ? input.actorId : null,
+                  completed_at: done ? new Date().toISOString() : null,
+                }
+              : t
+          )
+        ),
+      };
+    },
+    onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
+    onSettled: resync,
+  });
+
+  const remove = useMutation({
+    mutationFn: async (todo: Todo) => {
+      const res = await deleteTodo(todo.id);
+      if (!res.success) throw new Error(res.error);
+      return todo;
+    },
+    onMutate: todo => ({ snapshot: patch(todos => todos.filter(t => t.id !== todo.id)) }),
+    onError: (error: Error, _todo, context) => rollback(context?.snapshot, error),
+    onSettled: resync,
+  });
+
+  // 메모는 작성자 이름·아바타 조인이 필요해서 낙관적으로 그리지 않고 서버 결과를 기다린다.
+  const addNote = useMutation({
+    mutationFn: async (input: { todoId: string; content: string }) => {
+      const res = await addTodoNote(input.todoId, input.content);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onError: (error: Error) => showMsg(error.message, 'error'),
+    onSuccess: resync,
+  });
+
+  return { toggleStatus, remove, addNote, resync };
+}

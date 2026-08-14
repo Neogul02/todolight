@@ -1,0 +1,8 @@
+US-001 할 일 체크/삭제 낙관적 업데이트 — 완료
+- hooks/useTodoMutations.ts 신설: toggleStatus / remove / addNote 를 한곳에 모음
+- onMutate에서 캐시를 직접 고치고 실패 시 스냅샷으로 롤백, onSettled에서 invalidate로 수렴
+- handled_by / completed_at 을 서버와 같은 규칙으로 미리 채워야 "대신 처리" 배지가 깜빡이지 않음
+- TodoCard에서 busy 상태를 mutation.isPending 조합으로 대체, onMutated 프롭 제거
+  (MemberColumn의 create는 아직 onMutated 사용 — 임시 id가 필요해 낙관적 처리 보류)
+- 검증: yarn build 성공, yarn lint 경고 0
+
