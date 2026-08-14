@@ -141,14 +141,16 @@ export default function BoardClient() {
         <button
           type="button"
           onClick={() => setShowDone(v => !v)}
+          aria-pressed={showDone}
+          // 라벨이 상태를 말해 주지 않으므로 켜짐/꺼짐을 채움 여부로 확실히 구분한다
           className={cn(
             'ml-auto h-9 shrink-0 rounded-lg border px-3 text-[13px] font-medium no-select transition-colors active:scale-[0.97]',
             showDone
-              ? 'border-hairline-strong bg-surface text-ink'
+              ? 'border-accent bg-accent text-accent-ink'
               : 'border-hairline bg-transparent text-ink-faint'
           )}
         >
-          완료 {showDone ? '보임' : '숨김'}
+          완료
         </button>
       </div>
 
