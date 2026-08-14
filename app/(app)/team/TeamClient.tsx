@@ -198,7 +198,7 @@ export default function TeamClient() {
         <div className="min-w-0">
           <h1 className="truncate text-heading-2 text-ink">{activeOrg.name}</h1>
           <p className="mt-0.5 text-caption text-ink-muted">
-            멤버 {activeOrg.member_count}명 · 내 역할 {ROLE_LABEL[activeOrg.role]}
+            멤버 {activeOrg.member_count}명
           </p>
         </div>
       </div>
