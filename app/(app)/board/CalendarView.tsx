@@ -121,10 +121,32 @@ export function CalendarView({
 
   const events = useOrgEvents(orgId);
 
+  /*
+    달을 넘길 때 선택 날짜도 같이 옮긴다.
+    안 옮기면 8월 15일을 고른 채 9월로 넘어가서, 보고 있는 달과 아래 목록이 어긋난다.
+    같은 일자를 지키되 그 달에 없으면 말일로 붙인다 (1/31 → 2/28).
+  */
   const shift = useCallback((delta: number) => {
     setDirection(delta);
-    setMonth(m => shiftMonth(m, delta));
+    setMonth(current => {
+      const next = shiftMonth(current, delta);
+      setSelected(prev => {
+        const day = prev.slice(-2);
+        const candidate = `${next}-${day}`;
+        const end = lastDayOfMonth(next);
+        return candidate > end ? end : candidate;
+      });
+      return next;
+    });
   }, []);
+
+  /** 이번 달이 아니면 돌아올 길을 준다 — 몇 달 넘긴 뒤 오늘을 찾아 되짚는 건 번거롭다 */
+  const awayFromToday = month !== today.slice(0, 7);
+  const goToday = useCallback(() => {
+    setDirection(month < today.slice(0, 7) ? 1 : -1);
+    setMonth(today.slice(0, 7));
+    setSelected(today);
+  }, [month, today]);
 
   // 손가락으로도 마우스로도 옆으로 밀어 달을 넘긴다
   const swipeRef = useHorizontalSwipe(shift);
@@ -201,9 +223,20 @@ export function CalendarView({
         >
           ‹
         </button>
-        <p className="text-title tabular-nums text-ink">
-          {year}년 {Number(monthNumber)}월
-        </p>
+        <span className="flex items-center gap-2">
+          <p className="text-title tabular-nums text-ink" aria-live="polite">
+            {year}년 {Number(monthNumber)}월
+          </p>
+          {awayFromToday && (
+            <button
+              type="button"
+              onClick={goToday}
+              className="h-7 rounded-lg border border-hairline px-2 text-[12px] font-medium text-ink-muted transition-colors active:bg-canvas-soft"
+            >
+              오늘
+            </button>
+          )}
+        </span>
         <button
           type="button"
           onClick={() => shift(1)}
