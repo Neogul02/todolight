@@ -26,12 +26,26 @@ export const viewport: Viewport = {
   /* 키보드가 올라오면 뷰포트 자체를 줄여 준다. 콘텐츠가 키보드 뒤로 숨지 않는다 */
   interactiveWidget: 'resizes-content',
   viewportFit: 'cover',
-  themeColor: '#ffffff',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#101010' },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" data-theme="ink" suppressHydrationWarning>
+      <head>
+        {/*
+          첫 페인트 전에 테마를 칠한다. React가 붙은 뒤에 칠하면 다크를 쓰는 사람에게
+          흰 화면이 한 번 번쩍인다. 그래서 렌더를 막는 인라인 스크립트로 둔다.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var T=['ink','sand','ink-dark','midnight','forest'];var p=localStorage.getItem('todolight_theme')||'system';var t=T.indexOf(p)>=0?p:(matchMedia('(prefers-color-scheme: dark)').matches?'ink-dark':'ink');document.documentElement.dataset.theme=t}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body>
         <Providers>{children}</Providers>
       </body>

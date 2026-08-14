@@ -191,7 +191,7 @@ export function CalendarView({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[720px] px-3 pb-safe sm:px-4">
+    <div className="mx-auto w-full max-w-[720px] px-3 pt-2 pb-safe sm:px-4">
       <div className="flex items-center justify-between pb-2">
         <button
           type="button"

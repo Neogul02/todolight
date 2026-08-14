@@ -8,8 +8,10 @@ export interface AvatarColor {
 }
 
 /**
- * 화이트·블랙 두 테마 위에서 모두 읽히도록 중간 밝기의 톤으로 골랐다.
- * 팀이 12명을 넘으면 색이 겹치기 시작하지만, 이름이 함께 붙으므로 구분에는 문제없다.
+ * 아바타 색 팔레트.
+ * 고르게 하지 않고 계정 id에서 결정적으로 배정한다 — 설정 화면을 늘리지 않으면서도
+ * 팀원끼리 잘 겹치지 않는다. 밝은·어두운 테마 위에서 모두 읽히는 중간 밝기로 골랐고,
+ * 팀이 12명을 넘으면 겹치기 시작하지만 이름이 함께 붙으므로 구분에는 문제없다.
  */
 export const AVATAR_COLORS: AvatarColor[] = [
   { key: 'stone', name: '스톤', bg: '#cfc7b6', ink: '#2b2823' },
@@ -38,6 +40,3 @@ export function getAvatarColor(key: string | null | undefined, seed = ''): Avata
   return AVATAR_COLORS[hash % AVATAR_COLORS.length];
 }
 
-export function isValidAvatarColor(key: string | null | undefined): boolean {
-  return AVATAR_COLORS.some(c => c.key === key);
-}

@@ -2,11 +2,9 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { updateMyProfile } from '@/app/actions/profile';
 import { applyTheme } from '@/app/providers';
 import { THEMES } from '@/lib/themes';
-import { AVATAR_COLORS, getAvatarColor } from '@/lib/avatar';
 import { removeAvatar, uploadAvatar } from '@/lib/image-upload';
 import { Avatar } from '@/components/Avatar';
 import { Badge, Button, Card, Input } from '@/components/ui';
@@ -19,16 +17,26 @@ export default function MeClient() {
   const { profile, email, orgs, userId } = useApp();
 
   const [name, setName] = useState(profile?.display_name ?? '');
-  // 색을 고른 적이 없으면 id에서 자동 배정된 색을 초기값으로 보여 준다
-  const [color, setColor] = useState(
-    profile?.avatar_color ?? getAvatarColor(null, userId).key
-  );
-  const [theme, setTheme] = useState(profile?.theme ?? 'ink');
+  const [theme, setTheme] = useState(profile?.theme ?? 'system');
   const [showDone, setShowDone] = useState(profile?.show_done ?? true);
   const [photo, setPhoto] = useState<string | null>(profile?.avatar_url ?? null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  async function save() {
+    if (busy) return;
+    setBusy(true);
+    const res = await updateMyProfile({ displayName: name, theme, showDone });
+    setBusy(false);
+    if (!res.success) {
+      showMsg(res.error, 'error');
+      return;
+    }
+    applyTheme(res.data.theme);
+    showMsg('저장했어요.', 'success');
+    router.refresh();
+  }
 
   // 사진은 저장 버튼을 기다리지 않고 고르는 즉시 반영한다 —
   // 업로드가 끝났는데 "저장"을 또 눌러야 하면 올라간 건지 아닌지 헷갈린다.
@@ -60,39 +68,13 @@ export default function MeClient() {
       const res = await updateMyProfile({ avatarUrl: null });
       if (!res.success) throw new Error(res.error);
       setPhoto(null);
-      showMsg('사진을 지웠어요', 'success');
+      showMsg('사진을 지웠어요.', 'success');
       router.refresh();
     } catch (err) {
       showMsg(err instanceof Error ? err.message : String(err), 'error');
     } finally {
       setUploading(false);
     }
-  }
-
-  async function save() {
-    if (busy) return;
-    setBusy(true);
-    const res = await updateMyProfile({
-      displayName: name,
-      avatarColor: color,
-      theme,
-      showDone,
-    });
-    setBusy(false);
-    if (!res.success) {
-      showMsg(res.error, 'error');
-      return;
-    }
-    applyTheme(res.data.theme);
-    showMsg('저장했어요.', 'success');
-    router.refresh();
-  }
-
-  async function signOut() {
-    const supabase = createSupabaseBrowserClient();
-    await supabase.auth.signOut();
-    router.replace('/login');
-    router.refresh();
   }
 
   return (
@@ -103,7 +85,7 @@ export default function MeClient() {
         <div className="flex items-center gap-3">
           <Avatar
             name={name || '나'}
-            color={color}
+            color={profile?.avatar_color}
             imageUrl={photo}
             seed={userId}
             size="lg"
@@ -115,13 +97,7 @@ export default function MeClient() {
           </div>
         </div>
 
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          onChange={pickPhoto}
-          className="hidden"
-        />
+        <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} className="hidden" />
         <div className="mt-3 flex gap-2">
           <Button
             variant="outline"
@@ -138,47 +114,22 @@ export default function MeClient() {
           )}
         </div>
 
-        <label className="mt-5 flex flex-col gap-1.5">
+        <label className="mt-4 flex flex-col gap-1.5">
           <span className="text-caption font-medium text-ink-secondary">이름</span>
           <Input value={name} onChange={e => setName(e.target.value)} maxLength={30} />
         </label>
 
-        <div className="mt-4">
-          <span className="text-caption font-medium text-ink-secondary">
-            아바타 색
-            {photo && <span className="ml-1 text-ink-faint">(사진을 지우면 이 색으로 보여요)</span>}
-          </span>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {AVATAR_COLORS.map(c => (
-              <button
-                key={c.key}
-                type="button"
-                onClick={() => setColor(c.key)}
-                aria-label={c.name}
-                className={cn(
-                  'grid size-11 place-items-center rounded-full border-2 transition-transform active:scale-90',
-                  color === c.key ? 'border-ink' : 'border-transparent'
-                )}
-              >
-                <span
-                  className="grid size-8 place-items-center rounded-full text-[13px] font-semibold"
-                  style={{ background: c.bg, color: c.ink }}
-                >
-                  {(name || '나').trim().charAt(0).toUpperCase()}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
+        {/*
+          아바타 색은 고르게 하지 않는다. 계정 id에서 결정적으로 배정돼 팀원끼리 잘 겹치지 않고,
+          고를 수 있게 해 봐야 설정 화면만 길어진다. 사진을 올리면 그게 우선이다.
+        */}
       </Card>
 
       <Card className="p-5">
         <h2 className="text-title text-ink">테마</h2>
-        <p className="mt-1 text-caption text-ink-muted">
-          누르면 바로 적용돼요. 저장을 눌러야 다음에도 유지돼요.
-        </p>
+        <p className="mt-1 text-caption text-ink-muted">누르면 바로 적용돼요.</p>
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-3 gap-2">
           {THEMES.map(t => (
             <button
               key={t.key}
@@ -187,11 +138,12 @@ export default function MeClient() {
                 setTheme(t.key);
                 applyTheme(t.key);
               }}
+              aria-pressed={theme === t.key}
               className={cn(
-                'flex flex-col gap-2 rounded-xl border p-3 text-left transition-colors',
+                'flex flex-col gap-2 rounded-xl border p-2.5 text-left transition-colors',
                 theme === t.key
                   ? 'border-hairline-strong bg-surface-alt'
-                  : 'border-hairline hover:bg-surface-alt'
+                  : 'border-hairline active:bg-surface-alt'
               )}
             >
               <span className="flex gap-1">
@@ -203,7 +155,10 @@ export default function MeClient() {
                   />
                 ))}
               </span>
-              <span className="text-[13px] font-medium text-ink">{t.name}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-[13px] font-medium text-ink">{t.name}</span>
+                <span className="block truncate text-[11px] text-ink-faint">{t.hint}</span>
+              </span>
             </button>
           ))}
         </div>
@@ -225,14 +180,20 @@ export default function MeClient() {
             )}
           >
             {showDone && (
-              <svg viewBox="0 0 12 12" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                viewBox="0 0 12 12"
+                className="size-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M2.5 6.2 4.8 8.5 9.5 3.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
           </button>
           <span className="min-w-0">
-            <span className="block text-[15px] text-ink">완료한 todo도 보기</span>
-
+            <span className="block text-[15px] text-ink">완료한 할 일도 보기</span>
+            <span className="block text-caption text-ink-muted">끄면 아직 남은 일만 보여요.</span>
           </span>
         </label>
       </Card>
@@ -256,13 +217,9 @@ export default function MeClient() {
         )}
       </Card>
 
+      {/* 로그아웃은 아바타 메뉴에 있다 — 같은 동작을 두 군데 두지 않는다 */}
       <Button size="lg" onClick={save} disabled={busy || !name.trim()}>
         저장
-      </Button>
-
-      {/* 로그아웃은 헤더에서 이리로 옮겼다 — 모바일 헤더 한 줄에 넣기엔 자리가 없다 */}
-      <Button size="lg" variant="ghost" onClick={signOut} className="text-ink-muted">
-        로그아웃
       </Button>
     </main>
   );

@@ -26,7 +26,6 @@ export async function fetchMyProfile(): Promise<ApiResponse<Profile>> {
 
 export async function updateMyProfile(patch: {
   displayName?: string;
-  avatarColor?: string | null;
   avatarUrl?: string | null;
   theme?: string;
   showDone?: boolean;
@@ -36,8 +35,6 @@ export async function updateMyProfile(patch: {
 
     const update: Record<string, unknown> = {};
     if (patch.displayName !== undefined) update.display_name = nameSchema.parse(patch.displayName);
-    if (patch.avatarColor !== undefined)
-      update.avatar_color = patch.avatarColor ? patch.avatarColor.slice(0, 8) : null;
     if (patch.avatarUrl !== undefined) update.avatar_url = patch.avatarUrl || null;
     if (patch.showDone !== undefined) update.show_done = patch.showDone;
     if (patch.theme !== undefined) {

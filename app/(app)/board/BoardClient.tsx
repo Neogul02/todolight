@@ -155,10 +155,13 @@ export default function BoardClient() {
 
   return (
     <main className="mx-auto w-full max-w-[1400px]">
-      {/* ── 툴바 : 멤버 칩만. 뷰 전환은 헤더로, 완료 보기는 설정으로 옮겼다 ── */}
-      <div className="flex h-[var(--board-toolbar-h)] items-center gap-2 px-3 sm:px-4">
-        {mode === 'board' && orderedMembers.length > 0 && (
-          <div className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-1 sm:hidden [&::-webkit-scrollbar]:hidden">
+      {/*
+        멤버 칩은 보드 전용이고 모바일 전용이다 — 다른 뷰에서 툴바를 남겨 두면
+        빈 띠가 화면 위를 먹는다. (뷰 전환은 헤더로, 완료 보기는 설정으로 옮겼다)
+      */}
+      {mode === 'board' && orderedMembers.length > 0 && (
+        <div className="flex h-[var(--board-toolbar-h)] items-center px-3 sm:hidden">
+          <div className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-1 [&::-webkit-scrollbar]:hidden">
             {orderedMembers.map((m, i) => (
               <MemberChip
                 key={m.user_id}
@@ -172,10 +175,8 @@ export default function BoardClient() {
               />
             ))}
           </div>
-        )}
-
-        {/* 아이콘만 — 셋뿐이라 모양으로 구분되고, 라벨은 멤버 칩이 쓸 자리를 뺏는다 */}
-      </div>
+        </div>
+      )}
 
       {loading && <BoardSkeleton />}
 
@@ -238,7 +239,7 @@ export default function BoardClient() {
           <motion.div
             key="dashboard"
             {...viewMotion}
-            className="flex flex-col gap-3 px-3 pb-safe sm:grid sm:grid-cols-2 sm:px-4 lg:grid-cols-3"
+            className="flex flex-col gap-3 px-3 pt-3 pb-safe sm:grid sm:grid-cols-2 sm:px-4 lg:grid-cols-3"
           >
             {orderedMembers.map(m => (
               <MemberColumn

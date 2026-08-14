@@ -3,26 +3,54 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Toaster } from 'sonner';
-import { DEFAULT_THEME, isValidTheme } from '@/lib/themes';
+import { DEFAULT_THEME, isValidTheme, resolveTheme } from '@/lib/themes';
 
-const THEME_STORAGE_KEY = 'todolight_theme';
+export const THEME_STORAGE_KEY = 'todolight_theme';
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+
+/*
+  "시스템"을 골랐으면 기기 설정이 바뀔 때마다 따라가야 한다.
+  그러려면 구독을 하나 유지해야 하는데, 테마를 바꿀 때마다 갈아 끼워야 하므로
+  모듈 수준에 둔다(화면 어디서 applyTheme을 부르든 구독은 하나뿐이다).
+*/
+let darkQuery: MediaQueryList | null = null;
+let onSystemChange: (() => void) | null = null;
+
+function unsubscribe() {
+  if (darkQuery && onSystemChange) darkQuery.removeEventListener('change', onSystemChange);
+  darkQuery = null;
+  onSystemChange = null;
+}
+
+function paint(preference: string) {
+  const prefersDark = window.matchMedia(DARK_QUERY).matches;
+  document.documentElement.dataset.theme = resolveTheme(preference, prefersDark);
+}
+
+export function applyTheme(theme: string) {
+  const preference = isValidTheme(theme) ? theme : DEFAULT_THEME;
+  localStorage.setItem(THEME_STORAGE_KEY, preference);
+
+  unsubscribe();
+  if (preference === 'system') {
+    darkQuery = window.matchMedia(DARK_QUERY);
+    onSystemChange = () => paint('system');
+    darkQuery.addEventListener('change', onSystemChange);
+  }
+  paint(preference);
+}
 
 /**
- * 저장된 테마를 <html data-theme>에 붙인다.
- * 프로필에서 읽어오기 전 깜빡임을 막으려고 localStorage 캐시를 먼저 적용한다.
+ * 첫 칠은 layout.tsx의 인라인 스크립트가 이미 해 뒀다(깜빡임 방지).
+ * 여기서는 "시스템" 구독만 다시 걸어 준다.
  */
 function ThemeSync() {
   useEffect(() => {
     const cached = localStorage.getItem(THEME_STORAGE_KEY);
-    document.documentElement.dataset.theme = isValidTheme(cached) ? cached! : DEFAULT_THEME;
+    applyTheme(isValidTheme(cached) ? cached! : DEFAULT_THEME);
+    return unsubscribe;
   }, []);
   return null;
-}
-
-export function applyTheme(theme: string) {
-  const next = isValidTheme(theme) ? theme : DEFAULT_THEME;
-  document.documentElement.dataset.theme = next;
-  localStorage.setItem(THEME_STORAGE_KEY, next);
 }
 
 export default function Providers({ children }: { children: React.ReactNode }) {
