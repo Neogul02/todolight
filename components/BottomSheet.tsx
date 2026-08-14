@@ -124,7 +124,14 @@ export function BottomSheet({
               </h2>
             )}
 
-            <div className="px-5 pt-2 pb-5">{children}</div>
+            {/*
+              내용이 길면(달력처럼) 시트가 화면 밖으로 잘린다 — 여기서만 스크롤시킨다.
+              패널 전체를 스크롤 컨테이너로 만들면 드래그로 닫기와 엉킨다.
+              목록 맨 위에서 아래로 당기면 시트가 닫히는데, iOS 시트의 표준 동작이라 그대로 둔다.
+            */}
+            <div className="max-h-[70dvh] overflow-y-auto overscroll-contain px-5 pt-2 pb-5">
+              {children}
+            </div>
           </motion.div>
         </motion.div>
       )}

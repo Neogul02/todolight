@@ -167,7 +167,7 @@ function CalendarBody({ orgId }: { orgId: string }) {
         {selectedTodos.length === 0 ? (
           <p className="py-4 text-center text-caption text-ink-faint">이 날 마감인 할 일이 없어요.</p>
         ) : (
-          <ul className="flex max-h-[40dvh] flex-col gap-1.5 overflow-y-auto overscroll-contain">
+          <ul className="flex flex-col gap-1.5">
             {selectedTodos.map(t => {
               const owner = memberOf(t.owner_id);
               const done = t.status === 'done';
