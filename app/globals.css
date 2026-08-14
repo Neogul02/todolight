@@ -294,6 +294,27 @@ textarea:focus-visible {
   }
 }
 
+/* ──────────────────────────────────────────────────────────────
+   토스트(sonner)
+   기본 폭이 356px 고정이라 393px 화면에서 좌우 여백까지 더하면 넘친다.
+   sonner가 읽는 --width 변수만 좁혀 주면 되고, 미디어 쿼리는 필요 없다.
+   ────────────────────────────────────────────────────────────── */
+[data-sonner-toaster] {
+  --width: min(356px, calc(100vw - 1.5rem));
+  max-width: calc(100vw - 1.5rem);
+}
+
+/* 긴 할 일 제목이 한 단어로 이어지면 토스트를 밀어낸다 */
+[data-sonner-toast] [data-title],
+[data-sonner-toast] [data-description] {
+  overflow-wrap: anywhere;
+}
+
+/* 실행취소 같은 액션 버튼이 글자에 밀려 잘리지 않게 */
+[data-sonner-toast] [data-button] {
+  flex-shrink: 0;
+}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar {
   width: 6px;

@@ -11,7 +11,44 @@ import { EventSheet } from './EventSheet';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 /** 한 칸에 띠를 무한히 쌓을 수는 없다. 넘치면 개수만 알린다 */
-const MAX_BARS = 3;
+const MAX_LANES = 3;
+/** 격자 칸 사이 가로 간격(gap-x-1). 여러 칸을 가로지르는 띠의 폭 계산에 쓴다 */
+const CELL_GAP_PX = 4;
+
+function weekdayOf(date: string): number {
+  return new Date(`${date}T00:00:00Z`).getUTCDay();
+}
+
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
+
+/**
+ * 일정마다 고정 줄(lane)을 매긴다.
+ *
+ * 날짜별로 그때그때 쌓으면 위 일정이 끝나는 순간 아래 일정이 한 줄 위로 튄다 —
+ * 같은 일정의 띠가 주 중간에서 위아래로 꺾여 보인다.
+ * 겹치지 않는 일정끼리는 같은 줄을 다시 쓴다(구간 분할).
+ */
+function assignLanes(events: OrgEvent[]): Map<string, number> {
+  const laneEnds: string[] = [];
+  const laneOf = new Map<string, number>();
+
+  [...events]
+    .sort((a, b) => (a.start_date === b.start_date ? 0 : a.start_date < b.start_date ? -1 : 1))
+    .forEach(e => {
+      let lane = laneEnds.findIndex(end => end < e.start_date);
+      if (lane === -1) {
+        laneEnds.push(e.end_date);
+        lane = laneEnds.length - 1;
+      } else {
+        laneEnds[lane] = e.end_date;
+      }
+      laneOf.set(e.id, lane);
+    });
+
+  return laneOf;
+}
 
 /** YYYY-MM 의 1일부터 말일까지, 앞뒤를 빈 칸으로 채운 7열 격자 */
 function monthGrid(month: string): (string | null)[] {
@@ -103,6 +140,8 @@ export function CalendarView({
     });
     return map;
   }, [events.data]);
+
+  const laneOf = useMemo(() => assignLanes(events.data ?? []), [events.data]);
 
   const memberOf = useMemo(() => {
     const map = new Map(members.map(m => [m.user_id, m]));
@@ -203,35 +242,60 @@ export function CalendarView({
               </span>
 
               {/*
-                일정 띠. 칸 사이 간격(gap-x-1)만큼 좌우로 넓혀서 기간이 끊기지 않고 이어져 보이게 한다.
-                시작일·종료일에서만 모서리를 둥글게 해 어디서 시작하고 끝나는지 드러낸다.
+                일정 띠. 줄(lane)은 일정마다 고정이라 기간 중간에 위아래로 꺾이지 않는다.
+                시작일과 주의 첫날에서만 이름을 얹고, 그 주에 이어지는 칸 수만큼 폭을 늘려
+                옆 칸 위로 흘려보낸다 — 칸 하나에 가두면 두 글자도 못 넣는다.
               */}
-              <span className="flex min-h-[18px] flex-col gap-[3px]">
-                {dayEvents.slice(0, MAX_BARS).map(e => {
-                  const color = getEventColor(e.color);
-                  const isStart = e.start_date === date;
-                  const isEnd = e.end_date === date;
+              <span className="flex min-h-[45px] flex-col gap-[2px]">
+                {Array.from({ length: MAX_LANES }, (_, lane) => {
+                  const event = dayEvents.find(e => laneOf.get(e.id) === lane);
+                  if (!event) return <span key={lane} className="h-[13px]" />;
+
+                  const color = getEventColor(event.color);
+                  const isStart = event.start_date === date;
+                  const isEnd = event.end_date === date;
+                  // 주가 바뀌면 이름을 다시 적어 준다. 안 그러면 긴 일정이 이름 없는 띠가 된다
+                  const showLabel = isStart || weekdayOf(date) === 0;
+                  const spanDays = showLabel
+                    ? Math.min(6 - weekdayOf(date), daysBetween(date, event.end_date)) + 1
+                    : 1;
+
                   return (
                     <span
-                      key={e.id}
-                      title={e.title}
+                      key={lane}
+                      title={event.title}
                       className={cn(
-                        'h-[5px]',
-                        isStart ? 'ml-0.5 rounded-l-full' : '-ml-1',
-                        isEnd ? 'mr-0.5 rounded-r-full' : '-mr-1'
+                        'relative flex h-[13px] items-center overflow-hidden',
+                        isStart ? 'ml-0.5 rounded-l-full pl-1.5' : '-ml-1',
+                        isEnd ? 'mr-0.5 rounded-r-full' : '-mr-1',
+                        // 이름을 얹은 띠가 옆 칸의 띠에 덮이지 않게 한 겹 올린다
+                        showLabel && 'z-10'
                       )}
-                      style={{ background: color.bar }}
-                    />
+                      style={{
+                        background: color.bar,
+                        color: color.ink,
+                        width: showLabel
+                          ? `calc(100% * ${spanDays} + ${CELL_GAP_PX * (spanDays - 1)}px)`
+                          : undefined,
+                      }}
+                    >
+                      {showLabel && (
+                        <span className="truncate text-[9px] leading-none font-medium">
+                          {event.title}
+                        </span>
+                      )}
+                    </span>
                   );
                 })}
-                {dayEvents.length > MAX_BARS && (
+
+                {dayEvents.some(e => (laneOf.get(e.id) ?? 0) >= MAX_LANES) && (
                   <span
                     className={cn(
                       'text-[9px] leading-none',
                       isSelected ? 'text-accent-ink/70' : 'text-ink-faint'
                     )}
                   >
-                    +{dayEvents.length - MAX_BARS}
+                    +{dayEvents.filter(e => (laneOf.get(e.id) ?? 0) >= MAX_LANES).length}
                   </span>
                 )}
               </span>
