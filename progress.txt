@@ -102,3 +102,12 @@ US-101 에러·404 화면 — 완료
 - 둘 다 시맨틱 토큰 + pb-safe. Next 기본 화면은 앱 테마를 몰라 남의 사이트처럼 보인다
 - 검증: /no-such-page 가 404로 응답하고 우리 문구가 렌더됨
 
+US-102 PWA 홈 화면 아이콘 — 완료
+- manifest에 icons가 아예 없어 홈 화면에 추가하면 아이콘이 비었다
+- app/icon.svg → app/icon.tsx (ImageResponse PNG). 안드로이드 런처는 SVG를 신뢰하지 않는다
+- app/pwa-icon/[variant]/route.tsx 로 192·512·maskable 고정 주소 제공.
+  app/icon.tsx는 Next가 해시 URL로 서빙해서 manifest에서 주소를 알 수 없다
+- maskable은 런처가 원·둥근 사각형으로 잘라 내므로 글자 배율을 0.33 → 0.24로 낮춰
+  안쪽 80% 안에 들어가게 함 (실제 렌더 확인)
+- 검증: 세 라우트 모두 200 image/png, generateStaticParams로 빌드 시 프리렌더
+
