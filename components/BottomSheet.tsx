@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -21,18 +21,59 @@ export function BottomSheet({
   children: React.ReactNode;
   className?: string;
 }) {
-  // 시트가 떠 있는 동안 뒤 페이지가 같이 스크롤되면 위치를 잃는다
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const titleId = useId();
+
   useEffect(() => {
     if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+
+    const panel = panelRef.current;
+    // 시트를 열기 직전에 무엇이 포커스를 갖고 있었는지 기억해 뒀다가 닫을 때 돌려준다
+    const restoreTo = document.activeElement as HTMLElement | null;
+
+    function focusables(): HTMLElement[] {
+      if (!panel) return [];
+      return Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
     }
-    const prev = document.body.style.overflow;
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      // Tab이 시트 밖으로 새면 뒤에 가려진 화면을 조작하게 된다 — 시트 안에서 돌린다
+      if (e.key !== 'Tab') return;
+      const items = focusables();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+
+      if (e.shiftKey && (active === first || !panel?.contains(active))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+
+    const prevOverflow = document.body.style.overflow;
+    // 시트가 떠 있는 동안 뒤 페이지가 같이 스크롤되면 위치를 잃는다
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', onKey);
+    // 열자마자 첫 항목에 포커스를 둬야 키보드 사용자가 시트 안에서 시작한다
+    const focusTimer = setTimeout(() => focusables()[0]?.focus(), 60);
+
     return () => {
-      document.body.style.overflow = prev;
+      document.body.style.overflow = prevOverflow;
       window.removeEventListener('keydown', onKey);
+      clearTimeout(focusTimer);
+      restoreTo?.focus?.();
     };
   }, [open, onClose]);
 
@@ -52,6 +93,10 @@ export function BottomSheet({
         >
           <motion.div
             key="sheet"
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
@@ -74,7 +119,9 @@ export function BottomSheet({
             </div>
 
             {title && (
-              <h2 className="px-5 pt-3 pb-1 text-title text-ink no-select sm:pt-5">{title}</h2>
+              <h2 id={titleId} className="px-5 pt-3 pb-1 text-title text-ink no-select sm:pt-5">
+                {title}
+              </h2>
             )}
 
             <div className="px-5 pt-2 pb-5">{children}</div>

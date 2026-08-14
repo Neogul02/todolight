@@ -39,3 +39,12 @@ US-005 다크 테마 시각 디테일 + 모션 배려 — 완료
 - prefers-reduced-motion 전역 블록은 US-003에서 이미 추가됨
 - 검증: 빌드 CSS에 .shadow-level-1{box-shadow:var(--shadow-1)}, text-danger-ink 확인
 
+US-006 키보드 접근성 · 포커스 링 — 완료
+- globals.css에 :focus-visible 전역 링. 요소마다 붙이면 새 버튼에서 빠뜨리므로 한곳에서 처리
+  (입력 요소는 자체 테두리와 겹쳐 outline-offset만 0으로)
+- BottomSheet에 role=dialog / aria-modal / aria-labelledby(useId) 부여
+- Tab 순환 트랩: 시트 안 focusable을 모아 첫/마지막에서 감싸 돌린다
+- 열 때 첫 항목 포커스(60ms 지연 — 진입 애니메이션 중 포커스가 튐), 닫을 때 원래 요소로 복귀
+- TodoCard 펼침 버튼에 aria-expanded
+- 검증: 빌드 CSS에 focus-visible 규칙 확인, yarn lint 경고 0
+

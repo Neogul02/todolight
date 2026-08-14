@@ -130,6 +130,7 @@ export default function TodoCard({
         <button
           type="button"
           onClick={() => setOpen(v => !v)}
+          aria-expanded={open}
           className="min-w-0 flex-1 py-2 text-left"
         >
           <p
