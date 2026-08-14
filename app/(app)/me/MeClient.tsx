@@ -24,6 +24,7 @@ export default function MeClient() {
     profile?.avatar_color ?? getAvatarColor(null, userId).key
   );
   const [theme, setTheme] = useState(profile?.theme ?? 'ink');
+  const [showDone, setShowDone] = useState(profile?.show_done ?? true);
   const [photo, setPhoto] = useState<string | null>(profile?.avatar_url ?? null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -75,6 +76,7 @@ export default function MeClient() {
       displayName: name,
       avatarColor: color,
       theme,
+      showDone,
     });
     setBusy(false);
     if (!res.success) {
@@ -205,6 +207,36 @@ export default function MeClient() {
             </button>
           ))}
         </div>
+      </Card>
+
+      <Card className="p-5">
+        <h2 className="text-title text-ink">보드</h2>
+        <label className="mt-3 flex cursor-pointer items-center gap-3">
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={showDone}
+            onClick={() => setShowDone(v => !v)}
+            className={cn(
+              'grid size-6 shrink-0 place-items-center rounded-md border transition-colors',
+              showDone
+                ? 'border-accent bg-accent text-accent-ink'
+                : 'border-hairline-strong bg-surface'
+            )}
+          >
+            {showDone && (
+              <svg viewBox="0 0 12 12" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M2.5 6.2 4.8 8.5 9.5 3.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </button>
+          <span className="min-w-0">
+            <span className="block text-[15px] text-ink">완료한 할 일도 보기</span>
+            <span className="block text-caption text-ink-muted">
+              끄면 아직 남은 일만 보여요.
+            </span>
+          </span>
+        </label>
       </Card>
 
       <Card className="p-5">

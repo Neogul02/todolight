@@ -15,7 +15,7 @@ export async function fetchMyProfile(): Promise<ApiResponse<Profile>> {
     const user = await requireAuth();
     const { data, error } = await getSupabaseAdmin()
       .from('profiles')
-      .select('id, email, display_name, avatar_color, avatar_url, theme, created_at')
+      .select('id, email, display_name, avatar_color, avatar_url, theme, show_done, created_at')
       .eq('id', user.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -29,6 +29,7 @@ export async function updateMyProfile(patch: {
   avatarColor?: string | null;
   avatarUrl?: string | null;
   theme?: string;
+  showDone?: boolean;
 }): Promise<ApiResponse<Profile>> {
   return wrap(async () => {
     const user = await requireAuth();
@@ -38,6 +39,7 @@ export async function updateMyProfile(patch: {
     if (patch.avatarColor !== undefined)
       update.avatar_color = patch.avatarColor ? patch.avatarColor.slice(0, 8) : null;
     if (patch.avatarUrl !== undefined) update.avatar_url = patch.avatarUrl || null;
+    if (patch.showDone !== undefined) update.show_done = patch.showDone;
     if (patch.theme !== undefined) {
       if (!isValidTheme(patch.theme)) throw new Error('없는 테마예요.');
       update.theme = patch.theme;
@@ -48,7 +50,7 @@ export async function updateMyProfile(patch: {
       .from('profiles')
       .update(update)
       .eq('id', user.id)
-      .select('id, email, display_name, avatar_color, avatar_url, theme, created_at')
+      .select('id, email, display_name, avatar_color, avatar_url, theme, show_done, created_at')
       .single();
     if (error) throw new Error(error.message);
 

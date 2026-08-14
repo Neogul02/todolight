@@ -10,6 +10,8 @@ export interface Profile {
   /** 업로드한 프로필 사진. 없으면 색 아바타로 떨어진다 */
   avatar_url: string | null;
   theme: string;
+  /** 보드에 완료한 할 일도 보일지 — 기기를 옮겨도 같아야 해서 계정에 붙였다 */
+  show_done: boolean;
   created_at: string;
 }
 

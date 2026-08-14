@@ -11,7 +11,6 @@ import { applyTheme } from '@/app/providers';
 import { Avatar } from '@/components/Avatar';
 import { OrgIcon } from '@/components/OrgIcon';
 import { BottomSheet } from '@/components/BottomSheet';
-import { CalendarSheet } from './CalendarSheet';
 import { Button } from '@/components/ui';
 import { showMsg } from '@/lib/toast';
 import { cn, formatRelativeDay } from '@/lib/utils';
@@ -47,7 +46,6 @@ export default function AppShell({
   const orgIds = useMemo(() => orgs.map(o => o.id), [orgs]);
   const [activeOrgId, selectOrg] = useActiveOrg(orgIds);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const activeOrg = orgs.find(o => o.id === activeOrgId) ?? null;
   const onBoard = pathname === '/board';
@@ -137,15 +135,6 @@ export default function AppShell({
                 {activeOrg?.name ?? 'todolight'}
               </span>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setCalendarOpen(true)}
-              aria-label="달력으로 보기"
-              className="grid size-10 shrink-0 place-items-center rounded-xl text-ink-secondary no-select active:bg-canvas-soft"
-            >
-              <CalendarIcon className="size-5" />
-            </button>
 
             <button
               type="button"
@@ -280,21 +269,7 @@ export default function AppShell({
         </button>
       </BottomSheet>
 
-      <CalendarSheet
-        open={calendarOpen}
-        onClose={() => setCalendarOpen(false)}
-        orgId={activeOrgId}
-      />
     </AppContextProvider>
-  );
-}
-
-function CalendarIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.7">
-      <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
-      <path d="M3.5 10h17M8 3.5v3M16 3.5v3" strokeLinecap="round" />
-    </svg>
   );
 }
 

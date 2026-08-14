@@ -18,15 +18,27 @@ import { Avatar } from '@/components/Avatar';
 import { Button, Card } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import type { MemberSummary, Todo } from '@/types/db';
+import { CalendarView } from './CalendarView';
 import MemberColumn from './MemberColumn';
 import HandoffModal from './HandoffModal';
 import { BoardSkeleton } from './BoardSkeleton';
 
-/** board = 멤버별 가로 캐러셀(기본), dashboard = 세로로 전부 쌓아 한 번에 훑기 */
-type Mode = 'board' | 'dashboard';
+/**
+ * board     = 멤버별 가로 캐러셀 (기본)
+ * dashboard = 세로로 전부 쌓아 한 번에 훑기
+ * calendar  = 마감일 기준으로 언제 몰려 있나 보기
+ */
+type Mode = 'board' | 'dashboard' | 'calendar';
+
+const MODES: { key: Mode; label: string; Icon: (p: { className?: string }) => React.ReactElement }[] =
+  [
+    { key: 'board', label: '보드', Icon: BoardIcon },
+    { key: 'dashboard', label: '대시보드', Icon: DashboardIcon },
+    { key: 'calendar', label: '달력', Icon: CalendarIcon },
+  ];
 
 export default function BoardClient() {
-  const { activeOrgId, userId, orgs, isManager, openMenu, pendingInvites } = useApp();
+  const { activeOrgId, userId, orgs, isManager, openMenu, pendingInvites, profile } = useApp();
   const queryClient = useQueryClient();
 
   const members = useOrgMembers(activeOrgId);
@@ -34,8 +46,9 @@ export default function BoardClient() {
   useBoardRealtime(activeOrgId);
   useOrgPresence(activeOrgId, userId);
 
-  // 완료한 일도 기본으로 보여 준다 — 팀원이 뭘 끝냈는지가 곧 공유의 목적이다.
-  const [showDone, setShowDone] = useState(true);
+  // 완료 표시 여부는 설정(내 설정)에서 계정에 저장한다 — 기기를 옮겨도 같은 화면이어야 한다.
+  // 기본은 보임: 팀원이 뭘 끝냈는지가 곧 공유의 목적이다.
+  const showDone = profile?.show_done ?? true;
   const [mode, setMode] = useState<Mode>('board');
   const [handoff, setHandoff] = useState<Todo | null>(null);
 
@@ -123,7 +136,7 @@ export default function BoardClient() {
 
   return (
     <main className="mx-auto w-full max-w-[1400px]">
-      {/* ── 툴바 : 멤버 칩 + 대시보드/완료 토글 ── */}
+      {/* ── 툴바 : 멤버 칩 + 뷰 전환. 완료 보기는 설정으로 내렸다 ── */}
       <div className="flex h-[var(--board-toolbar-h)] items-center gap-2 px-3 sm:px-4">
         {mode === 'board' && orderedMembers.length > 0 && (
           <div className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-1 sm:hidden [&::-webkit-scrollbar]:hidden">
@@ -142,36 +155,24 @@ export default function BoardClient() {
           </div>
         )}
 
-        <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setMode(m => (m === 'board' ? 'dashboard' : 'board'))}
-            aria-pressed={mode === 'dashboard'}
-            className={cn(
-              'flex h-9 items-center gap-1.5 rounded-lg border px-3 text-[13px] font-medium no-select transition-colors active:scale-[0.97]',
-              mode === 'dashboard'
-                ? 'border-accent bg-accent text-accent-ink'
-                : 'border-hairline bg-transparent text-ink-muted'
-            )}
-          >
-            <DashboardIcon className="size-4" />
-            대시보드
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowDone(v => !v)}
-            aria-pressed={showDone}
-            // 라벨이 상태를 말해 주지 않으므로 켜짐/꺼짐을 채움 여부로 확실히 구분한다
-            className={cn(
-              'h-9 rounded-lg border px-3 text-[13px] font-medium no-select transition-colors active:scale-[0.97]',
-              showDone
-                ? 'border-accent bg-accent text-accent-ink'
-                : 'border-hairline bg-transparent text-ink-faint'
-            )}
-          >
-            완료 보기
-          </button>
+        {/* 좁은 화면에서는 라벨을 접고 아이콘만 남긴다 — 멤버 칩이 쓸 자리를 뺏지 않도록 */}
+        <div className="ml-auto flex h-9 shrink-0 overflow-hidden rounded-lg border border-hairline no-select">
+          {MODES.map(({ key, label, Icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setMode(key)}
+              aria-pressed={mode === key}
+              aria-label={label}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 text-[13px] font-medium transition-colors',
+                mode === key ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted'
+              )}
+            >
+              <Icon className="size-4" />
+              <span className={cn(mode === key ? 'inline' : 'hidden sm:inline')}>{label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
@@ -262,6 +263,23 @@ export default function BoardClient() {
             {soloMember && <InviteColumn isManager={isManager} className="w-full" />}
           </motion.div>
         )}
+
+        {/* ── 달력 : 마감일 기준으로 조직 전체를 훑는다 ── */}
+        {!loading && !error && mode === 'calendar' && (
+          <motion.div
+            key="calendar"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={viewTransition}
+          >
+            <CalendarView
+              todos={todos.data ?? []}
+              members={orderedMembers}
+              showDone={showDone}
+            />
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {handoff && (
@@ -349,6 +367,24 @@ function MemberChip({
         </span>
       )}
     </button>
+  );
+}
+
+function BoardIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="3.5" y="4" width="7" height="16" rx="1.6" />
+      <rect x="13.5" y="4" width="7" height="16" rx="1.6" />
+    </svg>
+  );
+}
+
+function CalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+      <path d="M3.5 10h17M8 3.5v3M16 3.5v3" strokeLinecap="round" />
+    </svg>
   );
 }
 
