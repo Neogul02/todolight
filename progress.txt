@@ -6,3 +6,11 @@ US-001 할 일 체크/삭제 낙관적 업데이트 — 완료
   (MemberColumn의 create는 아직 onMutated 사용 — 임시 id가 필요해 낙관적 처리 보류)
 - 검증: yarn build 성공, yarn lint 경고 0
 
+US-002 삭제 실행취소 토스트 — 완료
+- restoreTodo 액션 추가. loadTodoForMember는 살아 있는 행만 조회하므로 재사용 불가,
+  직접 조회 후 assertMember + assertCanRemove로 검사
+- deleteTodo의 권한 검사를 assertCanRemove()로 분리해 두 액션이 공유
+- lib/toast.ts에 showUndo() 추가 (sonner action 버튼, 7초)
+- remove.onSuccess에서 실행취소 토스트를 띄우고 restore.mutate로 되살림
+- 검증: yarn build 성공, yarn lint 경고 0
+

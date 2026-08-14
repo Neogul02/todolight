@@ -233,32 +233,64 @@ export async function updateTodo(
   });
 }
 
+/** 지우거나 되살릴 수 있는 사람: 할 일의 주인 · 그 할 일을 만든 사람 · 방장/관리자 */
+async function assertCanRemove(todo: Todo, userId: string): Promise<void> {
+  if (todo.owner_id === userId || todo.created_by === userId) return;
+
+  const { data: me } = await getSupabaseAdmin()
+    .from('org_members')
+    .select('role')
+    .eq('org_id', todo.org_id)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (!me || (me.role !== 'owner' && me.role !== 'admin'))
+    throw new Error('본인 할 일이거나 방장만 지울 수 있어요.');
+}
+
 /**
  * 삭제 — 실제로 지우지 않고 deleted_at만 찍는다(소프트 삭제).
- * 카드 오른쪽 X는 확인 절차 없이 바로 눌리므로, 잘못 눌러도 DB에는 남아 있어야 한다.
- * 지울 수 있는 사람: 할 일의 주인 · 그 할 일을 만든 사람 · 방장/관리자
+ * 카드 오른쪽 X는 확인 절차 없이 바로 눌리므로, 잘못 눌러도 되살릴 수 있어야 한다.
  */
 export async function deleteTodo(todoId: string): Promise<ApiResponse<null>> {
   return wrap(async () => {
     const user = await requireAuth();
     const todo = await loadTodoForMember(todoId, user.id);
-
-    if (todo.owner_id !== user.id && todo.created_by !== user.id) {
-      const { data: me } = await getSupabaseAdmin()
-        .from('org_members')
-        .select('role')
-        .eq('org_id', todo.org_id)
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (!me || (me.role !== 'owner' && me.role !== 'admin'))
-        throw new Error('본인 할 일이거나 방장만 지울 수 있어요.');
-    }
+    await assertCanRemove(todo, user.id);
 
     const { error } = await getSupabaseAdmin()
       .from('todos')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', todo.id);
     if (error) throw new Error(error.message);
+    return null;
+  });
+}
+
+/**
+ * 삭제 취소. 지운 직후 토스트의 "실행취소"가 부른다.
+ * 이미 지워진 행을 다뤄야 해서 loadTodoForMember(살아 있는 행만 조회)를 쓸 수 없다.
+ */
+export async function restoreTodo(todoId: string): Promise<ApiResponse<null>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+
+    const { data, error } = await getSupabaseAdmin()
+      .from('todos')
+      .select('*')
+      .eq('id', todoId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error('할 일을 찾을 수 없어요.');
+
+    const todo = data as Todo;
+    await assertMember(todo.org_id, user.id);
+    await assertCanRemove(todo, user.id);
+
+    const { error: restoreError } = await getSupabaseAdmin()
+      .from('todos')
+      .update({ deleted_at: null })
+      .eq('id', todo.id);
+    if (restoreError) throw new Error(restoreError.message);
     return null;
   });
 }

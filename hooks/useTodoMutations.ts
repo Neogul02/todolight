@@ -1,8 +1,8 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { addTodoNote, deleteTodo, setTodoStatus } from '@/app/actions/todos';
-import { showMsg } from '@/lib/toast';
+import { addTodoNote, deleteTodo, restoreTodo, setTodoStatus } from '@/app/actions/todos';
+import { showMsg, showUndo } from '@/lib/toast';
 import { boardKeys } from './useOrgBoard';
 import type { Todo, TodoStatus } from '@/types/db';
 
@@ -61,6 +61,17 @@ export function useTodoMutations(orgId: string | null) {
     onSettled: resync,
   });
 
+  const restore = useMutation({
+    mutationFn: async (todo: Todo) => {
+      const res = await restoreTodo(todo.id);
+      if (!res.success) throw new Error(res.error);
+      return todo;
+    },
+    // 되살리기는 목록 순서를 서버가 다시 알려줘야 해서 낙관적으로 끼워 넣지 않는다
+    onError: (error: Error) => showMsg(error.message, 'error'),
+    onSettled: resync,
+  });
+
   const remove = useMutation({
     mutationFn: async (todo: Todo) => {
       const res = await deleteTodo(todo.id);
@@ -69,6 +80,8 @@ export function useTodoMutations(orgId: string | null) {
     },
     onMutate: todo => ({ snapshot: patch(todos => todos.filter(t => t.id !== todo.id)) }),
     onError: (error: Error, _todo, context) => rollback(context?.snapshot, error),
+    // 확인 창 없이 지우는 대신 되돌릴 기회를 준다 (소프트 삭제라 행은 남아 있다)
+    onSuccess: todo => showUndo('지웠어요.', () => restore.mutate(todo)),
     onSettled: resync,
   });
 
@@ -83,5 +96,5 @@ export function useTodoMutations(orgId: string | null) {
     onSuccess: resync,
   });
 
-  return { toggleStatus, remove, addNote, resync };
+  return { toggleStatus, remove, restore, addNote, resync };
 }
