@@ -54,3 +54,24 @@ US-007 멤버가 나뿐일 때 초대 유도 — 완료
 - 점선 테두리 + 투명 배경이라 실제 컬럼과 구분된다
 - 검증: yarn build 성공, yarn lint 경고 0
 
+리뷰 대응 (2회차)
+- 리뷰어 #1 지적 3건 수정 후 APPROVED
+  1) useTodoMutations.patch()가 setQueryData 전에 cancelQueries를 await
+     — onSettled마다 invalidate가 돌아 이전 refetch가 낙관적 패치를 덮어쓰던 문제
+  2) TodoCard의 "안 바뀜" 판정 기준을 editBase(편집 시작 시점 값)로 변경
+     — 현재 todo.title과 비교하면 편집 중 들어온 남의 수정을 덮어씀
+  3) useLoopCarousel의 재배치를 최초 1회 + resetKey(activeOrgId) 변경 시로 제한
+     — 멤버 수가 바뀔 때마다 되돌리면 남의 컬럼 보던 사람이 끌려감
+     — BoardClient는 조직 전환 시 remount되지 않으므로 resetKey가 필수
+- 리뷰어 #2가 새 결함 발견: 실시간 postgres_changes 핸들러는 react-query 밖에서
+  캐시에 직접 쓰므로 cancelQueries의 보호를 받지 못함. 행 전체를 실어 오기 때문에
+  in-flight 낙관적 변경을 커밋 이전 값으로 되돌림
+  → lib/pending-todos.ts(개수 카운터)로 응답 대기 중인 id를 표시하고 병합에서 건너뜀
+
+deslop (Step 7.5)
+- 죽은 코드: Slide.realIndex(아무도 안 읽음), 훅 밖 미사용 resync 반환,
+  pt-safe / px-safe / text-eyebrow 유틸리티
+- 이름: MemberColumn onMutated → onCreated (이제 생성에만 쓰임)
+- BoardSkeleton: 폭 하나 때문에 열어 둔 style 프롭 제거
+- 회귀 재검증(Step 7.6): yarn build 성공, yarn lint 경고 0, / /login /reset 200
+
