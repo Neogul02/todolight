@@ -164,7 +164,7 @@ export default function BoardClient() {
           </div>
         )}
 
-        {/* 좁은 화면에서는 라벨을 접고 아이콘만 남긴다 — 멤버 칩이 쓸 자리를 뺏지 않도록 */}
+        {/* 아이콘만 — 셋뿐이라 모양으로 구분되고, 라벨은 멤버 칩이 쓸 자리를 뺏는다 */}
         <div className="ml-auto flex h-9 shrink-0 overflow-hidden rounded-lg border border-hairline no-select">
           {MODES.map(({ key, label, Icon }) => (
             <button
@@ -173,13 +173,13 @@ export default function BoardClient() {
               onClick={() => setMode(key)}
               aria-pressed={mode === key}
               aria-label={label}
+              title={label}
               className={cn(
-                'flex items-center gap-1.5 px-2.5 text-[13px] font-medium transition-colors',
+                'grid w-10 place-items-center transition-colors',
                 mode === key ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted'
               )}
             >
-              <Icon className="size-4" />
-              <span className={cn(mode === key ? 'inline' : 'hidden sm:inline')}>{label}</span>
+              <Icon className="size-[18px]" />
             </button>
           ))}
         </div>
