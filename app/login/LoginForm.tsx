@@ -6,15 +6,16 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { showMsg } from '@/lib/toast';
 import { Button, Card, Input, Spinner } from '@/components/ui';
+import { cn } from '@/lib/utils';
+
+type Mode = 'signin' | 'signup';
 
 export default function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const nextPath = params.get('next') || '/board';
 
-  const [mode, setMode] = useState<'signin' | 'signup'>(
-    params.get('mode') === 'signup' ? 'signup' : 'signin'
-  );
+  const [mode, setMode] = useState<Mode>(params.get('mode') === 'signup' ? 'signup' : 'signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -37,7 +38,7 @@ export default function LoginForm() {
         if (error) throw error;
         // 이메일 확인이 켜져 있으면 session이 비어서 온다 — 이 경우 바로 들어갈 수 없다.
         if (!data.session) {
-          showMsg('확인 메일을 보냈어요. 메일함에서 인증을 마쳐 주세요.', 'info');
+          showMsg('확인 메일을 보냈습니다. 메일함에서 인증을 마쳐 주세요.', 'info');
           setMode('signin');
           return;
         }
@@ -69,11 +70,26 @@ export default function LoginForm() {
       <Link href="/" className="text-title tracking-tight text-ink">
         todolight
       </Link>
-      <p className="mt-1 text-caption text-ink-muted">
-        {mode === 'signup' ? '계정을 만들고 조직을 시작하세요.' : '다시 오셨네요.'}
-      </p>
 
-      <form onSubmit={submit} className="mt-6 flex flex-col gap-3">
+      {/* 링크로 모드를 바꾸던 걸 탭으로 바꿨다 — 로그인·회원가입이 같은 무게로 보여야 한다 */}
+      <div className="mt-5 flex overflow-hidden rounded-xl border border-hairline no-select">
+        {(['signin', 'signup'] as Mode[]).map(m => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            aria-pressed={mode === m}
+            className={cn(
+              'h-11 flex-1 text-[14px] font-medium transition-colors sm:h-10',
+              mode === m ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted'
+            )}
+          >
+            {m === 'signin' ? '로그인' : '회원가입'}
+          </button>
+        ))}
+      </div>
+
+      <form onSubmit={submit} className="mt-4 flex flex-col gap-3">
         {mode === 'signup' && (
           <label className="flex flex-col gap-1.5">
             <span className="text-caption font-medium text-ink-secondary">이름</span>
@@ -125,13 +141,14 @@ export default function LoginForm() {
         </Button>
       </form>
 
-      <button
-        type="button"
-        onClick={() => setMode(mode === 'signup' ? 'signin' : 'signup')}
-        className="mt-5 w-full text-caption text-ink-muted transition-colors hover:text-ink"
-      >
-        {mode === 'signup' ? '이미 계정이 있어요 · 로그인' : '계정이 없어요 · 가입하기'}
-      </button>
+      {mode === 'signin' && (
+        <Link
+          href="/reset"
+          className="mt-4 block text-center text-caption text-ink-muted transition-colors sm:hover:text-ink"
+        >
+          비밀번호를 잊으셨나요?
+        </Link>
+      )}
     </Card>
   );
 }

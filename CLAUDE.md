@@ -51,6 +51,7 @@ NEXT_PUBLIC_SITE_URL             앱 절대 URL
 ```
 proxy.ts                  ← 보호 라우트 세션 검증 (getClaims()로 JWT 로컬 검증)
                              /board /team /me /invites /orgs → 미인증이면 /login?next=... 리다이렉트
+app/auth/callback/route.ts ← 메일 링크(PKCE code)를 세션으로 교환하는 자리
 app/(app)/layout.tsx      ← 서버 컴포넌트에서 사용자·조직·프로필 로드 후 AppShell에 주입
 app/(app)/AppShell.tsx    ← 클라이언트 셸: 헤더, 조직 전환 시트, 아바타 메뉴 시트, 테마 적용
 ```
@@ -58,6 +59,13 @@ app/(app)/AppShell.tsx    ← 클라이언트 셸: 헤더, 조직 전환 시트,
 - 로그인/회원가입은 `app/login/LoginForm.tsx`에서 `supabase.auth.signInWithPassword()` /
   `signUp()`으로 직접 처리한다. 가입 시 `auth.users` 트리거(`handle_new_user`)가
   `public.profiles` row를 자동 생성한다.
+- **비밀번호 재설정**: `/reset`에서 `resetPasswordForEmail()`로 메일 발송 →
+  메일 링크가 `/auth/callback?next=/reset/confirm`으로 돌아옴 →
+  라우트 핸들러가 `exchangeCodeForSession()`으로 쿠키에 세션을 심음 →
+  `/reset/confirm`에서 `updateUser({ password })`.
+  **코드 교환은 반드시 서버에서** 한다 — PKCE 검증자가 `@supabase/ssr`의 쿠키에 있다.
+  `next` 파라미터는 앱 내부 경로만 받는다(열린 리다이렉트 방지).
+  Supabase 대시보드의 **Redirect URLs에 배포 도메인을 등록**해야 링크가 동작한다.
 - **서버 액션은 공개 POST 엔드포인트다** — proxy.ts의 페이지 보호가 적용되지 않는다.
   모든 액션은 첫 줄에서 `requireAuth()`를 호출하고, 조직 관련 작업은 추가로
   `requireMembership()` / `requireManager()` / `assertMember()`로 소속·역할을 다시 검사한다.
@@ -266,7 +274,9 @@ apple-icon만 PNG로 그린다.
 
 ## 디자인 시스템
 
-밝은 베이지 배경 + 블랙 잉크(`sand` 테마)가 기본. 컴포넌트는 항상 시맨틱 토큰만 쓴다:
+흰 배경 + 블랙 잉크(`ink` 테마)가 기본이고, 베이지(`sand`)는 설정에서 고르는 선택지다.
+두 테마의 잉크·헤어라인은 같은 계열이라 어느 쪽이든 톤이 차갑게 튀지 않는다.
+컴포넌트는 항상 시맨틱 토큰만 쓴다:
 
 ```
 bg-canvas / bg-canvas-soft / bg-surface / bg-surface-alt

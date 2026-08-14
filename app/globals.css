@@ -2,7 +2,7 @@
 
 /* ──────────────────────────────────────────────────────────────
    Theme tokens
-   기본 테마는 "sand" — 밝은 베이지 배경 + 블랙 잉크.
+   기본 테마는 "ink" — 흰 배경 + 샌드 계열의 검정 잉크.
    추후 유료 테마는 :root[data-theme="..."] 블록만 추가하면 되고,
    컴포넌트는 아래 시맨틱 토큰(bg-canvas, text-ink 등)만 사용한다.
    ────────────────────────────────────────────────────────────── */
@@ -33,7 +33,6 @@
   --color-danger-soft: #f7e6e4;
 }
 
-:root,
 :root[data-theme="sand"] {
   --canvas: #f3eee5;
   --canvas-soft: #ece5d8;
@@ -54,25 +53,26 @@
   --accent-ink: #fbf9f5;
 }
 
-/* 프리뷰용 프리셋 — 결제 연동 전까지는 잠금 상태로 노출만 한다 */
+/* 기본값. 흰 배경에 샌드와 같은 잉크 색을 얹어 대비는 또렷하고 톤은 차갑지 않게 잡았다 */
+:root,
 :root[data-theme="ink"] {
-  --canvas: #171613;
-  --canvas-soft: #1f1e1a;
-  --surface: #232220;
-  --surface-alt: #2b2a26;
+  --canvas: #ffffff;
+  --canvas-soft: #f4f2ee;
+  --surface: #ffffff;
+  --surface-alt: #faf8f4;
 
-  --ink: #f4f1ea;
-  --ink-secondary: #ddd8cd;
-  --ink-muted: #a29b8d;
-  --ink-faint: #6f6a5f;
-  --ink-invert: #171613;
+  --ink: #14120f;
+  --ink-secondary: #35312b;
+  --ink-muted: #6b655b;
+  --ink-faint: #a49c8f;
+  --ink-invert: #ffffff;
 
-  --hairline: #34322d;
-  --hairline-strong: #4a473f;
+  --hairline: #e8e4dc;
+  --hairline-strong: #d3ccbf;
 
-  --accent: #f4f1ea;
-  --accent-soft: #34322d;
-  --accent-ink: #171613;
+  --accent: #14120f;
+  --accent-soft: #efece5;
+  --accent-ink: #ffffff;
 }
 
 :root[data-theme="mint"] {
@@ -111,10 +111,6 @@
     --header-h: 56px;
     --board-toolbar-h: 52px;
   }
-}
-
-:root[data-theme="ink"] {
-  color-scheme: dark;
 }
 
 * {
