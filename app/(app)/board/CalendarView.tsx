@@ -79,6 +79,15 @@ function shiftMonth(month: string, delta: number): string {
   return new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
 }
 
+/** 스크린리더가 읽을 하루 요약 — "8월 15일, 남은 할 일 2개, 일정 팝업 준비 기간" */
+function describeDay(date: string, remaining: number, events: OrgEvent[]): string {
+  const [, m, d] = date.split('-');
+  const parts = [`${Number(m)}월 ${Number(d)}일`];
+  if (remaining > 0) parts.push(`남은 할 일 ${remaining}개`);
+  if (events.length > 0) parts.push(`일정 ${events.map(e => e.title).join(', ')}`);
+  return parts.join(', ');
+}
+
 function formatRange(event: OrgEvent): string {
   const fmt = (d: string) => {
     const [, m, day] = d.split('-');
@@ -247,9 +256,13 @@ export function CalendarView({
         </button>
       </div>
 
-      <div className="grid grid-cols-7">
+      <div className="grid grid-cols-7" role="row">
         {WEEKDAYS.map(w => (
-          <span key={w} className="py-1 text-center text-[11px] font-medium text-ink-faint">
+          <span
+            key={w}
+            role="columnheader"
+            className="py-1 text-center text-[11px] font-medium text-ink-faint"
+          >
             {w}
           </span>
         ))}
@@ -267,10 +280,12 @@ export function CalendarView({
             animate={{ opacity: 1, x: 0 }}
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: direction * -32 }}
             transition={{ duration: reduceMotion ? 0 : 0.16, ease: [0.22, 0.61, 0.36, 1] }}
+            role="grid"
+            aria-label={`${year}년 ${Number(monthNumber)}월 달력`}
             className="grid grid-cols-7 gap-x-1 gap-y-1.5"
           >
         {days.map((date, i) => {
-          if (!date) return <span key={`blank-${i}`} />;
+          if (!date) return <span key={`blank-${i}`} role="gridcell" aria-hidden />;
 
           const dayTodos = todosByDate.get(date) ?? [];
           const dayEvents = eventsByDate.get(date) ?? [];
@@ -283,7 +298,14 @@ export function CalendarView({
               key={date}
               type="button"
               onClick={() => setSelected(date)}
-              aria-pressed={isSelected}
+              role="gridcell"
+              aria-selected={isSelected}
+              aria-current={isToday ? 'date' : undefined}
+              /*
+                칸 안의 숫자·배지·띠는 눈으로 보면 한 덩어리지만 읽어 주면 파편이 된다 —
+                한 문장으로 합쳐서 들려 준다.
+              */
+              aria-label={describeDay(date, remaining, dayEvents)}
               className={cn(
                 'flex flex-col items-stretch gap-1 rounded-xl pt-1.5 pb-1 transition-colors',
                 isSelected ? 'bg-accent text-accent-ink' : 'text-ink active:bg-canvas-soft'

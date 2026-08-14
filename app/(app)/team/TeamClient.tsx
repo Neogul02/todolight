@@ -21,7 +21,7 @@ import { useApp } from '../OrgContext';
 import { Avatar } from '@/components/Avatar';
 import { OrgIcon } from '@/components/OrgIcon';
 import { BottomSheet } from '@/components/BottomSheet';
-import { Badge, Button, Card, EmptyState, Input, Spinner } from '@/components/ui';
+import { Badge, Button, Card, EmptyState, Input } from '@/components/ui';
 import { showMsg } from '@/lib/toast';
 import { formatRelativeDay } from '@/lib/utils';
 import type { MemberSummary } from '@/types/db';
@@ -233,7 +233,13 @@ export default function TeamClient() {
             </Button>
           </form>
 
-          {invites.isLoading && <Spinner className="mt-4" />}
+          {invites.isLoading && (
+            <ul className="mt-4 flex flex-col gap-1.5">
+              {[0, 1].map(i => (
+                <li key={i} className="h-11 rounded-xl bg-canvas-soft animate-pulse-soft" />
+              ))}
+            </ul>
+          )}
           {(invites.data?.length ?? 0) > 0 && (
             <ul className="mt-4 flex flex-col gap-1.5">
               {invites.data!.map(inv => (
@@ -265,7 +271,7 @@ export default function TeamClient() {
       <Card className="p-5">
         <h2 className="text-title text-ink">멤버</h2>
 
-        {members.isLoading && <Spinner className="mt-4" />}
+        {members.isLoading && <MemberRowsSkeleton />}
         {members.data && members.data.length === 0 && (
           <EmptyState title="아직 멤버가 없어요." />
         )}
@@ -455,5 +461,27 @@ export default function TeamClient() {
         </div>
       </BottomSheet>
     </main>
+  );
+}
+
+/**
+ * 멤버 목록 자리를 미리 잡아 둔다.
+ * 스피너는 크기가 없어서 목록이 도착하는 순간 화면이 통째로 밀린다 —
+ * 실제 행과 같은 높이를 미리 차지해야 자리가 흔들리지 않는다.
+ */
+function MemberRowsSkeleton() {
+  return (
+    <ul className="mt-3 flex flex-col gap-1" aria-busy="true" aria-label="멤버를 불러오는 중">
+      {[0, 1, 2].map(i => (
+        <li key={i} className="flex items-center gap-2.5 px-1 py-3 sm:py-2">
+          <span className="size-8 shrink-0 rounded-full bg-canvas-soft animate-pulse-soft" />
+          <span className="flex flex-1 flex-col gap-1.5">
+            <span className="h-3.5 w-24 rounded-md bg-canvas-soft animate-pulse-soft" />
+            <span className="h-3 w-36 rounded-md bg-canvas-soft animate-pulse-soft" />
+          </span>
+          <span className="h-5 w-10 rounded-full bg-canvas-soft animate-pulse-soft" />
+        </li>
+      ))}
+    </ul>
   );
 }
