@@ -38,6 +38,20 @@ export function formatKSTTime(iso: string): string {
   return kst.toISOString().slice(11, 16);
 }
 
+/** YYYY-MM-DD에 일 수를 더한다 (문자열 기준이라 타임존 영향을 받지 않는다) */
+export function addDays(date: string, delta: number): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const shifted = new Date(Date.UTC(y, m - 1, d + delta));
+  return shifted.toISOString().slice(0, 10);
+}
+
+/** 오늘로부터 며칠 뒤인지 (음수면 지난 날짜) */
+export function daysFromToday(date: string): number {
+  return Math.round(
+    (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${todayKST()}T00:00:00Z`)) / 86_400_000
+  );
+}
+
 /** 마감일 상태 — 컬럼 배지 색 결정용 */
 export function dueState(dueDate: string | null): 'none' | 'overdue' | 'today' | 'upcoming' {
   if (!dueDate) return 'none';

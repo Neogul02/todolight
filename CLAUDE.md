@@ -195,6 +195,13 @@ todo_notes      id, todo_id, author_id, content, created_at
 이게 빠지면 `pb-safe` · `board-viewport`의 홈 인디케이터 회피가 통째로 무효가 된다.
 유틸리티는 `pb-safe` · `pt-safe` · `px-safe`.
 
+### 마감일 입력
+
+`components/DueStepper.tsx` — 달력도 키보드도 띄우지 않는다. **오늘이 기본값**이고 좌우 버튼으로
+하루씩 밀고 당긴다. 가운데를 누르면 "마감 없음"으로 토글된다.
+`<input type="date">`로 되돌리지 말 것 — 모바일에서 네이티브 피커가 화면 절반을 덮어서,
+할 일 하나 넣는 데 드는 동작이 배로 늘어난다.
+
 ### 할 일 카드 정렬
 
 체크박스 · 제목 · X 세 칸은 **모두 `py-2`로 위 패딩을 맞춰** 첫 줄 기준선이 겹치게 한다.

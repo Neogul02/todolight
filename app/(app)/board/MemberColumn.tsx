@@ -4,7 +4,8 @@ import { forwardRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { createTodo } from '@/app/actions/todos';
 import { showMsg } from '@/lib/toast';
-import { cn } from '@/lib/utils';
+import { cn, todayKST } from '@/lib/utils';
+import { DueStepper } from '@/components/DueStepper';
 import { Avatar } from '@/components/Avatar';
 import { Badge, Button, Input } from '@/components/ui';
 import type { MemberSummary, Todo } from '@/types/db';
@@ -42,7 +43,8 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
   ref
 ) {
   const [title, setTitle] = useState('');
-  const [due, setDue] = useState('');
+  // 마감은 오늘이 기본 — 대부분 오늘 할 일이고, 아니면 스테퍼로 하루씩 밀면 된다
+  const [due, setDue] = useState<string | null>(todayKST());
   const [busy, setBusy] = useState(false);
 
   const isMine = member.user_id === currentUserId;
@@ -59,7 +61,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
       orgId,
       title: value,
       ownerId: member.user_id,
-      dueDate: due || null,
+      dueDate: due,
     });
     setBusy(false);
     if (!res.success) {
@@ -67,7 +69,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
       return;
     }
     setTitle('');
-    setDue('');
+    setDue(todayKST());
     if (!isMine) showMsg(`${member.display_name}님 목록에 추가했습니다.`, 'success');
     onMutated();
   }
@@ -109,12 +111,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
         />
         {title.trim() && (
           <div className="flex gap-1.5">
-            <Input
-              type="date"
-              value={due}
-              onChange={e => setDue(e.target.value)}
-              className="h-11 flex-1 sm:h-9"
-            />
+            <DueStepper value={due} onChange={setDue} className="min-w-0 flex-1" />
             <Button type="submit" className="h-11 px-4 sm:h-9" disabled={busy}>
               추가
             </Button>
