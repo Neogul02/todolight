@@ -5,7 +5,7 @@ import { AnimatePresence } from 'framer-motion';
 import { createTodo } from '@/app/actions/todos';
 import { showMsg } from '@/lib/toast';
 import { cn, todayKST } from '@/lib/utils';
-import { DueStepper } from '@/components/DueStepper';
+import { DuePicker } from '@/components/DuePicker';
 import { Avatar } from '@/components/Avatar';
 import { Badge, Button, Input } from '@/components/ui';
 import type { MemberSummary, Todo } from '@/types/db';
@@ -115,12 +115,13 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
           className="h-11 sm:h-9"
         />
         {title.trim() && (
-          <div className="flex gap-1.5">
-            <DueStepper value={due} onChange={setDue} className="min-w-0 flex-1" />
-            <Button type="submit" className="h-11 px-4 sm:h-9" disabled={busy}>
+          <>
+            {/* 컬럼 패딩까지 스크롤 영역을 넓혀 가장자리에서 잘린 것처럼 보이지 않게 한다 */}
+            <DuePicker value={due} onChange={setDue} className="-mx-3 px-3" />
+            <Button type="submit" className="h-11 sm:h-9" disabled={busy}>
               추가
             </Button>
-          </div>
+          </>
         )}
       </form>
 

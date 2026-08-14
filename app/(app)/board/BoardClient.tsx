@@ -89,11 +89,20 @@ export default function BoardClient() {
     `${activeOrgId}:${mode}`
   );
 
-  // 모션을 끈 사용자에게는 전환을 없앤다 (framer-motion은 CSS 미디어 쿼리를 따르지 않는다)
+  /*
+    뷰 전환 모션.
+    transform은 바깥 래퍼에만 건다 — 스크롤 스냅 컨테이너 자체에 걸면 스냅 위치가 어긋난다.
+    모션을 끈 사용자에게는 없앤다 (framer-motion은 CSS 미디어 쿼리를 따르지 않는다).
+  */
   const reduceMotion = useReducedMotion();
-  const viewTransition = reduceMotion
-    ? { duration: 0 }
-    : { duration: 0.18, ease: [0.22, 0.61, 0.36, 1] as const };
+  const viewMotion = reduceMotion
+    ? {}
+    : {
+        initial: { opacity: 0, y: 8 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: -8 },
+        transition: { duration: 0.2, ease: [0.22, 0.61, 0.36, 1] as const },
+      };
 
   function refresh() {
     if (activeOrgId) queryClient.invalidateQueries({ queryKey: boardKeys.todos(activeOrgId) });
@@ -187,50 +196,46 @@ export default function BoardClient() {
       {/* ── 보드 : 가로 캐러셀 ──
           페이지 전체를 늘리는 대신 이 영역 높이를 뷰포트에 고정하고 컬럼 내부만 스크롤한다.
           내 컬럼이 항상 첫 번째라 처음 열면 내 할 일부터 보이고, 양옆으로 넘기면 팀원이 나온다. */}
-      {/*
-        mode="wait" — 두 뷰가 겹쳐 있으면 높이가 서로 달라 화면이 출렁인다.
-        transform은 주지 않는다. 스크롤 스냅 컨테이너에 transform을 걸면 스냅 위치가 어긋난다.
-      */}
+      {/* mode="wait" — 두 뷰가 겹쳐 있으면 높이가 서로 달라 화면이 출렁인다 */}
       <AnimatePresence mode="wait" initial={false}>
         {!loading && !error && mode === 'board' && (
-          <motion.div
-            key="board"
-            ref={scrollerRef}
-            onScroll={onScroll}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={viewTransition}
-          /*
-            scroll-pl은 스냅 기준선을 좌측 패딩만큼 밀어 준다.
-            없으면 두 번째 컬럼부터 패딩을 무시하고 화면 왼쪽 끝에 붙어서, 오른쪽에 다음 컬럼이
-            패딩 폭만큼 삐져나온다.
-          */
-            className="snap-board board-viewport flex gap-3 overflow-x-auto scroll-pl-3 px-3 pb-3 sm:scroll-pl-4 sm:px-4"
-          >
-            {slides.map((slide, i) => (
-              <MemberColumn
-                key={slide.key}
-                ref={registerNode(i)}
-                member={slide.item}
-                todos={todosByOwner.get(slide.item.user_id) ?? []}
-                orgId={activeOrgId!}
-                currentUserId={userId}
-                isManager={isManager}
-                members={orderedMembers}
-                showDone={showDone}
-                onCreated={refresh}
-                onHandoff={setHandoff}
-              /*
-                모바일은 한 화면에 한 명만 보인다 — w-full은 스크롤 컨테이너의 콘텐츠 폭이라
-                좌우 패딩(px-3)과 정확히 맞아떨어져 옆 컬럼이 삐져나오지 않는다.
-                (100vw로 잡으면 스크롤바 폭만큼 어긋난다)
-              */
-                className="w-full sm:w-[330px]"
-              />
-            ))}
+          <motion.div key="board" {...viewMotion}>
+            {/*
+              scroll-pl은 스냅 기준선을 좌측 패딩만큼 밀어 준다.
+              없으면 두 번째 컬럼부터 패딩을 무시하고 화면 왼쪽 끝에 붙어서,
+              오른쪽에 다음 컬럼이 패딩 폭만큼 삐져나온다.
+            */}
+            <div
+              ref={scrollerRef}
+              onScroll={onScroll}
+              className="snap-board board-viewport flex gap-3 overflow-x-auto scroll-pl-3 px-3 pb-3 sm:scroll-pl-4 sm:px-4"
+            >
+              {slides.map((slide, i) => (
+                <MemberColumn
+                  key={slide.key}
+                  ref={registerNode(i)}
+                  member={slide.item}
+                  todos={todosByOwner.get(slide.item.user_id) ?? []}
+                  orgId={activeOrgId!}
+                  currentUserId={userId}
+                  isManager={isManager}
+                  members={orderedMembers}
+                  showDone={showDone}
+                  onCreated={refresh}
+                  onHandoff={setHandoff}
+                  /*
+                    모바일은 한 화면에 한 명만 보인다 — w-full은 스크롤 컨테이너의 콘텐츠 폭이라
+                    좌우 패딩(px-3)과 정확히 맞아떨어져 옆 컬럼이 삐져나오지 않는다.
+                    (100vw로 잡으면 스크롤바 폭만큼 어긋난다)
+                  */
+                  className="w-full sm:w-[330px]"
+                />
+              ))}
 
-            {soloMember && <InviteColumn isManager={isManager} className="w-full sm:w-[330px]" />}
+              {soloMember && (
+                <InviteColumn isManager={isManager} className="w-full sm:w-[330px]" />
+              )}
+            </div>
           </motion.div>
         )}
 
@@ -238,10 +243,7 @@ export default function BoardClient() {
         {!loading && !error && mode === 'dashboard' && (
           <motion.div
             key="dashboard"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={viewTransition}
+            {...viewMotion}
             className="flex flex-col gap-3 px-3 pb-safe sm:grid sm:grid-cols-2 sm:px-4 lg:grid-cols-3"
           >
             {orderedMembers.map(m => (
@@ -266,13 +268,7 @@ export default function BoardClient() {
 
         {/* ── 달력 : 마감일 기준으로 조직 전체를 훑는다 ── */}
         {!loading && !error && mode === 'calendar' && (
-          <motion.div
-            key="calendar"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={viewTransition}
-          >
+          <motion.div key="calendar" {...viewMotion}>
             <CalendarView
               todos={todos.data ?? []}
               members={orderedMembers}

@@ -212,6 +212,12 @@ todo_notes      id, todo_id, author_id, content, created_at
 보드는 스피너가 아니라 `BoardSkeleton`을 쓴다. 실제 컬럼과 **같은 폭·높이**(`w-full` /
 `sm:w-[330px]`, `board-viewport`)를 써야 데이터가 도착해도 레이아웃이 튀지 않는다.
 
+### 커서
+
+Tailwind v4 preflight는 버튼 커서를 `default`로 되돌린다. 터치에서는 티가 안 나지만
+데스크톱에서는 "누를 수 있는 것"이라는 신호가 통째로 사라진다 —
+`globals.css`에서 `button:not(:disabled)` 등에 `cursor: pointer`를 다시 준다.
+
 ### 접근성
 
 - 포커스 링은 `globals.css`의 `:focus-visible` 하나로 잡는다. 요소마다 붙이면 새로 만든
@@ -228,10 +234,12 @@ todo_notes      id, todo_id, author_id, content, created_at
 
 ### 마감일 입력
 
-`components/DueStepper.tsx` — 달력도 키보드도 띄우지 않는다. **오늘이 기본값**이고 좌우 버튼으로
-하루씩 밀고 당긴다. 가운데를 누르면 "마감 없음"으로 토글된다.
-`<input type="date">`로 되돌리지 말 것 — 모바일에서 네이티브 피커가 화면 절반을 덮어서,
-할 일 하나 넣는 데 드는 동작이 배로 늘어난다.
+`components/DuePicker.tsx` — 달력도 키보드도 띄우지 않는다. 오늘을 기준으로 날짜가 가로로
+늘어서 있고(뒤로 2주, 앞으로 석 달) 좌우로 밀어 고른다. 맨 앞은 "마감 없음".
+열릴 때 선택된 날짜가 화면 가운데 오도록 스크롤을 맞춘다 — 0에서 시작하면 2주 전부터 보인다.
+
+`<input type="date">`로 되돌리지 말 것 — 모바일에서 네이티브 피커가 화면 절반을 덮는다.
+하루씩 밀고 당기는 −/+ 버튼으로도 되돌리지 말 것 — "다음 주 화요일"까지 가는 데 손이 너무 많이 간다.
 
 ### 할 일 쓰기 동작 — useTodoMutations
 
@@ -304,8 +312,9 @@ todo_notes      id, todo_id, author_id, content, created_at
 훑는다(`sm:`부터 2열, `lg:`부터 3열). `MemberColumn`에 `stacked`를 주면 뷰포트 높이 고정과
 내부 스크롤을 끄고 내용만큼만 자란다.
 
-보드↔대시보드 전환은 `AnimatePresence mode="wait"` + **opacity만** 바꾼다.
-스크롤 스냅 컨테이너에 transform을 걸면 스냅 위치가 어긋난다. 모션 최소화는
+뷰 전환은 `AnimatePresence mode="wait"` + opacity·y 8px다.
+**transform은 바깥 래퍼에만 건다** — 스크롤 스냅 컨테이너 자체에 걸면 스냅 위치가 어긋나서,
+캐러셀은 `motion.div` 안에 별도 `div`로 감싸 두었다. 모션 최소화는
 `useReducedMotion()`으로 따로 처리한다 — framer-motion은 CSS 미디어 쿼리를 따르지 않는다.
 
 캐러셀 `resetKey`는 `` `${activeOrgId}:${mode}` ``다. 대시보드에 다녀오면 캐러셀이 다시

@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useTodoMutations } from '@/hooks/useTodoMutations';
 import { cn, dueState, formatRelativeDay } from '@/lib/utils';
 import { Avatar } from '@/components/Avatar';
-import { DueStepper } from '@/components/DueStepper';
+import { DuePicker } from '@/components/DuePicker';
 import { Badge, Button, Input } from '@/components/ui';
 import type { MemberSummary, Todo } from '@/types/db';
 
@@ -199,100 +199,104 @@ export default function TodoCard({
             className="overflow-hidden"
           >
             <div className="mt-3 border-t border-hairline pt-3">
-              {canRemove &&
-                (editing ? (
-                  <form onSubmit={submitEdit} className="mb-3 flex flex-col gap-1.5">
-                    <Input
-                      value={draftTitle}
-                      onChange={e => setDraftTitle(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Escape') setEditing(false);
-                      }}
-                      maxLength={500}
-                      enterKeyHint="done"
-                      autoFocus
-                      className="h-11 sm:h-9"
-                    />
-                    <div className="flex gap-1.5">
-                      <DueStepper
-                        value={draftDue}
-                        onChange={setDraftDue}
-                        className="min-w-0 flex-1"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-11 sm:h-9"
-                        onClick={() => setEditing(false)}
-                      >
-                        취소
-                      </Button>
-                      <Button
-                        type="submit"
-                        size="sm"
-                        className="h-11 sm:h-9"
-                        disabled={!draftTitle.trim()}
-                      >
-                        저장
-                      </Button>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="mb-3">
-                    <Button size="sm" variant="outline" onClick={startEditing}>
-                      수정
+              {editing ? (
+                <form onSubmit={submitEdit} className="flex flex-col gap-2">
+                  <Input
+                    value={draftTitle}
+                    onChange={e => setDraftTitle(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') setEditing(false);
+                    }}
+                    maxLength={500}
+                    enterKeyHint="done"
+                    autoFocus
+                    className="h-11 sm:h-10"
+                  />
+                  {/* 컬럼 패딩까지 스크롤 영역을 넓혀 가장자리에서 잘린 것처럼 보이지 않게 한다 */}
+                  <DuePicker value={draftDue} onChange={setDraftDue} className="-mx-3 px-3" />
+                  <div className="flex gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setEditing(false)}
+                    >
+                      취소
+                    </Button>
+                    <Button type="submit" className="flex-1" disabled={!draftTitle.trim()}>
+                      저장
                     </Button>
                   </div>
-                ))}
+                </form>
+              ) : (
+                <>
+                  {noteCount > 0 && (
+                    <ul className="mb-2.5 flex flex-col gap-2">
+                      {todo.notes!.map(n => (
+                        <li key={n.id} className="rounded-lg bg-canvas-soft px-2.5 py-2">
+                          <p className="text-caption break-words text-ink-secondary">{n.content}</p>
+                          <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-ink-faint">
+                            <Avatar
+                              name={n.author_name ?? '?'}
+                              color={n.author_color}
+                              imageUrl={n.author_avatar_url}
+                              seed={n.author_id}
+                              size="sm"
+                              className="size-4 text-[9px]"
+                            />
+                            {n.author_name ?? '알 수 없음'} · {formatRelativeDay(n.created_at)}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
 
-              {noteCount > 0 && (
-                <ul className="mb-3 flex flex-col gap-2">
-                  {todo.notes!.map(n => (
-                    <li key={n.id} className="rounded-lg bg-canvas-soft px-2.5 py-2">
-                      <p className="text-caption text-ink-secondary break-words">{n.content}</p>
-                      <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-ink-faint">
-                        <Avatar
-                          name={n.author_name ?? '?'}
-                          color={n.author_color}
-                          imageUrl={n.author_avatar_url}
-                          seed={n.author_id}
-                          size="sm"
-                          className="size-4 text-[9px]"
-                        />
-                        {n.author_name ?? '알 수 없음'} · {formatRelativeDay(n.created_at)}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                  {/*
+                    Input은 w-full이라 min-w-0이 없으면 flex 안에서 줄어들지 못하고
+                    전송 버튼을 카드 밖으로 밀어낸다.
+                  */}
+                  <form onSubmit={submitNote} className="flex items-center gap-1.5">
+                    <Input
+                      value={note}
+                      onChange={e => setNote(e.target.value)}
+                      placeholder="메모 남기기"
+                      maxLength={1000}
+                      enterKeyHint="send"
+                      className="h-10 min-w-0 flex-1"
+                    />
+                    <button
+                      type="submit"
+                      aria-label="메모 등록"
+                      disabled={addNote.isPending || !note.trim()}
+                      className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-accent-ink transition-[opacity,transform] active:scale-90 disabled:opacity-30"
+                    >
+                      <svg
+                        viewBox="0 0 20 20"
+                        className="size-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M4 10h11M10.5 5 15.5 10l-5 5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  </form>
 
-              <form onSubmit={submitNote} className="flex gap-1.5">
-                <Input
-                  value={note}
-                  onChange={e => setNote(e.target.value)}
-                  placeholder="메모 남기기"
-                  maxLength={1000}
-                  enterKeyHint="send"
-                  className="h-11 sm:h-9"
-                />
-                <Button
-                  type="submit"
-                  size="sm"
-                  variant="outline"
-                  className="h-11 sm:h-9"
-                  disabled={addNote.isPending || !note.trim()}
-                >
-                  등록
-                </Button>
-              </form>
-
-              {!isMine && !done && (
-                <div className="mt-2.5">
-                  <Button size="sm" variant="outline" onClick={() => onHandoff(todo)}>
-                    대신 처리
-                  </Button>
-                </div>
+                  {(canRemove || (!isMine && !done)) && (
+                    <div className="mt-2.5 flex gap-1.5">
+                      {canRemove && (
+                        <Button size="sm" variant="outline" onClick={startEditing}>
+                          수정
+                        </Button>
+                      )}
+                      {!isMine && !done && (
+                        <Button size="sm" variant="outline" onClick={() => onHandoff(todo)}>
+                          대신 처리
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </motion.div>
