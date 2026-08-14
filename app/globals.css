@@ -388,12 +388,19 @@ textarea:focus-visible {
 
 /* ──────────────────────────────────────────────────────────────
    토스트(sonner)
-   기본 폭이 356px 고정이라 393px 화면에서 좌우 여백까지 더하면 넘친다.
-   sonner가 읽는 --width 변수만 좁혀 주면 되고, 미디어 쿼리는 필요 없다.
+   기본은 356px 고정 폭이라 "저장했어요" 한 줄에도 화면을 가로지른다.
+   내용만큼만 차지하게 두고 가운데에 띄운다.
    ────────────────────────────────────────────────────────────── */
 [data-sonner-toaster] {
-  --width: min(356px, calc(100vw - 1.5rem));
-  max-width: calc(100vw - 1.5rem);
+  --width: auto;
+  max-width: calc(100vw - 2rem);
+}
+
+[data-sonner-toast] {
+  width: auto !important;
+  max-width: calc(100vw - 2rem);
+  /* 폭이 내용마다 달라지므로 스스로 가운데를 잡아야 한다 */
+  margin-inline: auto;
 }
 
 /* 긴 할 일 제목이 한 단어로 이어지면 토스트를 밀어낸다 */

@@ -81,13 +81,15 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         offset="calc(var(--header-h) + 8px)"
         toastOptions={{
           classNames: {
+            // 내용만큼만 차지하는 작은 알약 — 화면을 가리지 않는다
             toast:
-              'bg-surface text-ink border border-hairline shadow-level-2 rounded-xl text-[14px]',
+              'w-auto gap-2 rounded-full border border-hairline bg-surface px-3.5 py-2 text-[13px] text-ink shadow-level-2',
             title: 'text-ink',
             description: 'text-ink-muted',
-            actionButton: 'bg-accent text-accent-ink rounded-lg px-2.5 h-8 text-[13px] font-medium',
-            cancelButton: 'bg-canvas-soft text-ink-muted rounded-lg',
-            icon: 'text-ink-muted',
+            actionButton:
+              'h-7 shrink-0 rounded-full bg-accent px-2.5 text-[12px] font-medium text-accent-ink',
+            cancelButton: 'h-7 rounded-full bg-canvas-soft px-2.5 text-[12px] text-ink-muted',
+            icon: 'shrink-0 text-ink-muted',
             success: 'text-ink',
             error: 'text-danger',
           },

@@ -135,3 +135,10 @@ US-106 달력 접근성 — 완료
   ("8월 15일, 남은 할 일 2개, 일정 팝업 준비 기간")
 - 월 표시 aria-live는 US-103에서 이미 붙임
 
+US-107 토스트를 작고 가운데로 — 완료
+- sonner 기본 356px 고정 폭이라 "저장했어요" 한 줄에도 화면을 가로질렀다
+- --width: auto + toast width auto로 내용만큼만. 폭이 매번 달라지므로
+  margin-inline: auto로 스스로 가운데를 잡게 함
+- 알약 모양(rounded-full)에 px-3.5 py-2 / 13px. 액션·취소 버튼도 h-7 알약으로 줄임
+- icon과 actionButton에 shrink-0 — 글자가 길어져도 잘리지 않는다
+
