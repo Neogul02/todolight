@@ -71,14 +71,16 @@ export function useLoopCarousel<T>(
     return nearest;
   }, []);
 
-  const jumpTo = useCallback((slideIndex: number, smooth: boolean) => {
+  /** 이동에 성공했으면 true. 아직 DOM에 붙지 않았으면 false */
+  const jumpTo = useCallback((slideIndex: number, smooth: boolean): boolean => {
     const scroller = scrollerRef.current;
     const el = nodeRefs.current[slideIndex];
-    if (!scroller || !el) return;
+    if (!scroller || !el) return false;
     const delta = offsetFromSnapLine(scroller, el);
     if (smooth) scroller.scrollBy({ left: delta, behavior: 'smooth' });
     // scroll-behavior가 auto라 직접 대입하면 즉시 이동한다 — 복제본 되감기는 보이면 안 된다
     else scroller.scrollLeft += delta;
+    return true;
   }, []);
 
   const count = items.length;
@@ -98,14 +100,21 @@ export function useLoopCarousel<T>(
     }, 120);
   }, [count, jumpTo, loop, nearestSlide]);
 
-  // 복제본을 앞에 뒀으므로 처음 한 번은 두 번째 슬라이드(= 진짜 첫 번째)로 맞춰 줘야 한다.
-  // 다만 멤버 수가 바뀔 때마다 되돌리면 안 된다 — 팀원이 한 명 들어왔다고 해서
-  // 남의 컬럼을 보던 사람을 자기 컬럼으로 끌고 오면 자리를 잃는다.
+  /*
+    복제본을 앞에 뒀으므로 처음 한 번은 두 번째 슬라이드(= 진짜 첫 번째)로 맞춰 줘야 한다.
+    멤버 수가 바뀔 때마다 되돌리지는 않는다 — 팀원이 한 명 들어왔다고 남의 컬럼을 보던 사람을
+    자기 컬럼으로 끌고 오면 자리를 잃는다. 대신 resetKey(조직·뷰)가 바뀌면 다시 잡는다.
+
+    한 번에 성공한다고 가정하면 안 된다. 뷰 전환은 AnimatePresence mode="wait"라서
+    이전 뷰의 exit 애니메이션이 끝나야 컬럼이 DOM에 붙는다. 그전에 시도하면 조용히 실패하는데,
+    실패를 성공으로 치고 positioned를 세워 버리면 스크롤이 0에 남는다.
+    loop일 때 0번 슬라이드는 마지막 팀원의 복제본이라, 보드를 열면 엉뚱하게 그 사람이 보인다.
+    그래서 붙을 때까지 프레임 단위로 다시 시도한다.
+  */
   useEffect(() => {
     // 슬라이드 수가 줄었을 때 남는 뒤쪽 ref를 잘라 낸다
     nodeRefs.current.length = loop ? count + 2 : count;
 
-    // 조직이 바뀌면 목록이 통째로 갈리므로 위치를 처음부터 다시 잡는다
     if (lastResetKey.current !== resetKey) {
       lastResetKey.current = resetKey;
       positioned.current = false;
@@ -117,11 +126,18 @@ export function useLoopCarousel<T>(
     }
     if (positioned.current) return;
 
-    const id = requestAnimationFrame(() => {
-      jumpTo(1, false);
-      positioned.current = true;
-    });
-    return () => cancelAnimationFrame(id);
+    let raf = 0;
+    let frames = 0;
+    const attempt = () => {
+      if (jumpTo(1, false)) {
+        positioned.current = true;
+        return;
+      }
+      // 전환 애니메이션(0.2초 ≈ 12프레임)을 넉넉히 덮는다. 그래도 안 붙으면 포기한다.
+      if (++frames < 40) raf = requestAnimationFrame(attempt);
+    };
+    raf = requestAnimationFrame(attempt);
+    return () => cancelAnimationFrame(raf);
   }, [loop, count, jumpTo, resetKey]);
 
   useEffect(() => {
