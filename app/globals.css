@@ -100,6 +100,20 @@
   color: var(--ink);
   background: var(--canvas);
   color-scheme: light;
+
+  /* 레이아웃 상수 — board-viewport 계산과 AppShell 높이가 이 값을 공유한다 */
+  --header-h: 52px;
+  --tabbar-h: 56px;
+  --board-toolbar-h: 100px;
+}
+
+/* sm 이상에서는 하단 탭바가 사라지고 상단 네비로 합쳐진다 */
+@media (min-width: 640px) {
+  :root {
+    --header-h: 56px;
+    --tabbar-h: 0px;
+    --board-toolbar-h: 64px;
+  }
 }
 
 :root[data-theme="ink"] {
@@ -121,6 +135,41 @@ body {
 button,
 a {
   touch-action: manipulation;
+}
+
+/* 헤더·탭바 같은 크롬 UI만 선택 해제 — 할 일 제목/메모는 복사할 수 있어야 한다 */
+@utility no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   iOS 세이프 에어리어
+   layout.tsx의 viewportFit: 'cover' 덕분에 env()가 실제 값을 갖는다.
+   홈 인디케이터(하단 34px)·다이나믹 아일랜드를 피하는 데 쓴다.
+   ────────────────────────────────────────────────────────────── */
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility px-safe {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+/* 하단 탭바에 가려지지 않도록 스크롤 콘텐츠 끝에 주는 여백 */
+@utility pb-tabbar {
+  padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 0.5rem);
+}
+
+/**
+ * 보드 스크롤 영역 높이.
+ * 페이지 전체가 늘어나면 컬럼마다 높이가 널뛰고 탭바가 밀려 올라간다 —
+ * 뷰포트에서 헤더·탭바를 뺀 만큼으로 고정하고 컬럼 내부만 스크롤시킨다.
+ */
+@utility board-viewport {
+  height: calc(100dvh - var(--header-h) - var(--board-toolbar-h) - var(--tabbar-h) - env(safe-area-inset-bottom));
 }
 
 /* ── Elevation ── */
@@ -192,9 +241,16 @@ a {
 /* 가로 스크롤 보드에서 각 컬럼이 스냅되도록 */
 @utility snap-board {
   scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  /* 모바일에서 컬럼 사이 가로 스크롤바가 보이면 지저분하다 */
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 @utility snap-col {
   scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
 
 /* ── 모바일 입력 확대 방지 (iOS Safari) ── */

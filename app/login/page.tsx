@@ -9,7 +9,7 @@ export default async function LoginPage() {
   if (data?.claims) redirect('/board');
 
   return (
-    <main className="flex min-h-dvh items-center justify-center px-6 py-12">
+    <main className="flex min-h-dvh items-center justify-center px-5 py-10 pb-safe sm:px-6 sm:py-12">
       <Suspense fallback={null}>
         <LoginForm />
       </Suspense>

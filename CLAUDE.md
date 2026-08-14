@@ -145,6 +145,67 @@ todo_notes      id, todo_id, author_id, content, created_at
 
 `todos` / `todo_notes`는 `replica identity full` + `supabase_realtime` publication에 등록되어 있다.
 
+## 모바일 레이아웃 (iPhone 15 Pro / 16 Pro 우선)
+
+기준 뷰포트는 **393×852**(15 Pro)와 **402×874**(16 Pro). 데스크톱은 `sm:`(640px) 이상에서 갈라진다.
+
+### 셸 구조
+
+```
+헤더 (--header-h)         조직 이름(탭 → 조직 선택 시트) + 아바타. 모바일도 한 줄로 끝낸다.
+본문                       페이지별
+하단 탭바 (--tabbar-h)     보드 / 팀 / 초대 / 내 설정. sm 이상에서는 사라지고 헤더 네비로 합쳐진다.
+```
+
+높이 상수는 `app/globals.css`의 `:root`에 `--header-h` · `--tabbar-h` · `--board-toolbar-h`로
+두고, 미디어 쿼리에서 값만 바꾼다(sm 이상은 `--tabbar-h: 0px`). 이 값을 쓰는 곳:
+
+- `board-viewport` — `100dvh`에서 헤더·툴바·탭바·세이프 에어리어를 뺀 높이.
+  보드는 **페이지가 늘어나지 않고** 컬럼 내부만 세로 스크롤한다. 그래야 탭바가 밀리지 않고
+  컬럼마다 페이지 높이가 널뛰지 않는다.
+- `pb-tabbar` — 세로로 흐르는 페이지(팀/초대/내 설정/조직 생성) 본문 끝 여백.
+  **보드에는 붙이지 말 것** — `board-viewport`가 이미 탭바를 빼고 계산한다.
+
+### 세이프 에어리어
+
+`layout.tsx`의 `viewportFit: 'cover'`가 있어야 `env(safe-area-inset-*)`가 0이 아니다.
+이게 빠지면 `pb-safe` · `board-viewport`의 홈 인디케이터 회피가 통째로 무효가 된다.
+유틸리티는 `pb-safe` · `pt-safe` · `px-safe` · `pb-tabbar`.
+
+### 터치 타깃
+
+`components/ui.tsx`의 `Button` / `Input`은 모바일에서 크고 `sm:`에서 조밀해진다
+(`md` 기준 48px → 40px). Apple HIG 최소 44pt에 맞춘 것이니 개별 화면에서 임의로 줄이지 말 것.
+할 일 체크박스처럼 시각 요소가 작아야 하는 경우에는 **패딩으로 탭 영역만 넓힌다**
+(`TodoCard`의 `-my-1 p-2.5` 패턴).
+
+### 보드 캐러셀
+
+컬럼은 가로 스냅 캐러셀 하나로 구현되어 있고, `wide` / `compact`는 **컬럼 폭만** 바꾼다.
+
+- `wide` (모바일 기본) — `calc(100vw-2.75rem)`. 다음 컬럼이 살짝 보여 스와이프 힌트가 된다
+- `compact` — 좁은 컬럼으로 여러 명을 한눈에. 데스크톱 기본
+
+현재 위치는 스크롤 위치에서 역산해(`syncActiveIndex`) 상단 멤버 칩과 `n / m` 인디케이터에 반영한다.
+멤버 칩을 탭하면 `scrollIntoView`로 그 컬럼으로 이동한다.
+
+### 그 밖의 iOS 대응
+
+- 이메일 입력에는 `autoCapitalize="none"` · `autoCorrect="off"` · `inputMode="email"` 필수 —
+  iOS가 첫 글자를 대문자로 바꿔 로그인이 실패한다
+- 입력 폰트는 모바일에서 16px 미만이면 Safari가 화면을 강제 확대한다
+  (`globals.css`의 미디어 쿼리가 `!important`로 막아 둠)
+- 드롭다운 대신 `components/BottomSheet.tsx`를 쓴다 — 터치에서 `onBlur` 타이밍이 어긋나
+  메뉴가 먼저 닫혀버린다. 아래로 끌어내리면 닫힌다
+- 크롬 UI(헤더·탭바·버튼)에는 `no-select`를 붙이되, 할 일 제목·메모는 복사할 수 있어야 하므로
+  `body` 전체에 `user-select: none`을 걸지 말 것
+
+### 상태를 effect로 만들지 말 것
+
+`react-hooks/set-state-in-effect` 규칙이 켜져 있다. localStorage·미디어 쿼리처럼 React 밖의
+값은 `useEffect` + `setState`가 아니라 `useSyncExternalStore`로 읽는다
+(`hooks/useActiveOrg.ts`, `hooks/useMediaQuery.ts` 참고).
+
 ## 디자인 시스템
 
 밝은 베이지 배경 + 블랙 잉크(`sand` 테마)가 기본. 컴포넌트는 항상 시맨틱 토큰만 쓴다:

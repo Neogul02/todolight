@@ -41,7 +41,7 @@ export default function InvitesClient() {
   });
 
   return (
-    <main className="mx-auto flex w-full max-w-[560px] flex-col gap-4 px-4 py-6">
+    <main className="mx-auto flex w-full max-w-[560px] flex-col gap-4 px-4 py-5 pb-tabbar sm:py-6">
       <div>
         <h1 className="text-heading-2 text-ink">받은 초대</h1>
         <p className="mt-0.5 text-caption text-ink-muted">{email}로 온 초대장입니다.</p>
@@ -54,30 +54,32 @@ export default function InvitesClient() {
       )}
 
       {(invites.data ?? []).map(inv => (
-        <Card key={inv.id} className="flex items-center gap-3 p-4">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-semibold text-ink">
-              {inv.org_name ?? '이름 없는 조직'}
-            </p>
-            <p className="mt-0.5 text-caption text-ink-muted">
-              {inv.inviter_name ?? '누군가'}님이 초대 · {formatRelativeDay(inv.created_at)}
-            </p>
+        <Card key={inv.id} className="p-4">
+          <p className="truncate text-[16px] font-semibold text-ink sm:text-[15px]">
+            {inv.org_name ?? '이름 없는 조직'}
+          </p>
+          <p className="mt-0.5 text-caption text-ink-muted">
+            {inv.inviter_name ?? '누군가'}님이 초대 · {formatRelativeDay(inv.created_at)}
+          </p>
+
+          {/* 수락을 오른쪽에 크게 — 실수로 거절이 눌리면 되돌릴 방법이 없다 */}
+          <div className="mt-3 flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => respond.mutate({ id: inv.id, accept: false })}
+              disabled={respond.isPending}
+            >
+              거절
+            </Button>
+            <Button
+              className="flex-[2]"
+              onClick={() => respond.mutate({ id: inv.id, accept: true })}
+              disabled={respond.isPending}
+            >
+              수락
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => respond.mutate({ id: inv.id, accept: false })}
-            disabled={respond.isPending}
-          >
-            거절
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => respond.mutate({ id: inv.id, accept: true })}
-            disabled={respond.isPending}
-          >
-            수락
-          </Button>
         </Card>
       ))}
     </main>

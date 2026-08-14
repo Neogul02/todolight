@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
 import { handleForMember } from '@/app/actions/todos';
 import { showMsg } from '@/lib/toast';
+import { BottomSheet } from '@/components/BottomSheet';
 import { Button, Textarea } from '@/components/ui';
 import type { Todo } from '@/types/db';
 
@@ -25,14 +25,6 @@ export default function HandoffModal({
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const content = note.trim();
@@ -50,43 +42,31 @@ export default function HandoffModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/25 p-4 sm:items-center"
-      onMouseDown={e => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.16 }}
-        className="w-full max-w-[420px] rounded-2xl border border-hairline bg-surface p-5 shadow-level-2"
-      >
-        <p className="text-eyebrow text-ink-faint">대신 처리</p>
-        <h2 className="mt-1.5 text-title text-ink">{todo.title}</h2>
-        <p className="mt-1 text-caption text-ink-muted">
-          {ownerName}님의 할 일입니다. 어떻게 처리했는지 한 줄 남겨 주세요.
-        </p>
+    <BottomSheet open onClose={onClose} title="대신 처리">
+      <p className="text-body-sm text-ink">{todo.title}</p>
+      <p className="mt-1 text-caption text-ink-muted">
+        {ownerName}님의 할 일입니다. 어떻게 처리했는지 한 줄 남겨 주세요.
+      </p>
 
-        <form onSubmit={submit} className="mt-4 flex flex-col gap-3">
-          <Textarea
-            value={note}
-            onChange={e => setNote(e.target.value)}
-            rows={3}
-            maxLength={1000}
-            autoFocus
-            placeholder="예) 거래처에 메일 보내뒀습니다. 회신 오면 공유할게요."
-          />
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={onClose}>
-              취소
-            </Button>
-            <Button type="submit" disabled={busy || !note.trim()}>
-              완료 처리
-            </Button>
-          </div>
-        </form>
-      </motion.div>
-    </div>
+      <form onSubmit={submit} className="mt-4 flex flex-col gap-3">
+        <Textarea
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          rows={3}
+          maxLength={1000}
+          autoFocus
+          placeholder="예) 거래처에 메일 보내뒀습니다. 회신 오면 공유할게요."
+        />
+        {/* 모바일에서는 세로로 쌓아 각 버튼을 넓게 — 한 손 조작 기준 */}
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" onClick={onClose} className="sm:w-auto">
+            취소
+          </Button>
+          <Button type="submit" disabled={busy || !note.trim()} className="sm:w-auto">
+            완료 처리
+          </Button>
+        </div>
+      </form>
+    </BottomSheet>
   );
 }

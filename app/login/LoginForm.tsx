@@ -65,7 +65,7 @@ export default function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-[400px] p-7">
+    <Card className="w-full max-w-[400px] p-6 sm:p-7">
       <Link href="/" className="text-title tracking-tight text-ink">
         todolight
       </Link>
@@ -89,12 +89,18 @@ export default function LoginForm() {
 
         <label className="flex flex-col gap-1.5">
           <span className="text-caption font-medium text-ink-secondary">이메일</span>
+          {/* iOS는 기본으로 첫 글자를 대문자로 바꾸고 자동 교정을 건다 — 이메일에선 둘 다 방해다 */}
           <Input
             type="email"
+            inputMode="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="you@company.com"
             autoComplete="email"
+            enterKeyHint="next"
             required
           />
         </label>
@@ -107,6 +113,7 @@ export default function LoginForm() {
             onChange={e => setPassword(e.target.value)}
             placeholder="6자 이상"
             autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+            enterKeyHint="go"
             minLength={6}
             required
           />

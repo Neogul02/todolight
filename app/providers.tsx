@@ -43,7 +43,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeSync />
       {children}
-      <Toaster position="top-center" richColors />
+      {/* sticky 헤더에 가리지 않도록 헤더 높이만큼 내려서 띄운다 */}
+      <Toaster position="top-center" richColors offset="calc(var(--header-h) + 8px)" />
     </QueryClientProvider>
   );
 }

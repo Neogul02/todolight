@@ -98,30 +98,44 @@ export default function TodoCard({
         done && 'bg-surface-alt'
       )}
     >
-      <div className="flex items-start gap-2.5">
+      <div className="flex items-start gap-1">
+        {/*
+          체크 자체는 20px이지만 패딩으로 실제 탭 영역을 44px 가까이 넓힌다.
+          손가락으로 옆 카드가 아니라 이 체크가 눌려야 한다.
+        */}
         <button
           type="button"
           onClick={toggleDone}
           disabled={busy}
           aria-label={done ? '완료 취소' : '완료로 표시'}
-          className={cn(
-            'mt-0.5 grid size-[18px] shrink-0 place-items-center rounded-md border transition-colors',
-            done
-              ? 'border-accent bg-accent text-accent-ink'
-              : 'border-hairline-strong bg-surface hover:border-ink-muted'
-          )}
+          className="-my-1 shrink-0 p-2.5 transition-transform active:scale-90"
         >
-          {done && (
-            <svg viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M2.5 6.2 4.8 8.5 9.5 3.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
+          <span
+            className={cn(
+              'grid size-5 place-items-center rounded-md border transition-colors',
+              done
+                ? 'border-accent bg-accent text-accent-ink'
+                : 'border-hairline-strong bg-surface sm:hover:border-ink-muted'
+            )}
+          >
+            {done && (
+              <svg
+                viewBox="0 0 12 12"
+                className="size-3"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M2.5 6.2 4.8 8.5 9.5 3.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </span>
         </button>
 
         <button
           type="button"
           onClick={() => setOpen(v => !v)}
-          className="min-w-0 flex-1 text-left"
+          className="-mx-1 min-w-0 flex-1 px-1 py-1 text-left"
         >
           <p
             className={cn(
@@ -174,9 +188,16 @@ export default function TodoCard({
                   onChange={e => setNote(e.target.value)}
                   placeholder="메모 남기기"
                   maxLength={1000}
-                  className="h-9"
+                  enterKeyHint="send"
+                  className="h-11 sm:h-9"
                 />
-                <Button type="submit" size="sm" variant="outline" disabled={busy || !note.trim()}>
+                <Button
+                  type="submit"
+                  size="sm"
+                  variant="outline"
+                  className="h-11 sm:h-9"
+                  disabled={busy || !note.trim()}
+                >
                   등록
                 </Button>
               </form>

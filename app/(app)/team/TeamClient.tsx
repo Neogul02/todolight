@@ -114,7 +114,7 @@ export default function TeamClient() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-6">
+    <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-5 pb-tabbar sm:py-6">
       <div>
         <h1 className="text-heading-2 text-ink">{activeOrg.name}</h1>
         <p className="mt-0.5 text-caption text-ink-muted">
@@ -137,6 +137,11 @@ export default function TeamClient() {
           >
             <Input
               type="email"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="send"
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="teammate@company.com"
@@ -187,46 +192,58 @@ export default function TeamClient() {
         <ul className="mt-3 flex flex-col gap-1">
           {(members.data ?? []).map(m => {
             const isSelf = m.user_id === userId;
+            const canChangeRole = activeOrg.role === 'owner' && !isSelf && m.role !== 'owner';
+            const canRemove = isSelf ? m.role !== 'owner' : isManager && m.role !== 'owner';
+
             return (
-              <li key={m.user_id} className="flex items-center gap-2.5 rounded-xl px-1 py-2">
+              // 393px 폭에서 이름·역할·버튼 두 개를 한 줄에 넣으면 전부 뭉갠다 —
+              // 모바일에서는 버튼을 아랫줄로 내린다.
+              <li
+                key={m.user_id}
+                className="flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-xl border-b border-hairline px-1 py-3 last:border-b-0 sm:border-b-0 sm:py-2"
+              >
                 <Avatar name={m.display_name} emoji={m.avatar_emoji} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[14px] font-medium text-ink">
+                  <p className="truncate text-[15px] font-medium text-ink sm:text-[14px]">
                     {m.display_name}
                     {isSelf && <span className="ml-1 text-[12px] text-ink-faint">(나)</span>}
                   </p>
                   <p className="truncate text-[12px] text-ink-faint">{m.email}</p>
                 </div>
 
-                <Badge tone={m.role === 'owner' ? 'accent' : 'neutral'}>
-                  {ROLE_LABEL[m.role]}
-                </Badge>
+                <Badge tone={m.role === 'owner' ? 'accent' : 'neutral'}>{ROLE_LABEL[m.role]}</Badge>
 
-                {activeOrg.role === 'owner' && !isSelf && m.role !== 'owner' && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      changeRole.mutate({
-                        targetId: m.user_id,
-                        role: m.role === 'admin' ? 'member' : 'admin',
-                      })
-                    }
-                    disabled={changeRole.isPending}
-                  >
-                    {m.role === 'admin' ? '관리자 해제' : '관리자로'}
-                  </Button>
-                )}
+                {(canChangeRole || canRemove) && (
+                  <div className="flex w-full gap-1.5 sm:w-auto">
+                    {canChangeRole && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 sm:flex-none"
+                        onClick={() =>
+                          changeRole.mutate({
+                            targetId: m.user_id,
+                            role: m.role === 'admin' ? 'member' : 'admin',
+                          })
+                        }
+                        disabled={changeRole.isPending}
+                      >
+                        {m.role === 'admin' ? '관리자 해제' : '관리자로'}
+                      </Button>
+                    )}
 
-                {(isSelf ? m.role !== 'owner' : isManager && m.role !== 'owner') && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => kick.mutate(m.user_id)}
-                    disabled={kick.isPending}
-                  >
-                    {isSelf ? '나가기' : '내보내기'}
-                  </Button>
+                    {canRemove && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="flex-1 sm:flex-none"
+                        onClick={() => kick.mutate(m.user_id)}
+                        disabled={kick.isPending}
+                      >
+                        {isSelf ? '나가기' : '내보내기'}
+                      </Button>
+                    )}
+                  </div>
                 )}
               </li>
             );

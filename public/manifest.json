@@ -1,0 +1,11 @@
+{
+  "name": "todolight — 조직 공유 할 일",
+  "short_name": "todolight",
+  "description": "팀원끼리 서로의 할 일을 한 화면에서 보고, 대신 처리해 주는 공유 투두 보드",
+  "start_url": "/board",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3eee5",
+  "theme_color": "#f3eee5",
+  "lang": "ko"
+}

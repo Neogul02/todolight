@@ -13,10 +13,11 @@ const VARIANT: Record<ButtonVariant, string> = {
   danger: 'bg-danger-soft text-danger border border-danger/25 hover:bg-danger hover:text-white',
 };
 
+// 모바일 우선 — 터치 타깃을 Apple HIG 최소치(44pt)에 가깝게 두고, sm 이상에서만 조밀하게 줄인다.
 const SIZE: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-[13px] rounded-lg',
-  md: 'h-10 px-4 text-[14px] rounded-xl',
-  lg: 'h-12 px-5 text-[15px] rounded-xl',
+  sm: 'h-10 px-3.5 text-[13px] rounded-lg sm:h-8 sm:px-3',
+  md: 'h-12 px-4 text-[15px] rounded-xl sm:h-10 sm:text-[14px]',
+  lg: 'h-13 px-5 text-[16px] rounded-2xl sm:h-12 sm:text-[15px] sm:rounded-xl',
 };
 
 export const Button = forwardRef<
@@ -27,7 +28,9 @@ export const Button = forwardRef<
     <button
       ref={ref}
       className={cn(
-        'inline-flex items-center justify-center gap-1.5 font-medium transition-[opacity,background-color,color] disabled:opacity-40 disabled:pointer-events-none',
+        'inline-flex shrink-0 items-center justify-center gap-1.5 font-medium no-select',
+        'transition-[opacity,background-color,color,transform] active:scale-[0.97]',
+        'disabled:opacity-40 disabled:pointer-events-none disabled:active:scale-100',
         VARIANT[variant],
         SIZE[size],
         className
@@ -43,7 +46,7 @@ export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTML
       <input
         ref={ref}
         className={cn(
-          'h-10 w-full rounded-xl border border-hairline bg-surface px-3 text-[14px] text-ink',
+          'h-12 w-full rounded-xl border border-hairline bg-surface px-3.5 text-[16px] text-ink sm:h-10 sm:px-3 sm:text-[14px]',
           'placeholder:text-ink-faint outline-none transition-colors',
           'focus:border-hairline-strong focus:ring-2 focus:ring-accent/10',
           className

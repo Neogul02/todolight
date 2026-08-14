@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { updateMyProfile } from '@/app/actions/profile';
 import { applyTheme } from '@/app/providers';
 import { THEMES } from '@/lib/themes';
@@ -40,8 +41,15 @@ export default function MeClient() {
     router.refresh();
   }
 
+  async function signOut() {
+    const supabase = createSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    router.replace('/login');
+    router.refresh();
+  }
+
   return (
-    <main className="mx-auto flex w-full max-w-[560px] flex-col gap-4 px-4 py-6">
+    <main className="mx-auto flex w-full max-w-[560px] flex-col gap-4 px-4 py-5 pb-tabbar sm:py-6">
       <h1 className="text-heading-2 text-ink">내 설정</h1>
 
       <Card className="p-5">
@@ -156,6 +164,11 @@ export default function MeClient() {
 
       <Button size="lg" onClick={save} disabled={busy || !name.trim()}>
         저장
+      </Button>
+
+      {/* 로그아웃은 헤더에서 이리로 옮겼다 — 모바일 헤더 한 줄에 넣기엔 자리가 없다 */}
+      <Button size="lg" variant="ghost" onClick={signOut} className="text-ink-muted">
+        로그아웃
       </Button>
     </main>
   );
