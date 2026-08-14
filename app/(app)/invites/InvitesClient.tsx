@@ -41,7 +41,7 @@ export default function InvitesClient() {
   });
 
   return (
-    <main className="mx-auto flex w-full max-w-[560px] flex-col gap-4 px-4 py-5 pb-tabbar sm:py-6">
+    <main className="mx-auto flex w-full max-w-[560px] flex-col gap-4 px-4 py-5 pb-safe sm:py-6">
       <div>
         <h1 className="text-heading-2 text-ink">받은 초대</h1>
         <p className="mt-0.5 text-caption text-ink-muted">{email}로 온 초대장입니다.</p>

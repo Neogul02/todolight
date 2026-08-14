@@ -114,7 +114,7 @@ export default function TeamClient() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-5 pb-tabbar sm:py-6">
+    <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-5 pb-safe sm:py-6">
       <div>
         <h1 className="text-heading-2 text-ink">{activeOrg.name}</h1>
         <p className="mt-0.5 text-caption text-ink-muted">
@@ -202,7 +202,7 @@ export default function TeamClient() {
                 key={m.user_id}
                 className="flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-xl border-b border-hairline px-1 py-3 last:border-b-0 sm:border-b-0 sm:py-2"
               >
-                <Avatar name={m.display_name} emoji={m.avatar_emoji} />
+                <Avatar name={m.display_name} color={m.avatar_color} seed={m.user_id} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15px] font-medium text-ink sm:text-[14px]">
                     {m.display_name}

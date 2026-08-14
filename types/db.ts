@@ -6,7 +6,7 @@ export interface Profile {
   id: string;
   email: string | null;
   display_name: string;
-  avatar_emoji: string | null;
+  avatar_color: string | null;
   theme: string;
   created_at: string;
 }
@@ -31,7 +31,7 @@ export interface MemberSummary {
   user_id: string;
   role: MemberRole;
   display_name: string;
-  avatar_emoji: string | null;
+  avatar_color: string | null;
   email: string | null;
 }
 
@@ -55,7 +55,7 @@ export interface TodoNote {
   content: string;
   created_at: string;
   author_name?: string;
-  author_emoji?: string | null;
+  author_color?: string | null;
 }
 
 export interface Todo {

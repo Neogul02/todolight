@@ -52,7 +52,7 @@ NEXT_PUBLIC_SITE_URL             앱 절대 URL
 proxy.ts                  ← 보호 라우트 세션 검증 (getClaims()로 JWT 로컬 검증)
                              /board /team /me /invites /orgs → 미인증이면 /login?next=... 리다이렉트
 app/(app)/layout.tsx      ← 서버 컴포넌트에서 사용자·조직·프로필 로드 후 AppShell에 주입
-app/(app)/AppShell.tsx    ← 클라이언트 셸: 네비게이션, 조직 전환, 테마 적용, 로그아웃
+app/(app)/AppShell.tsx    ← 클라이언트 셸: 헤더, 조직 전환 시트, 아바타 메뉴 시트, 테마 적용
 ```
 
 - 로그인/회원가입은 `app/login/LoginForm.tsx`에서 `supabase.auth.signInWithPassword()` /
@@ -81,7 +81,7 @@ app/
 ├── page.tsx              랜딩 (로그인 상태면 /board로 리다이렉트)
 ├── login/                로그인·회원가입
 └── (app)/                ← proxy.ts 보호 + AppShell 래핑
-    ├── board/            메인 보드 — 멤버별 컬럼, 펼쳐보기/한 명씩 두 가지 뷰
+    ├── board/            메인 보드 — 멤버별 컬럼 가로 스냅 캐러셀. 앱의 사실상 유일한 화면
     ├── team/             멤버 목록, 초대 발송·취소, 역할 변경, 조직 이름 변경
     ├── invites/          나에게 온 초대 수락·거절
     ├── me/               프로필(이름·아바타)·테마 설정
@@ -110,7 +110,7 @@ export async function fetchXxx(): Promise<ApiResponse<T>> {
 ## DB 스키마
 
 ```
-profiles        id (FK auth.users), email, display_name, avatar_emoji, theme, created_at
+profiles        id (FK auth.users), email, display_name, avatar_color, theme, created_at
 organizations   id, name, owner_id, created_at
 org_members     id, org_id, user_id, role('owner'|'admin'|'member'), joined_at   UNIQUE(org_id,user_id)
 org_invites     id, org_id, email, invited_by, status('pending'|'accepted'|'declined'|'revoked'),
@@ -149,28 +149,28 @@ todo_notes      id, todo_id, author_id, content, created_at
 
 기준 뷰포트는 **393×852**(15 Pro)와 **402×874**(16 Pro). 데스크톱은 `sm:`(640px) 이상에서 갈라진다.
 
-### 셸 구조
+### 셸 구조 — 화면은 보드 하나
 
 ```
-헤더 (--header-h)         조직 이름(탭 → 조직 선택 시트) + 아바타. 모바일도 한 줄로 끝낸다.
-본문                       페이지별
-하단 탭바 (--tabbar-h)     보드 / 팀 / 초대 / 내 설정. sm 이상에서는 사라지고 헤더 네비로 합쳐진다.
+헤더 (--header-h)   [←(보드 밖일 때)] [조직 이름 ▾] ......... [아바타]
+툴바 (--board-toolbar-h)  멤버 칩 + 완료 보임/숨김 토글
+보드                가로 스냅 캐러셀
 ```
 
-높이 상수는 `app/globals.css`의 `:root`에 `--header-h` · `--tabbar-h` · `--board-toolbar-h`로
-두고, 미디어 쿼리에서 값만 바꾼다(sm 이상은 `--tabbar-h: 0px`). 이 값을 쓰는 곳:
+**하단 탭바는 두지 않는다.** 이 앱의 화면은 공유 투두 보드 하나뿐이고,
+팀 관리·받은 초대·내 설정·로그아웃은 자주 쓰지 않으므로 전부 아바타 탭 시트(`MENU`) 안에 있다.
+보드 툴바에도 멤버 칩과 완료 토글 외의 버튼을 새로 붙이지 말 것 — 메인 기능을 가린다.
 
-- `board-viewport` — `100dvh`에서 헤더·툴바·탭바·세이프 에어리어를 뺀 높이.
-  보드는 **페이지가 늘어나지 않고** 컬럼 내부만 세로 스크롤한다. 그래야 탭바가 밀리지 않고
-  컬럼마다 페이지 높이가 널뛰지 않는다.
-- `pb-tabbar` — 세로로 흐르는 페이지(팀/초대/내 설정/조직 생성) 본문 끝 여백.
-  **보드에는 붙이지 말 것** — `board-viewport`가 이미 탭바를 빼고 계산한다.
+높이 상수는 `app/globals.css`의 `:root`에 `--header-h` · `--board-toolbar-h`로 두고
+미디어 쿼리에서 값만 바꾼다. `board-viewport`가 `100dvh`에서 이 둘과 세이프 에어리어를 빼기 때문에,
+보드는 **페이지가 늘어나지 않고** 컬럼 내부만 세로 스크롤한다.
+세로로 흐르는 페이지(팀/초대/내 설정/조직 생성)는 끝에 `pb-safe`를 붙인다.
 
 ### 세이프 에어리어
 
 `layout.tsx`의 `viewportFit: 'cover'`가 있어야 `env(safe-area-inset-*)`가 0이 아니다.
 이게 빠지면 `pb-safe` · `board-viewport`의 홈 인디케이터 회피가 통째로 무효가 된다.
-유틸리티는 `pb-safe` · `pt-safe` · `px-safe` · `pb-tabbar`.
+유틸리티는 `pb-safe` · `pt-safe` · `px-safe`.
 
 ### 터치 타깃
 
@@ -181,12 +181,14 @@ todo_notes      id, todo_id, author_id, content, created_at
 
 ### 보드 캐러셀
 
-컬럼은 가로 스냅 캐러셀 하나로 구현되어 있고, `wide` / `compact`는 **컬럼 폭만** 바꾼다.
+컬럼은 가로 스냅 캐러셀 하나다. 폭은 화면 크기가 정하고 사용자 토글은 없다 —
+모바일은 `calc(100vw-2.75rem)`(다음 컬럼이 살짝 보여 스와이프 힌트가 된다),
+`sm:` 이상은 330px로 여러 명이 한눈에 들어온다.
 
-- `wide` (모바일 기본) — `calc(100vw-2.75rem)`. 다음 컬럼이 살짝 보여 스와이프 힌트가 된다
-- `compact` — 좁은 컬럼으로 여러 명을 한눈에. 데스크톱 기본
+완료한 할 일은 **기본으로 보인다**(`showDone` 초기값 `true`). 팀원이 뭘 끝냈는지가 곧 공유의
+목적이라서 숨기는 쪽을 선택지로 뒀다.
 
-현재 위치는 스크롤 위치에서 역산해(`syncActiveIndex`) 상단 멤버 칩과 `n / m` 인디케이터에 반영한다.
+현재 위치는 스크롤 위치에서 역산해(`syncActiveIndex`) 상단 멤버 칩 하이라이트에 반영한다.
 멤버 칩을 탭하면 `scrollIntoView`로 그 컬럼으로 이동한다.
 
 ### 그 밖의 iOS 대응
@@ -197,14 +199,20 @@ todo_notes      id, todo_id, author_id, content, created_at
   (`globals.css`의 미디어 쿼리가 `!important`로 막아 둠)
 - 드롭다운 대신 `components/BottomSheet.tsx`를 쓴다 — 터치에서 `onBlur` 타이밍이 어긋나
   메뉴가 먼저 닫혀버린다. 아래로 끌어내리면 닫힌다
-- 크롬 UI(헤더·탭바·버튼)에는 `no-select`를 붙이되, 할 일 제목·메모는 복사할 수 있어야 하므로
+- 크롬 UI(헤더·툴바·버튼)에는 `no-select`를 붙이되, 할 일 제목·메모는 복사할 수 있어야 하므로
   `body` 전체에 `user-select: none`을 걸지 말 것
+
+### 아바타
+
+이모지 대신 **이름 첫 글자 + 색**으로 사람을 구분한다(`lib/avatar.ts`, `components/Avatar.tsx`).
+색을 고르지 않은 사용자는 `getAvatarColor(null, userId)`가 id 해시로 하나를 결정적으로 배정하므로,
+가입 직후에도 팀원끼리 색이 겹치지 않고 안정적이다. 저장 컬럼은 `profiles.avatar_color`
+(색 키 문자열, 예: `sea`). 팔레트를 늘릴 때는 `AVATAR_COLORS`에만 추가하면 된다.
 
 ### 상태를 effect로 만들지 말 것
 
-`react-hooks/set-state-in-effect` 규칙이 켜져 있다. localStorage·미디어 쿼리처럼 React 밖의
-값은 `useEffect` + `setState`가 아니라 `useSyncExternalStore`로 읽는다
-(`hooks/useActiveOrg.ts`, `hooks/useMediaQuery.ts` 참고).
+`react-hooks/set-state-in-effect` 규칙이 켜져 있다. localStorage처럼 React 밖의 값은
+`useEffect` + `setState`가 아니라 `useSyncExternalStore`로 읽는다 (`hooks/useActiveOrg.ts` 참고).
 
 ## 디자인 시스템
 

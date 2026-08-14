@@ -15,7 +15,7 @@ export async function fetchMyProfile(): Promise<ApiResponse<Profile>> {
     const user = await requireAuth();
     const { data, error } = await getSupabaseAdmin()
       .from('profiles')
-      .select('id, email, display_name, avatar_emoji, theme, created_at')
+      .select('id, email, display_name, avatar_color, theme, created_at')
       .eq('id', user.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -26,7 +26,7 @@ export async function fetchMyProfile(): Promise<ApiResponse<Profile>> {
 
 export async function updateMyProfile(patch: {
   displayName?: string;
-  avatarEmoji?: string | null;
+  avatarColor?: string | null;
   theme?: string;
 }): Promise<ApiResponse<Profile>> {
   return wrap(async () => {
@@ -34,8 +34,8 @@ export async function updateMyProfile(patch: {
 
     const update: Record<string, unknown> = {};
     if (patch.displayName !== undefined) update.display_name = nameSchema.parse(patch.displayName);
-    if (patch.avatarEmoji !== undefined)
-      update.avatar_emoji = patch.avatarEmoji ? patch.avatarEmoji.slice(0, 8) : null;
+    if (patch.avatarColor !== undefined)
+      update.avatar_color = patch.avatarColor ? patch.avatarColor.slice(0, 8) : null;
     if (patch.theme !== undefined) {
       if (!isValidTheme(patch.theme)) throw new Error('존재하지 않는 테마입니다.');
       update.theme = patch.theme;
@@ -46,7 +46,7 @@ export async function updateMyProfile(patch: {
       .from('profiles')
       .update(update)
       .eq('id', user.id)
-      .select('id, email, display_name, avatar_emoji, theme, created_at')
+      .select('id, email, display_name, avatar_color, theme, created_at')
       .single();
     if (error) throw new Error(error.message);
 

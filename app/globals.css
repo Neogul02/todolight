@@ -101,18 +101,15 @@
   background: var(--canvas);
   color-scheme: light;
 
-  /* 레이아웃 상수 — board-viewport 계산과 AppShell 높이가 이 값을 공유한다 */
+  /* 레이아웃 상수 — board-viewport 계산이 이 값을 공유한다 */
   --header-h: 52px;
-  --tabbar-h: 56px;
-  --board-toolbar-h: 100px;
+  --board-toolbar-h: 56px;
 }
 
-/* sm 이상에서는 하단 탭바가 사라지고 상단 네비로 합쳐진다 */
 @media (min-width: 640px) {
   :root {
     --header-h: 56px;
-    --tabbar-h: 0px;
-    --board-toolbar-h: 64px;
+    --board-toolbar-h: 52px;
   }
 }
 
@@ -158,18 +155,13 @@ a {
   padding-left: max(1rem, env(safe-area-inset-left));
   padding-right: max(1rem, env(safe-area-inset-right));
 }
-/* 하단 탭바에 가려지지 않도록 스크롤 콘텐츠 끝에 주는 여백 */
-@utility pb-tabbar {
-  padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 0.5rem);
-}
-
 /**
  * 보드 스크롤 영역 높이.
- * 페이지 전체가 늘어나면 컬럼마다 높이가 널뛰고 탭바가 밀려 올라간다 —
- * 뷰포트에서 헤더·탭바를 뺀 만큼으로 고정하고 컬럼 내부만 스크롤시킨다.
+ * 페이지 전체가 늘어나면 컬럼마다 높이가 널뛴다 —
+ * 뷰포트에서 헤더·툴바·홈 인디케이터를 뺀 만큼으로 고정하고 컬럼 내부만 스크롤시킨다.
  */
 @utility board-viewport {
-  height: calc(100dvh - var(--header-h) - var(--board-toolbar-h) - var(--tabbar-h) - env(safe-area-inset-bottom));
+  height: calc(100dvh - var(--header-h) - var(--board-toolbar-h) - env(safe-area-inset-bottom));
 }
 
 /* ── Elevation ── */

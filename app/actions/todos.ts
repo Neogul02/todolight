@@ -61,14 +61,14 @@ export async function fetchOrgTodos(orgId: string): Promise<ApiResponse<Todo[]>>
 
     const { data: notes, error: noteError } = await getSupabaseAdmin()
       .from('todo_notes')
-      .select('id, todo_id, author_id, content, created_at, profiles!inner (display_name, avatar_emoji)')
+      .select('id, todo_id, author_id, content, created_at, profiles!inner (display_name, avatar_color)')
       .in('todo_id', todos.map(t => t.id))
       .order('created_at', { ascending: true });
     if (noteError) throw new Error(noteError.message);
 
     const byTodo = new Map<string, TodoNote[]>();
     ((notes ?? []) as unknown as (TodoNote & {
-      profiles: { display_name: string; avatar_emoji: string | null };
+      profiles: { display_name: string; avatar_color: string | null };
     })[]).forEach(n => {
       const list = byTodo.get(n.todo_id) ?? [];
       list.push({
@@ -78,7 +78,7 @@ export async function fetchOrgTodos(orgId: string): Promise<ApiResponse<Todo[]>>
         content: n.content,
         created_at: n.created_at,
         author_name: n.profiles?.display_name,
-        author_emoji: n.profiles?.avatar_emoji ?? null,
+        author_color: n.profiles?.avatar_color ?? null,
       });
       byTodo.set(n.todo_id, list);
     });
@@ -233,14 +233,14 @@ export async function addTodoNote(todoId: string, content: string): Promise<ApiR
 
     const { data: profile } = await getSupabaseAdmin()
       .from('profiles')
-      .select('display_name, avatar_emoji')
+      .select('display_name, avatar_color')
       .eq('id', user.id)
       .maybeSingle();
 
     return {
       ...(data as TodoNote),
       author_name: profile?.display_name,
-      author_emoji: profile?.avatar_emoji ?? null,
+      author_color: profile?.avatar_color ?? null,
     };
   });
 }
@@ -276,7 +276,7 @@ export async function handleForMember(
 
     const { data: profile } = await getSupabaseAdmin()
       .from('profiles')
-      .select('display_name, avatar_emoji')
+      .select('display_name, avatar_color')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -285,7 +285,7 @@ export async function handleForMember(
       note: {
         ...(noteRow as TodoNote),
         author_name: profile?.display_name,
-        author_emoji: profile?.avatar_emoji ?? null,
+        author_color: profile?.avatar_color ?? null,
       },
     };
   });

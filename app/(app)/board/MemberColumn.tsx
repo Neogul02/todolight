@@ -67,7 +67,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
       )}
     >
       <header className="flex items-center gap-2 px-3 pt-3 pb-2 no-select">
-        <Avatar name={member.display_name} emoji={member.avatar_emoji} />
+        <Avatar name={member.display_name} color={member.avatar_color} seed={member.user_id} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-semibold text-ink sm:text-[14px]">
             {member.display_name}

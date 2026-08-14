@@ -95,7 +95,7 @@ export async function fetchOrgMembers(orgId: string): Promise<ApiResponse<Member
 
     const { data, error } = await getSupabaseAdmin()
       .from('org_members')
-      .select('user_id, role, joined_at, profiles!inner (display_name, avatar_emoji, email)')
+      .select('user_id, role, joined_at, profiles!inner (display_name, avatar_color, email)')
       .eq('org_id', orgId)
       .order('joined_at', { ascending: true });
     if (error) throw new Error(error.message);
@@ -103,12 +103,12 @@ export async function fetchOrgMembers(orgId: string): Promise<ApiResponse<Member
     return ((data ?? []) as unknown as {
       user_id: string;
       role: MemberRole;
-      profiles: { display_name: string; avatar_emoji: string | null; email: string | null };
+      profiles: { display_name: string; avatar_color: string | null; email: string | null };
     }[]).map(r => ({
       user_id: r.user_id,
       role: r.role,
       display_name: r.profiles.display_name,
-      avatar_emoji: r.profiles.avatar_emoji,
+      avatar_color: r.profiles.avatar_color,
       email: r.profiles.email,
     }));
   });

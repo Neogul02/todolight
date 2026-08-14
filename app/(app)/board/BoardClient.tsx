@@ -10,7 +10,6 @@ import {
   useOrgPresence,
   useOrgTodos,
 } from '@/hooks/useOrgBoard';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useApp } from '../OrgContext';
 import { Avatar } from '@/components/Avatar';
 import { Button, Card, Spinner } from '@/components/ui';
@@ -18,9 +17,6 @@ import { cn } from '@/lib/utils';
 import type { MemberSummary, Todo } from '@/types/db';
 import MemberColumn from './MemberColumn';
 import HandoffModal from './HandoffModal';
-
-/** compact = 컬럼을 좁혀 여러 명을 한눈에, wide = 한 명이 화면을 채우고 스와이프로 넘김 */
-type ViewMode = 'compact' | 'wide';
 
 export default function BoardClient() {
   const { activeOrgId, userId, orgs } = useApp();
@@ -31,12 +27,8 @@ export default function BoardClient() {
   useBoardRealtime(activeOrgId);
   useOrgPresence(activeOrgId, userId);
 
-  // 모바일 기본은 한 명씩(wide) — 393px에 컬럼 두 개를 우겨넣으면 둘 다 읽기 나쁘다.
-  // 사용자가 토글을 누르기 전까지는 화면 폭을 따라가고, 누른 뒤에는 그 선택을 지킨다.
-  const isDesktop = useMediaQuery('(min-width: 640px)');
-  const [pickedView, setPickedView] = useState<ViewMode | null>(null);
-  const view: ViewMode = pickedView ?? (isDesktop ? 'compact' : 'wide');
-  const [showDone, setShowDone] = useState(false);
+  // 완료한 일도 기본으로 보여 준다 — 팀원이 뭘 끝냈는지가 곧 공유의 목적이다.
+  const [showDone, setShowDone] = useState(true);
   const [handoff, setHandoff] = useState<Todo | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -96,7 +88,7 @@ export default function BoardClient() {
 
   if (orgs.length === 0) {
     return (
-      <main className="mx-auto flex max-w-[520px] flex-col items-center px-6 py-16 pb-tabbar text-center">
+      <main className="mx-auto flex max-w-[520px] flex-col items-center px-6 py-16 pb-safe text-center">
         <h1 className="text-heading-1 text-ink">아직 조직이 없습니다</h1>
         <p className="mt-2 text-body-sm text-ink-muted">
           조직을 만들어 팀원을 초대하거나, 받은 초대를 수락하세요.
@@ -127,13 +119,10 @@ export default function BoardClient() {
 
   return (
     <main className="mx-auto w-full max-w-[1400px]">
-      {/* ── 툴바 ── */}
-      <div className="h-[var(--board-toolbar-h)] px-3 pt-2 sm:flex sm:items-center sm:gap-2 sm:px-4 sm:pt-0">
-        <h1 className="hidden text-heading-2 text-ink sm:block">보드</h1>
-
-        {/* 멤버 스트립 — 탭하면 그 사람 컬럼으로 이동. 모바일 전용 */}
+      {/* ── 툴바 : 멤버 칩 + 완료 토글. 그 외 버튼은 두지 않는다 ── */}
+      <div className="flex h-[var(--board-toolbar-h)] items-center gap-2 px-3 sm:px-4">
         {orderedMembers.length > 0 && (
-          <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-2 sm:hidden [&::-webkit-scrollbar]:hidden">
+          <div className="-mx-1 flex flex-1 gap-2 overflow-x-auto px-1 py-1 sm:hidden [&::-webkit-scrollbar]:hidden">
             {orderedMembers.map((m, i) => (
               <MemberChip
                 key={m.user_id}
@@ -149,41 +138,18 @@ export default function BoardClient() {
           </div>
         )}
 
-        <div className="flex items-center gap-1.5 pb-2 sm:ml-auto sm:pb-0">
-          <button
-            type="button"
-            onClick={() => setShowDone(v => !v)}
-            className={cn(
-              'h-9 rounded-lg border px-3 text-[13px] font-medium no-select transition-colors active:scale-[0.97]',
-              showDone
-                ? 'border-hairline-strong bg-surface text-ink'
-                : 'border-hairline bg-transparent text-ink-muted'
-            )}
-          >
-            완료 {showDone ? '보임' : '숨김'}
-          </button>
-
-          <div className="flex h-9 overflow-hidden rounded-lg border border-hairline no-select">
-            {(['wide', 'compact'] as ViewMode[]).map(mode => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setPickedView(mode)}
-                className={cn(
-                  'px-3 text-[13px] font-medium transition-colors',
-                  view === mode ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted'
-                )}
-              >
-                {mode === 'wide' ? '한 명씩' : '펼쳐보기'}
-              </button>
-            ))}
-          </div>
-
-          {/* 몇 번째 컬럼인지 — 스와이프 중 위치 감각을 준다 */}
-          <span className="ml-auto text-[12px] tabular-nums text-ink-faint sm:hidden">
-            {Math.min(activeIndex + 1, orderedMembers.length || 1)} / {orderedMembers.length || 1}
-          </span>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowDone(v => !v)}
+          className={cn(
+            'ml-auto h-9 shrink-0 rounded-lg border px-3 text-[13px] font-medium no-select transition-colors active:scale-[0.97]',
+            showDone
+              ? 'border-hairline-strong bg-surface text-ink'
+              : 'border-hairline bg-transparent text-ink-faint'
+          )}
+        >
+          완료 {showDone ? '보임' : '숨김'}
+        </button>
       </div>
 
       {loading && (
@@ -221,11 +187,8 @@ export default function BoardClient() {
               showDone={showDone}
               onMutated={refresh}
               onHandoff={setHandoff}
-              className={
-                view === 'wide'
-                  ? 'w-[calc(100vw-2.75rem)] max-w-[420px] sm:w-[360px]'
-                  : 'w-[78vw] max-w-[320px] sm:w-[320px]'
-              }
+              // 모바일은 한 컬럼이 화면을 채우고 다음 컬럼이 살짝 보여 스와이프 힌트가 된다
+              className="w-[calc(100vw-2.75rem)] max-w-[420px] sm:w-[330px]"
             />
           ))}
         </div>
@@ -267,7 +230,7 @@ function MemberChip({
           : 'border-transparent bg-canvas-soft text-ink-muted'
       )}
     >
-      <Avatar name={member.display_name} emoji={member.avatar_emoji} size="sm" />
+      <Avatar name={member.display_name} color={member.avatar_color} seed={member.user_id} size="sm" />
       <span className="max-w-[80px] truncate text-[13px] font-medium">
         {isMe ? '나' : member.display_name}
       </span>

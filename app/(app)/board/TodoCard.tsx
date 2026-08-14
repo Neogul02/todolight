@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { addTodoNote, deleteTodo, setTodoStatus } from '@/app/actions/todos';
 import { showMsg } from '@/lib/toast';
 import { cn, dueState, formatRelativeDay } from '@/lib/utils';
+import { Avatar } from '@/components/Avatar';
 import { Badge, Button, Input } from '@/components/ui';
 import type { MemberSummary, Todo } from '@/types/db';
 
@@ -173,9 +174,15 @@ export default function TodoCard({
                   {todo.notes!.map(n => (
                     <li key={n.id} className="rounded-lg bg-canvas-soft px-2.5 py-2">
                       <p className="text-caption text-ink-secondary break-words">{n.content}</p>
-                      <p className="mt-1 text-[11px] text-ink-faint">
-                        {n.author_emoji ?? ''} {n.author_name ?? '알 수 없음'} ·{' '}
-                        {formatRelativeDay(n.created_at)}
+                      <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-ink-faint">
+                        <Avatar
+                          name={n.author_name ?? '?'}
+                          color={n.author_color}
+                          seed={n.author_id}
+                          size="sm"
+                          className="size-4 text-[9px]"
+                        />
+                        {n.author_name ?? '알 수 없음'} · {formatRelativeDay(n.created_at)}
                       </p>
                     </li>
                   ))}

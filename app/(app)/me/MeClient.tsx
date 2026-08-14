@@ -6,20 +6,22 @@ import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { updateMyProfile } from '@/app/actions/profile';
 import { applyTheme } from '@/app/providers';
 import { THEMES } from '@/lib/themes';
+import { AVATAR_COLORS, getAvatarColor } from '@/lib/avatar';
 import { Avatar } from '@/components/Avatar';
 import { Badge, Button, Card, Input } from '@/components/ui';
 import { showMsg } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { useApp } from '../OrgContext';
 
-const EMOJI_CHOICES = ['🙂', '🐣', '🔥', '🌿', '☕', '🐳', '🍊', '🧊', '🎧', '🪴', '⭐', '🥐'];
-
 export default function MeClient() {
   const router = useRouter();
-  const { profile, email, orgs } = useApp();
+  const { profile, email, orgs, userId } = useApp();
 
   const [name, setName] = useState(profile?.display_name ?? '');
-  const [emoji, setEmoji] = useState(profile?.avatar_emoji ?? '');
+  // 색을 고른 적이 없으면 id에서 자동 배정된 색을 초기값으로 보여 준다
+  const [color, setColor] = useState(
+    profile?.avatar_color ?? getAvatarColor(null, userId).key
+  );
   const [theme, setTheme] = useState(profile?.theme ?? 'sand');
   const [busy, setBusy] = useState(false);
 
@@ -28,7 +30,7 @@ export default function MeClient() {
     setBusy(true);
     const res = await updateMyProfile({
       displayName: name,
-      avatarEmoji: emoji || null,
+      avatarColor: color,
       theme,
     });
     setBusy(false);
@@ -49,12 +51,12 @@ export default function MeClient() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[560px] flex-col gap-4 px-4 py-5 pb-tabbar sm:py-6">
+    <main className="mx-auto flex w-full max-w-[560px] flex-col gap-4 px-4 py-5 pb-safe sm:py-6">
       <h1 className="text-heading-2 text-ink">내 설정</h1>
 
       <Card className="p-5">
         <div className="flex items-center gap-3">
-          <Avatar name={name || '나'} emoji={emoji} size="lg" />
+          <Avatar name={name || '나'} color={color} seed={userId} size="lg" />
           <div className="min-w-0">
             <p className="truncate text-[15px] font-semibold text-ink">{name || '이름 없음'}</p>
             <p className="truncate text-caption text-ink-faint">{email}</p>
@@ -67,33 +69,25 @@ export default function MeClient() {
         </label>
 
         <div className="mt-4">
-          <span className="text-caption font-medium text-ink-secondary">아바타</span>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => setEmoji('')}
-              className={cn(
-                'grid size-9 place-items-center rounded-lg border text-[13px] transition-colors',
-                emoji === ''
-                  ? 'border-accent bg-canvas-soft text-ink'
-                  : 'border-hairline text-ink-muted hover:bg-surface-alt'
-              )}
-            >
-              없음
-            </button>
-            {EMOJI_CHOICES.map(e => (
+          <span className="text-caption font-medium text-ink-secondary">아바타 색</span>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {AVATAR_COLORS.map(c => (
               <button
-                key={e}
+                key={c.key}
                 type="button"
-                onClick={() => setEmoji(e)}
+                onClick={() => setColor(c.key)}
+                aria-label={c.name}
                 className={cn(
-                  'grid size-9 place-items-center rounded-lg border text-[17px] transition-colors',
-                  emoji === e
-                    ? 'border-accent bg-canvas-soft'
-                    : 'border-hairline hover:bg-surface-alt'
+                  'grid size-11 place-items-center rounded-full border-2 transition-transform active:scale-90',
+                  color === c.key ? 'border-ink' : 'border-transparent'
                 )}
               >
-                {e}
+                <span
+                  className="grid size-8 place-items-center rounded-full text-[13px] font-semibold"
+                  style={{ background: c.bg, color: c.ink }}
+                >
+                  {(name || '나').trim().charAt(0).toUpperCase()}
+                </span>
               </button>
             ))}
           </div>
