@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTodoMutations } from '@/hooks/useTodoMutations';
-import { cn, dueState, formatRelativeDay } from '@/lib/utils';
+import { cn, dueState, formatRelativeDay, subjectParticle } from '@/lib/utils';
 import { Avatar } from '@/components/Avatar';
 import { DuePicker } from '@/components/DuePicker';
 import { Badge, Button, Input } from '@/components/ui';
@@ -48,6 +48,20 @@ export default function TodoCard({
   const done = todo.status === 'done';
   const handler = todo.handled_by ? members.find(m => m.user_id === todo.handled_by) : null;
   const handledByOther = done && todo.handled_by && todo.handled_by !== todo.owner_id;
+  /*
+    주인이 직접 넣은 게 아니면 누가 부탁한 것이다.
+    "이거 왜 내 목록에 있지"를 카드에서 바로 알 수 있어야 한다 — 추가할 때 뜬 토스트는
+    금방 사라지고, 남의 컬럼에 꽂아 넣은 사람 말고는 아무도 그 토스트를 못 본다.
+  */
+  const askedByOther = todo.created_by !== todo.owner_id;
+  const requester = askedByOther
+    ? members.find(m => m.user_id === todo.created_by)
+    : undefined;
+
+  /** "최진형이" / "최진우가" — 받침에 따라 조사가 갈린다 */
+  const withParticle = (name: string) => `${name}${subjectParticle(name)}`;
+  const requesterName = requester?.display_name ?? '누군가';
+  const handlerName = handler?.display_name ?? '누군가';
   const due = dueState(todo.due_date);
   const canRemove = isMine || todo.created_by === currentUserId || isManager;
 
@@ -154,15 +168,24 @@ export default function TodoCard({
             {todo.title}
           </p>
 
-          {(todo.due_date || handledByOther || noteCount > 0) && (
+          {(todo.due_date || askedByOther || handledByOther || noteCount > 0) && (
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               {todo.due_date && (
                 <Badge tone={DUE_TONE[due]}>
                   {formatRelativeDay(`${todo.due_date}T00:00:00Z`)}
                 </Badge>
               )}
+              {askedByOther && (
+                <Badge className="pl-0.5">
+                  <PersonDot member={requester} fallbackId={todo.created_by} />
+                  {withParticle(requesterName)} 부탁
+                </Badge>
+              )}
               {handledByOther && (
-                <Badge tone="success">{handler?.display_name ?? '누군가'}가 대신 처리</Badge>
+                <Badge tone="success" className="pl-0.5">
+                  <PersonDot member={handler ?? undefined} fallbackId={todo.handled_by!} />
+                  {withParticle(handlerName)} 대신 처리
+                </Badge>
               )}
               {noteCount > 0 && <Badge>메모 {noteCount}</Badge>}
             </div>
@@ -307,5 +330,19 @@ export default function TodoCard({
         )}
       </AnimatePresence>
     </motion.li>
+  );
+}
+
+/** 배지 안에 들어가는 아주 작은 아바타 — 이름만으로는 누구인지 한 박자 늦게 읽힌다 */
+function PersonDot({ member, fallbackId }: { member?: MemberSummary; fallbackId: string }) {
+  return (
+    <Avatar
+      name={member?.display_name ?? '?'}
+      color={member?.avatar_color}
+      imageUrl={member?.avatar_url}
+      seed={fallbackId}
+      size="sm"
+      className="size-3.5 text-[8px]"
+    />
   );
 }

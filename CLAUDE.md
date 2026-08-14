@@ -133,7 +133,9 @@ org_events      id, org_id, title, color, start_date, end_date, created_by,
 ```
 
 - `todos.owner_id`가 보드에서 어느 컬럼에 놓일지를 결정한다. `created_by`와 다르면
-  남이 대신 꽂아 넣은 할 일이다.
+  남이 부탁한 할 일이고, 카드에 **"OOO이 부탁"** 배지가 뜬다 —
+  추가할 때 뜬 토스트는 금방 사라지고 부탁한 본인 말고는 아무도 못 보기 때문에,
+  "이거 왜 내 목록에 있지"를 카드에서 바로 알 수 있어야 한다.
 - `handled_by`가 `owner_id`와 다르면 "남이 대신 처리해 줌" 배지가 뜬다.
 - `position`은 double이라 앞/사이에 끼워 넣을 때 뒤 항목들을 다시 쓸 필요가 없다.
 - **삭제는 전부 소프트 삭제다.** `deleted_at`만 찍고 행은 남긴다 — 카드 오른쪽 X는 확인 창 없이
@@ -410,6 +412,12 @@ Tailwind v4 preflight는 버튼 커서를 `default`로 되돌린다. 터치에�
 `app/icon.svg`(파비콘)와 `app/apple-icon.tsx`(홈 화면용 180px PNG, `next/og`의 ImageResponse)
 둘 다 베이지 배경 + 검정 "Todo" 텍스트다. iOS는 SVG 터치 아이콘을 제대로 다루지 않아
 apple-icon만 PNG로 그린다.
+
+### 사람 이름 뒤 조사
+
+`subjectParticle(name)` — 받침이 있으면 "이", 없으면 "가".
+"최진형이 부탁" / "최진우가 부탁". 하나로 고정하면 반드시 한쪽이 어색해진다.
+한글이 아니면(영문·숫자) "가"로 둔다.
 
 ### 안내 문구 말투
 

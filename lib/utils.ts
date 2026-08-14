@@ -61,6 +61,20 @@ export function dueState(dueDate: string | null): 'none' | 'overdue' | 'today' |
   return 'upcoming';
 }
 
+/**
+ * 이름 뒤에 붙일 주격 조사.
+ * 받침이 있으면 "이", 없으면 "가" — 고정하면 "최진우이 부탁"처럼 어색해진다.
+ * 한글이 아니면(영문·숫자) "가"로 둔다.
+ */
+export function subjectParticle(name: string): '이' | '가' {
+  const last = name.trim().slice(-1);
+  if (!last) return '가';
+  const code = last.charCodeAt(0);
+  if (code < 0xac00 || code > 0xd7a3) return '가';
+  // 한글 음절은 (초성, 중성, 종성) 조합이고 종성 인덱스 0이 받침 없음이다
+  return (code - 0xac00) % 28 === 0 ? '가' : '이';
+}
+
 /** 이름에서 이니셜 한 글자 (아바타 이모지가 없을 때 대체) */
 export function initialOf(name: string): string {
   return name.trim().charAt(0).toUpperCase() || '?';
