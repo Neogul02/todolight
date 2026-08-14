@@ -142,3 +142,8 @@ US-107 토스트를 작고 가운데로 — 완료
 - 알약 모양(rounded-full)에 px-3.5 py-2 / 13px. 액션·취소 버튼도 h-7 알약으로 줄임
 - icon과 actionButton에 shrink-0 — 글자가 길어져도 잘리지 않는다
 
+마무리 (2차 루프)
+- CalendarView.shift에서 setMonth 업데이터 안의 setSelected를 밖으로 뺐다.
+  업데이터는 순수해야 하고 StrictMode에서 두 번 불릴 수 있다
+- 리뷰어(architect) 실행했으나 보고서를 회수하지 못함 — 다음 세션에서 재검증 권장
+

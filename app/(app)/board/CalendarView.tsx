@@ -135,19 +135,20 @@ export function CalendarView({
     안 옮기면 8월 15일을 고른 채 9월로 넘어가서, 보고 있는 달과 아래 목록이 어긋난다.
     같은 일자를 지키되 그 달에 없으면 말일로 붙인다 (1/31 → 2/28).
   */
-  const shift = useCallback((delta: number) => {
-    setDirection(delta);
-    setMonth(current => {
-      const next = shiftMonth(current, delta);
-      setSelected(prev => {
-        const day = prev.slice(-2);
-        const candidate = `${next}-${day}`;
-        const end = lastDayOfMonth(next);
-        return candidate > end ? end : candidate;
-      });
-      return next;
-    });
-  }, []);
+  const shift = useCallback(
+    (delta: number) => {
+      // setMonth 업데이터 안에서 setSelected를 부르지 않는다 —
+      // 업데이터는 순수해야 하고 StrictMode에서 두 번 불릴 수 있다.
+      const next = shiftMonth(month, delta);
+      const end = lastDayOfMonth(next);
+      const candidate = `${next}-${selected.slice(-2)}`;
+
+      setDirection(delta);
+      setMonth(next);
+      setSelected(candidate > end ? end : candidate);
+    },
+    [month, selected]
+  );
 
   /** 이번 달이 아니면 돌아올 길을 준다 — 몇 달 넘긴 뒤 오늘을 찾아 되짚는 건 번거롭다 */
   const awayFromToday = month !== today.slice(0, 7);
