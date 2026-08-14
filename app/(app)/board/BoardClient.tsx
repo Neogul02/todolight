@@ -11,8 +11,7 @@ import {
   useOrgPresence,
   useOrgTodos,
 } from '@/hooks/useOrgBoard';
-import { useLoopCarousel } from '@/hooks/useLoopCarousel';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useCarousel } from '@/hooks/useCarousel';
 import { useApp } from '../OrgContext';
 import { Avatar } from '@/components/Avatar';
 import { Button, Card } from '@/components/ui';
@@ -76,16 +75,13 @@ export default function BoardClient() {
     한 화면에 한 명만 보이는 모바일에서만 순환시킨다.
     데스크톱은 컬럼이 여러 개 동시에 보여서, 끝에서 되감기면 화면이 뚝 끊긴 것처럼 보인다.
   */
-  const oneAtATime = !useMediaQuery('(min-width: 640px)');
   /*
     resetKey에 mode를 섞는다. 대시보드에 다녀오면 캐러셀이 통째로 다시 마운트되는데,
     그때 위치를 다시 잡지 않으면 스크롤이 0에 남아 엉뚱한 사람 컬럼부터 보인다.
     보드는 언제 열어도 내 할 일부터 보여야 한다.
   */
-  const { scrollerRef, slides, activeIndex, onScroll, goTo, registerNode } = useLoopCarousel(
-    orderedMembers,
-    m => m.user_id,
-    oneAtATime,
+  const { scrollerRef, activeIndex, onScroll, goTo, registerNode } = useCarousel(
+    orderedMembers.length,
     `${activeOrgId}:${mode}`
   );
 
@@ -208,14 +204,14 @@ export default function BoardClient() {
             <div
               ref={scrollerRef}
               onScroll={onScroll}
-              className="snap-board board-viewport flex gap-3 overflow-x-auto scroll-pl-3 px-3 pb-3 sm:scroll-pl-4 sm:px-4"
+              className="snap-board board-viewport flex cursor-grab gap-3 overflow-x-auto scroll-pl-3 px-3 pb-3 sm:scroll-pl-4 sm:px-4"
             >
-              {slides.map((slide, i) => (
+              {orderedMembers.map((m, i) => (
                 <MemberColumn
-                  key={slide.key}
+                  key={m.user_id}
                   ref={registerNode(i)}
-                  member={slide.item}
-                  todos={todosByOwner.get(slide.item.user_id) ?? []}
+                  member={m}
+                  todos={todosByOwner.get(m.user_id) ?? []}
                   orgId={activeOrgId!}
                   currentUserId={userId}
                   isManager={isManager}
