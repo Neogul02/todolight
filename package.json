@@ -1,0 +1,38 @@
+{
+  "name": "todolight",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.106.0",
+    "@tanstack/react-query": "^5.95.2",
+    "@vercel/speed-insights": "^2.0.0",
+    "framer-motion": "^12.38.0",
+    "next": "16.2.1",
+    "pretendard": "^1.3.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "server-only": "^0.0.1",
+    "sonner": "^2.0.7",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.6",
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "25.9.0",
+    "@types/react": "19.2.14",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.1",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.2",
+    "typescript": "6.0.2",
+    "vitest": "^4.1.10"
+  }
+}

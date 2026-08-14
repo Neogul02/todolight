@@ -1,0 +1,338 @@
+'use server';
+
+import { z } from 'zod';
+import { revalidatePath } from 'next/cache';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { requireAuth, wrap } from './_base';
+import type { ApiResponse } from '@/types/api';
+import type { MemberRole, MemberSummary, OrgInvite, Organization } from '@/types/db';
+
+const orgNameSchema = z.string().trim().min(1, '조직 이름을 입력해 주세요.').max(60);
+const emailSchema = z.string().trim().toLowerCase().email('이메일 형식이 올바르지 않습니다.');
+
+/** 호출자가 해당 조직의 멤버인지 확인하고 역할을 돌려준다. 아니면 throw. */
+async function requireMembership(orgId: string, userId: string): Promise<MemberRole> {
+  const { data, error } = await getSupabaseAdmin()
+    .from('org_members')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error('해당 조직의 멤버가 아닙니다.');
+  return data.role as MemberRole;
+}
+
+async function requireManager(orgId: string, userId: string): Promise<MemberRole> {
+  const role = await requireMembership(orgId, userId);
+  if (role !== 'owner' && role !== 'admin') throw new Error('방장만 할 수 있는 작업입니다.');
+  return role;
+}
+
+/** 내가 속한 조직 목록 */
+export async function fetchMyOrgs(): Promise<ApiResponse<(Organization & { role: MemberRole; member_count: number })[]>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    const { data, error } = await getSupabaseAdmin()
+      .from('org_members')
+      .select('role, organizations!inner (id, name, owner_id, created_at)')
+      .eq('user_id', user.id)
+      .order('joined_at', { ascending: true });
+    if (error) throw new Error(error.message);
+
+    const rows = (data ?? []) as unknown as { role: MemberRole; organizations: Organization }[];
+    if (rows.length === 0) return [];
+
+    const ids = rows.map(r => r.organizations.id);
+    const { data: counts } = await getSupabaseAdmin()
+      .from('org_members')
+      .select('org_id')
+      .in('org_id', ids);
+
+    const countMap = new Map<string, number>();
+    (counts ?? []).forEach(c => countMap.set(c.org_id, (countMap.get(c.org_id) ?? 0) + 1));
+
+    return rows.map(r => ({
+      ...r.organizations,
+      role: r.role,
+      member_count: countMap.get(r.organizations.id) ?? 1,
+    }));
+  });
+}
+
+/** 조직 생성 — 만든 사람이 곧 방장(owner) */
+export async function createOrg(name: string): Promise<ApiResponse<Organization>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    const parsed = orgNameSchema.parse(name);
+
+    const { data: org, error } = await getSupabaseAdmin()
+      .from('organizations')
+      .insert({ name: parsed, owner_id: user.id })
+      .select('id, name, owner_id, created_at')
+      .single();
+    if (error) throw new Error(error.message);
+
+    const { error: memberError } = await getSupabaseAdmin()
+      .from('org_members')
+      .insert({ org_id: org.id, user_id: user.id, role: 'owner' });
+    if (memberError) {
+      // 멤버 등록이 실패하면 아무도 접근할 수 없는 유령 조직이 남는다 — 되돌린다.
+      await getSupabaseAdmin().from('organizations').delete().eq('id', org.id);
+      throw new Error(memberError.message);
+    }
+
+    revalidatePath('/board');
+    return org as Organization;
+  });
+}
+
+/** 조직 멤버 목록 (보드 컬럼 순서의 원본) */
+export async function fetchOrgMembers(orgId: string): Promise<ApiResponse<MemberSummary[]>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    await requireMembership(orgId, user.id);
+
+    const { data, error } = await getSupabaseAdmin()
+      .from('org_members')
+      .select('user_id, role, joined_at, profiles!inner (display_name, avatar_emoji, email)')
+      .eq('org_id', orgId)
+      .order('joined_at', { ascending: true });
+    if (error) throw new Error(error.message);
+
+    return ((data ?? []) as unknown as {
+      user_id: string;
+      role: MemberRole;
+      profiles: { display_name: string; avatar_emoji: string | null; email: string | null };
+    }[]).map(r => ({
+      user_id: r.user_id,
+      role: r.role,
+      display_name: r.profiles.display_name,
+      avatar_emoji: r.profiles.avatar_emoji,
+      email: r.profiles.email,
+    }));
+  });
+}
+
+/** 방장이 이메일로 팀원 초대 */
+export async function inviteMember(orgId: string, email: string): Promise<ApiResponse<OrgInvite>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    await requireManager(orgId, user.id);
+    const target = emailSchema.parse(email);
+
+    if (target === user.email?.toLowerCase()) throw new Error('본인은 초대할 수 없습니다.');
+
+    // 이미 멤버인 이메일인지 확인
+    const { data: existingProfile } = await getSupabaseAdmin()
+      .from('profiles')
+      .select('id')
+      .ilike('email', target)
+      .maybeSingle();
+
+    if (existingProfile) {
+      const { data: already } = await getSupabaseAdmin()
+        .from('org_members')
+        .select('id')
+        .eq('org_id', orgId)
+        .eq('user_id', existingProfile.id)
+        .maybeSingle();
+      if (already) throw new Error('이미 조직에 속한 멤버입니다.');
+    }
+
+    const { data, error } = await getSupabaseAdmin()
+      .from('org_invites')
+      .insert({ org_id: orgId, email: target, invited_by: user.id, status: 'pending' })
+      .select('id, org_id, email, invited_by, status, created_at, responded_at')
+      .single();
+    if (error) {
+      if (error.code === '23505') throw new Error('이미 초대장을 보냈습니다.');
+      throw new Error(error.message);
+    }
+
+    return data as OrgInvite;
+  });
+}
+
+/** 조직의 대기 중 초대 목록 (방장 화면) */
+export async function fetchOrgInvites(orgId: string): Promise<ApiResponse<OrgInvite[]>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    await requireMembership(orgId, user.id);
+
+    const { data, error } = await getSupabaseAdmin()
+      .from('org_invites')
+      .select('id, org_id, email, invited_by, status, created_at, responded_at')
+      .eq('org_id', orgId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []) as OrgInvite[];
+  });
+}
+
+/** 나에게 온 초대 목록 (수락 대기) */
+export async function fetchMyInvites(): Promise<ApiResponse<OrgInvite[]>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    if (!user.email) return [];
+
+    const { data, error } = await getSupabaseAdmin()
+      .from('org_invites')
+      .select('id, org_id, email, invited_by, status, created_at, responded_at, organizations!inner (name), profiles!org_invites_invited_by_fkey (display_name)')
+      .ilike('email', user.email)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+
+    return ((data ?? []) as unknown as (OrgInvite & {
+      organizations: { name: string };
+      profiles: { display_name: string } | null;
+    })[]).map(r => ({
+      id: r.id,
+      org_id: r.org_id,
+      email: r.email,
+      invited_by: r.invited_by,
+      status: r.status,
+      created_at: r.created_at,
+      responded_at: r.responded_at,
+      org_name: r.organizations?.name,
+      inviter_name: r.profiles?.display_name,
+    }));
+  });
+}
+
+/** 초대 수락 / 거절 */
+export async function respondToInvite(
+  inviteId: string,
+  accept: boolean
+): Promise<ApiResponse<{ orgId: string | null }>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    if (!user.email) throw new Error('이메일 정보가 없어 초대를 처리할 수 없습니다.');
+
+    const { data: invite, error } = await getSupabaseAdmin()
+      .from('org_invites')
+      .select('id, org_id, email, status')
+      .eq('id', inviteId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!invite) throw new Error('초대장을 찾을 수 없습니다.');
+    if (invite.status !== 'pending') throw new Error('이미 처리된 초대장입니다.');
+    if (invite.email.toLowerCase() !== user.email.toLowerCase())
+      throw new Error('본인에게 온 초대장이 아닙니다.');
+
+    if (!accept) {
+      await getSupabaseAdmin()
+        .from('org_invites')
+        .update({ status: 'declined', responded_at: new Date().toISOString() })
+        .eq('id', inviteId);
+      return { orgId: null };
+    }
+
+    const { error: joinError } = await getSupabaseAdmin()
+      .from('org_members')
+      .insert({ org_id: invite.org_id, user_id: user.id, role: 'member' });
+    // 23505 = 이미 멤버 — 초대만 정리하고 정상 처리한다.
+    if (joinError && joinError.code !== '23505') throw new Error(joinError.message);
+
+    await getSupabaseAdmin()
+      .from('org_invites')
+      .update({ status: 'accepted', responded_at: new Date().toISOString() })
+      .eq('id', inviteId);
+
+    revalidatePath('/board');
+    return { orgId: invite.org_id };
+  });
+}
+
+/** 초대 취소 (방장) */
+export async function revokeInvite(inviteId: string): Promise<ApiResponse<null>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    const { data: invite } = await getSupabaseAdmin()
+      .from('org_invites')
+      .select('org_id')
+      .eq('id', inviteId)
+      .maybeSingle();
+    if (!invite) throw new Error('초대장을 찾을 수 없습니다.');
+    await requireManager(invite.org_id, user.id);
+
+    await getSupabaseAdmin()
+      .from('org_invites')
+      .update({ status: 'revoked', responded_at: new Date().toISOString() })
+      .eq('id', inviteId);
+    return null;
+  });
+}
+
+/** 멤버 내보내기 / 스스로 나가기 */
+export async function removeMember(orgId: string, userId: string): Promise<ApiResponse<null>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    const myRole = await requireMembership(orgId, user.id);
+
+    const isSelf = userId === user.id;
+    if (!isSelf && myRole !== 'owner' && myRole !== 'admin')
+      throw new Error('방장만 할 수 있는 작업입니다.');
+
+    const { data: target } = await getSupabaseAdmin()
+      .from('org_members')
+      .select('role')
+      .eq('org_id', orgId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (!target) throw new Error('해당 멤버를 찾을 수 없습니다.');
+    if (target.role === 'owner') throw new Error('방장은 조직에서 뺄 수 없습니다.');
+
+    const { error } = await getSupabaseAdmin()
+      .from('org_members')
+      .delete()
+      .eq('org_id', orgId)
+      .eq('user_id', userId);
+    if (error) throw new Error(error.message);
+
+    revalidatePath('/board');
+    return null;
+  });
+}
+
+/** 멤버 역할 변경 (owner 전용) */
+export async function updateMemberRole(
+  orgId: string,
+  userId: string,
+  role: 'admin' | 'member'
+): Promise<ApiResponse<null>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    const myRole = await requireMembership(orgId, user.id);
+    if (myRole !== 'owner') throw new Error('방장만 할 수 있는 작업입니다.');
+    if (userId === user.id) throw new Error('본인의 역할은 바꿀 수 없습니다.');
+
+    const { error } = await getSupabaseAdmin()
+      .from('org_members')
+      .update({ role })
+      .eq('org_id', orgId)
+      .eq('user_id', userId);
+    if (error) throw new Error(error.message);
+    return null;
+  });
+}
+
+/** 조직 이름 변경 */
+export async function renameOrg(orgId: string, name: string): Promise<ApiResponse<null>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    await requireManager(orgId, user.id);
+    const parsed = orgNameSchema.parse(name);
+
+    const { error } = await getSupabaseAdmin()
+      .from('organizations')
+      .update({ name: parsed })
+      .eq('id', orgId);
+    if (error) throw new Error(error.message);
+
+    revalidatePath('/board');
+    return null;
+  });
+}

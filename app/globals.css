@@ -1,0 +1,220 @@
+@import "tailwindcss";
+
+/* ──────────────────────────────────────────────────────────────
+   Theme tokens
+   기본 테마는 "sand" — 밝은 베이지 배경 + 블랙 잉크.
+   추후 유료 테마는 :root[data-theme="..."] 블록만 추가하면 되고,
+   컴포넌트는 아래 시맨틱 토큰(bg-canvas, text-ink 등)만 사용한다.
+   ────────────────────────────────────────────────────────────── */
+@theme {
+  --color-canvas: var(--canvas);
+  --color-canvas-soft: var(--canvas-soft);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+
+  --color-ink: var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-ink-invert: var(--ink-invert);
+
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+
+  --color-success: #2f7a53;
+  --color-success-soft: #e4f1e9;
+  --color-warning: #a8720f;
+  --color-warning-soft: #f8eeda;
+  --color-danger: #b03a34;
+  --color-danger-soft: #f7e6e4;
+}
+
+:root,
+:root[data-theme="sand"] {
+  --canvas: #f3eee5;
+  --canvas-soft: #ece5d8;
+  --surface: #fbf9f5;
+  --surface-alt: #f6f2ea;
+
+  --ink: #14120f;
+  --ink-secondary: #35312b;
+  --ink-muted: #6b655b;
+  --ink-faint: #a49c8f;
+  --ink-invert: #fbf9f5;
+
+  --hairline: #e0d8c8;
+  --hairline-strong: #cdc2ac;
+
+  --accent: #14120f;
+  --accent-soft: #e6dfd0;
+  --accent-ink: #fbf9f5;
+}
+
+/* 프리뷰용 프리셋 — 결제 연동 전까지는 잠금 상태로 노출만 한다 */
+:root[data-theme="ink"] {
+  --canvas: #171613;
+  --canvas-soft: #1f1e1a;
+  --surface: #232220;
+  --surface-alt: #2b2a26;
+
+  --ink: #f4f1ea;
+  --ink-secondary: #ddd8cd;
+  --ink-muted: #a29b8d;
+  --ink-faint: #6f6a5f;
+  --ink-invert: #171613;
+
+  --hairline: #34322d;
+  --hairline-strong: #4a473f;
+
+  --accent: #f4f1ea;
+  --accent-soft: #34322d;
+  --accent-ink: #171613;
+}
+
+:root[data-theme="mint"] {
+  --canvas: #eef4f0;
+  --canvas-soft: #e2ebe5;
+  --surface: #fbfdfc;
+  --surface-alt: #f2f7f4;
+
+  --ink: #10201a;
+  --ink-secondary: #2c3d35;
+  --ink-muted: #5d6f66;
+  --ink-faint: #97a69d;
+  --ink-invert: #fbfdfc;
+
+  --hairline: #d6e3db;
+  --hairline-strong: #b9cdc2;
+
+  --accent: #0d5a3c;
+  --accent-soft: #dcece3;
+  --accent-ink: #fbfdfc;
+}
+
+:root {
+  font-family: "Pretendard Variable", "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--canvas);
+  color-scheme: light;
+}
+
+:root[data-theme="ink"] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--canvas);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+}
+
+button,
+a {
+  touch-action: manipulation;
+}
+
+/* ── Elevation ── */
+@utility shadow-level-1 {
+  box-shadow:
+    rgba(0, 0, 0, 0.012) 0 0.175px 1.041px,
+    rgba(0, 0, 0, 0.022) 0 0.8px 2.925px,
+    rgba(0, 0, 0, 0.028) 0 2.025px 7.847px,
+    rgba(0, 0, 0, 0.04) 0 4px 18px;
+}
+
+@utility shadow-level-2 {
+  box-shadow:
+    rgba(0, 0, 0, 0.012) 0 0.175px 1.041px,
+    rgba(0, 0, 0, 0.022) 0 0.8px 2.925px,
+    rgba(0, 0, 0, 0.028) 0 2.025px 7.847px,
+    rgba(0, 0, 0, 0.04) 0 4px 18px,
+    rgba(0, 0, 0, 0.05) 0 23px 52px;
+}
+
+/* ── Typography scale ── */
+@utility text-display {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+@utility text-heading-1 {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.23;
+  letter-spacing: -0.025em;
+}
+@utility text-heading-2 {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.27;
+  letter-spacing: -0.011em;
+}
+@utility text-title {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.006em;
+}
+@utility text-body-md {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+@utility text-body-sm {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+@utility text-caption {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+@utility text-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* 가로 스크롤 보드에서 각 컬럼이 스냅되도록 */
+@utility snap-board {
+  scroll-snap-type: x mandatory;
+}
+@utility snap-col {
+  scroll-snap-align: start;
+}
+
+/* ── 모바일 입력 확대 방지 (iOS Safari) ── */
+@media (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--hairline-strong);
+  border-radius: 9999px;
+}
