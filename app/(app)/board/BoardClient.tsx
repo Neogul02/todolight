@@ -196,7 +196,7 @@ export default function BoardClient() {
               isManager={isManager}
               members={orderedMembers}
               showDone={showDone}
-              onMutated={refresh}
+              onCreated={refresh}
               onHandoff={setHandoff}
               /*
                 모바일은 한 화면에 한 명만 보인다 — w-full은 스크롤 컨테이너의 콘텐츠 폭이라
@@ -225,7 +225,7 @@ export default function BoardClient() {
               members={orderedMembers}
               showDone={showDone}
               stacked
-              onMutated={refresh}
+              onCreated={refresh}
               onHandoff={setHandoff}
             />
           ))}

@@ -2,11 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export interface Slide<T> {
+interface Slide<T> {
   key: string;
   item: T;
-  /** 원본 배열에서의 위치 — 복제본도 원본과 같은 값을 가진다 */
-  realIndex: number;
 }
 
 /** 스크롤 컨테이너 왼쪽 기준선(scroll-padding-left)에서 얼마나 떨어져 있는지 */
@@ -47,11 +45,11 @@ export function useLoopCarousel<T>(
 
   const slides: Slide<T>[] = loop
     ? [
-        { key: `clone-tail-${keyOf(items[last])}`, item: items[last], realIndex: last },
-        ...items.map((item, i) => ({ key: keyOf(item), item, realIndex: i })),
-        { key: `clone-head-${keyOf(items[0])}`, item: items[0], realIndex: 0 },
+        { key: `clone-tail-${keyOf(items[last])}`, item: items[last] },
+        ...items.map(item => ({ key: keyOf(item), item })),
+        { key: `clone-head-${keyOf(items[0])}`, item: items[0] },
       ]
-    : items.map((item, i) => ({ key: keyOf(item), item, realIndex: i }));
+    : items.map(item => ({ key: keyOf(item), item }));
 
   /** 지금 스냅 기준선에 가장 가까운 슬라이드 (slides 기준 인덱스) */
   const nearestSlide = useCallback((): number => {

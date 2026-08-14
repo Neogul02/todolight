@@ -1,10 +1,11 @@
 import { cn } from '@/lib/utils';
 
-function Bar({ className, style }: { className?: string; style?: React.CSSProperties }) {
-  return (
-    <span className={cn('block rounded-md bg-hairline animate-pulse-soft', className)} style={style} />
-  );
+function Bar({ className }: { className?: string }) {
+  return <span className={cn('block rounded-md bg-hairline animate-pulse-soft', className)} />;
 }
+
+/** 카드마다 제목 길이를 달리해서 진짜 목록처럼 보이게 한다 */
+const TITLE_WIDTHS = ['w-[70%]', 'w-[55%]', 'w-[40%]'];
 
 /**
  * 로딩 중 컬럼 자리를 미리 잡아 둔다.
@@ -35,12 +36,12 @@ export function BoardSkeleton() {
           </div>
 
           <ul className="flex flex-col gap-2 px-3">
-            {[0, 1, 2].map(card => (
+            {TITLE_WIDTHS.map((width, card) => (
               <li key={card} className="rounded-xl border border-hairline bg-surface px-3 py-3">
                 <div className="flex items-start gap-2.5">
                   <Bar className="size-5 shrink-0" />
                   <div className="flex flex-1 flex-col gap-1.5">
-                    <Bar className="h-3.5" style={{ width: `${70 - card * 15}%` }} />
+                    <Bar className={cn('h-3.5', width)} />
                     <Bar className="h-3 w-12 rounded-full" />
                   </div>
                 </div>

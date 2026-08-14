@@ -21,7 +21,7 @@ interface Props {
   showDone: boolean;
   /** 대시보드 모드 — 가로 캐러셀이 아니라 세로로 쌓여서 페이지와 함께 스크롤된다 */
   stacked?: boolean;
-  onMutated: () => void;
+  onCreated: () => void;
   onHandoff: (todo: Todo) => void;
   className?: string;
 }
@@ -36,7 +36,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     members,
     showDone,
     stacked = false,
-    onMutated,
+    onCreated,
     onHandoff,
     className,
   },
@@ -71,7 +71,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     setTitle('');
     setDue(todayKST());
     if (!isMine) showMsg(`${member.display_name}님 목록에 추가했어요.`, 'success');
-    onMutated();
+    onCreated();
   }
 
   return (

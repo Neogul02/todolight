@@ -8,6 +8,7 @@ import {
   setTodoStatus,
   updateTodo,
 } from '@/app/actions/todos';
+import { clearTodoPending, markTodoPending } from '@/lib/pending-todos';
 import { showMsg, showUndo } from '@/lib/toast';
 import { boardKeys } from './useOrgBoard';
 import type { Todo, TodoStatus } from '@/types/db';
@@ -46,6 +47,15 @@ export function useTodoMutations(orgId: string | null) {
     queryClient.invalidateQueries({ queryKey: key });
   }
 
+  /**
+   * 요청이 끝났으니 실시간 병합을 다시 허용하고 서버 상태로 맞춘다.
+   * 해제를 먼저 해야 뒤이은 refetch 결과가 정상적으로 반영된다.
+   */
+  function settle(todoId: string) {
+    clearTodoPending(todoId);
+    resync();
+  }
+
   const toggleStatus = useMutation({
     mutationFn: async (input: { todo: Todo; next: TodoStatus; actorId: string }) => {
       const res = await setTodoStatus(input.todo.id, input.next);
@@ -54,6 +64,7 @@ export function useTodoMutations(orgId: string | null) {
     },
     onMutate: async input => {
       const done = input.next === 'done';
+      markTodoPending(input.todo.id);
       return {
         snapshot: await patch(todos =>
           todos.map(t =>
@@ -71,7 +82,7 @@ export function useTodoMutations(orgId: string | null) {
       };
     },
     onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
-    onSettled: resync,
+    onSettled: (_data, _error, input) => settle(input.todo.id),
   });
 
   const restore = useMutation({
@@ -91,13 +102,14 @@ export function useTodoMutations(orgId: string | null) {
       if (!res.success) throw new Error(res.error);
       return todo;
     },
-    onMutate: async todo => ({
-      snapshot: await patch(todos => todos.filter(t => t.id !== todo.id)),
-    }),
+    onMutate: async todo => {
+      markTodoPending(todo.id);
+      return { snapshot: await patch(todos => todos.filter(t => t.id !== todo.id)) };
+    },
     onError: (error: Error, _todo, context) => rollback(context?.snapshot, error),
     // 확인 창 없이 지우는 대신 되돌릴 기회를 준다 (소프트 삭제라 행은 남아 있다)
     onSuccess: todo => showUndo('지웠어요.', () => restore.mutate(todo)),
-    onSettled: resync,
+    onSettled: (_data, _error, todo) => settle(todo.id),
   });
 
   const edit = useMutation({
@@ -106,15 +118,18 @@ export function useTodoMutations(orgId: string | null) {
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
-    onMutate: async input => ({
-      snapshot: await patch(todos =>
-        todos.map(t =>
-          t.id === input.todo.id ? { ...t, title: input.title, due_date: input.dueDate } : t
-        )
-      ),
-    }),
+    onMutate: async input => {
+      markTodoPending(input.todo.id);
+      return {
+        snapshot: await patch(todos =>
+          todos.map(t =>
+            t.id === input.todo.id ? { ...t, title: input.title, due_date: input.dueDate } : t
+          )
+        ),
+      };
+    },
     onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
-    onSettled: resync,
+    onSettled: (_data, _error, input) => settle(input.todo.id),
   });
 
   // 메모는 작성자 이름·아바타 조인이 필요해서 낙관적으로 그리지 않고 서버 결과를 기다린다.
@@ -128,5 +143,5 @@ export function useTodoMutations(orgId: string | null) {
     onSuccess: resync,
   });
 
-  return { toggleStatus, edit, remove, restore, addNote, resync };
+  return { toggleStatus, edit, remove, restore, addNote };
 }

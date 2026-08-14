@@ -181,13 +181,6 @@ textarea:focus-visible {
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }
-@utility pt-safe {
-  padding-top: env(safe-area-inset-top);
-}
-@utility px-safe {
-  padding-left: max(1rem, env(safe-area-inset-left));
-  padding-right: max(1rem, env(safe-area-inset-right));
-}
 /**
  * 보드 스크롤 영역 높이.
  * 페이지 전체가 늘어나면 컬럼마다 높이가 널뛴다 —
@@ -246,14 +239,6 @@ textarea:focus-visible {
   font-weight: 400;
   line-height: 1.45;
 }
-@utility text-eyebrow {
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.35;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
 /* 가로 스크롤 보드에서 각 컬럼이 스냅되도록 */
 @utility snap-board {
   scroll-snap-type: x mandatory;

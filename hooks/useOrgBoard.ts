@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRealtimeClient } from '@/lib/supabase-realtime';
+import { isTodoPending } from '@/lib/pending-todos';
 import { fetchOrgMembers } from '@/app/actions/orgs';
 import { fetchOrgTodos } from '@/app/actions/todos';
 import type { MemberSummary, Todo } from '@/types/db';
@@ -63,6 +64,16 @@ export function useBoardRealtime(orgId: string | null) {
             }
 
             const row = payload.new as Todo;
+
+            /*
+              이 행에 대한 내 요청이 아직 날아다니는 중이면 건너뛴다.
+              실시간 페이로드는 행 전체를 담고 있어서, 내가 방금 낙관적으로 바꾼 필드까지
+              커밋 이전 값으로 되돌린다 — 제목을 고치는 도중 체크를 누르면 체크가
+              저 혼자 풀리는 것처럼 보인다.
+              cancelQueries는 react-query의 fetch만 막을 뿐 이 경로는 막지 못한다.
+              건너뛴 변경은 뮤테이션이 끝날 때 invalidate로 다시 맞춰진다.
+            */
+            if (isTodoPending(row.id)) return prev;
             // 소프트 삭제는 DELETE가 아니라 deleted_at을 찍는 UPDATE로 온다
             if (row.deleted_at) return prev.filter(t => t.id !== row.id);
 
