@@ -26,7 +26,7 @@ import { BoardSkeleton } from './BoardSkeleton';
 type Mode = 'board' | 'dashboard';
 
 export default function BoardClient() {
-  const { activeOrgId, userId, orgs, isManager, openOrgSheet, pendingInvites } = useApp();
+  const { activeOrgId, userId, orgs, isManager, openMenu, pendingInvites } = useApp();
   const queryClient = useQueryClient();
 
   const members = useOrgMembers(activeOrgId);
@@ -102,7 +102,7 @@ export default function BoardClient() {
           </Link>
           <button
             type="button"
-            onClick={openOrgSheet}
+            onClick={openMenu}
             className="flex h-13 items-center justify-center gap-1.5 rounded-2xl border border-hairline-strong bg-surface px-6 text-[16px] font-medium text-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]"
           >
             받은 초대 확인

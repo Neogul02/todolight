@@ -13,8 +13,8 @@ interface AppContextValue {
   activeOrgId: string | null;
   activeOrg: OrgWithRole | null;
   selectOrg: (id: string) => void;
-  /** 조직 전환 시트 열기 — 받은 초대도 이 시트 안에서 처리한다 */
-  openOrgSheet: () => void;
+  /** 프로필 메뉴 시트 열기 — 조직 전환과 받은 초대가 그 안에 있다 */
+  openMenu: () => void;
   /** 받은 초대 수 */
   pendingInvites: number;
   /** 현재 조직에서 내가 방장/관리자인지 */

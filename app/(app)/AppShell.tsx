@@ -11,6 +11,7 @@ import { applyTheme } from '@/app/providers';
 import { Avatar } from '@/components/Avatar';
 import { OrgIcon } from '@/components/OrgIcon';
 import { BottomSheet } from '@/components/BottomSheet';
+import { CalendarSheet } from './CalendarSheet';
 import { Button } from '@/components/ui';
 import { showMsg } from '@/lib/toast';
 import { cn, formatRelativeDay } from '@/lib/utils';
@@ -45,8 +46,8 @@ export default function AppShell({
   const queryClient = useQueryClient();
   const orgIds = useMemo(() => orgs.map(o => o.id), [orgs]);
   const [activeOrgId, selectOrg] = useActiveOrg(orgIds);
-  const [orgSheetOpen, setOrgSheetOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const activeOrg = orgs.find(o => o.id === activeOrgId) ?? null;
   const onBoard = pathname === '/board';
@@ -78,7 +79,7 @@ export default function AppShell({
       // 수락한 조직으로 바로 넘어간다 — 수락하고 또 고르게 하면 한 단계가 남는다
       if (data.accept && data.orgId) {
         selectOrg(data.orgId);
-        setOrgSheetOpen(false);
+        setMenuOpen(false);
         router.push('/board');
       }
       router.refresh();
@@ -103,7 +104,7 @@ export default function AppShell({
         activeOrgId,
         activeOrg,
         selectOrg,
-        openOrgSheet: () => setOrgSheetOpen(true),
+        openMenu: () => setMenuOpen(true),
         pendingInvites: pendingCount,
         isManager: activeOrg?.role === 'owner' || activeOrg?.role === 'admin',
       }}
@@ -122,11 +123,8 @@ export default function AppShell({
               </Link>
             )}
 
-            <button
-              type="button"
-              onClick={() => setOrgSheetOpen(true)}
-              className="flex min-w-0 flex-1 items-center gap-1.5 rounded-xl px-2 py-1.5 text-left no-select transition-colors active:bg-canvas-soft sm:hover:bg-canvas-soft"
-            >
+            {/* 조직 전환은 프로필 메뉴로 옮겼다 — 여기는 지금 어느 조직인지 알려 주기만 한다 */}
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 px-2 no-select">
               {activeOrg && (
                 <OrgIcon
                   name={activeOrg.name}
@@ -138,21 +136,22 @@ export default function AppShell({
               <span className="truncate text-[16px] font-semibold tracking-tight text-ink sm:text-[15px]">
                 {activeOrg?.name ?? 'todolight'}
               </span>
-              <ChevronIcon className="size-4 shrink-0 text-ink-faint" />
-              {/* 받은 초대가 있으면 여기서 알린다 — 초대를 처리하는 곳이 이 시트 안이다 */}
-              {pendingCount > 0 && (
-                <span
-                  className="size-2 shrink-0 rounded-full bg-danger"
-                  aria-label={`받은 초대 ${pendingCount}건`}
-                />
-              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setCalendarOpen(true)}
+              aria-label="달력으로 보기"
+              className="grid size-10 shrink-0 place-items-center rounded-xl text-ink-secondary no-select active:bg-canvas-soft"
+            >
+              <CalendarIcon className="size-5" />
             </button>
 
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
               aria-label="메뉴"
-              className="grid size-10 shrink-0 place-items-center rounded-full no-select active:bg-canvas-soft"
+              className="relative grid size-10 shrink-0 place-items-center rounded-full no-select active:bg-canvas-soft"
             >
               <Avatar
                 name={profile?.display_name ?? email ?? '나'}
@@ -161,6 +160,13 @@ export default function AppShell({
                 seed={userId}
                 size="sm"
               />
+              {/* 초대를 처리하는 곳이 이 메뉴 안이므로 알림도 여기에 붙는다 */}
+              {pendingCount > 0 && (
+                <span
+                  className="absolute right-0.5 top-0.5 size-2.5 rounded-full border-2 border-canvas bg-danger"
+                  aria-label={`받은 초대 ${pendingCount}건`}
+                />
+              )}
             </button>
           </div>
         </header>
@@ -168,8 +174,8 @@ export default function AppShell({
         <div className="flex-1">{children}</div>
       </div>
 
-      {/* 조직 전환 + 받은 초대 */}
-      <BottomSheet open={orgSheetOpen} onClose={() => setOrgSheetOpen(false)} title="조직">
+      {/* 프로필 메뉴 : 받은 초대 · 조직 전환 · 관리 · 로그아웃을 한 시트에 모았다 */}
+      <BottomSheet open={menuOpen} onClose={() => setMenuOpen(false)} title="메뉴">
         {pendingCount > 0 && (
           <section className="mb-4">
             <h3 className="flex items-center gap-1.5 px-1 pb-2 text-caption font-semibold text-ink-secondary">
@@ -210,6 +216,7 @@ export default function AppShell({
           </section>
         )}
 
+        <h3 className="px-1 pb-2 text-caption font-semibold text-ink-secondary">조직</h3>
         <ul className="flex flex-col gap-1">
           {orgs.map(o => (
             <li key={o.id}>
@@ -217,7 +224,7 @@ export default function AppShell({
                 type="button"
                 onClick={() => {
                   selectOrg(o.id);
-                  setOrgSheetOpen(false);
+                  setMenuOpen(false);
                 }}
                 className={cn(
                   'flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors active:bg-canvas-soft',
@@ -240,15 +247,13 @@ export default function AppShell({
 
         <Link
           href="/orgs/new"
-          onClick={() => setOrgSheetOpen(false)}
+          onClick={() => setMenuOpen(false)}
           className="mt-2 flex h-12 items-center justify-center rounded-xl border border-dashed border-hairline-strong text-[15px] font-medium text-ink-muted transition-colors active:bg-canvas-soft"
         >
           + 새 조직 만들기
         </Link>
-      </BottomSheet>
 
-      {/* 아바타 메뉴 — 하단 탭바를 없앤 대신 관리 기능을 전부 여기 모았다 */}
-      <BottomSheet open={menuOpen} onClose={() => setMenuOpen(false)} title="메뉴">
+        <h3 className="px-1 pt-5 pb-2 text-caption font-semibold text-ink-secondary">관리</h3>
         <ul className="flex flex-col gap-1">
           {MENU.map(item => (
             <li key={item.href}>
@@ -274,14 +279,21 @@ export default function AppShell({
           로그아웃
         </button>
       </BottomSheet>
+
+      <CalendarSheet
+        open={calendarOpen}
+        onClose={() => setCalendarOpen(false)}
+        orgId={activeOrgId}
+      />
     </AppContextProvider>
   );
 }
 
-function ChevronIcon({ className }: { className?: string }) {
+function CalendarIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="m7 10 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.7">
+      <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+      <path d="M3.5 10h17M8 3.5v3M16 3.5v3" strokeLinecap="round" />
     </svg>
   );
 }
