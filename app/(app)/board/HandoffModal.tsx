@@ -36,7 +36,7 @@ export default function HandoffModal({
       showMsg(res.error, 'error');
       return;
     }
-    showMsg('대신 처리했어요.', 'success');
+    showMsg('대신 처리했어요', 'success');
     onDone();
     onClose();
   }

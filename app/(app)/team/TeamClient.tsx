@@ -69,7 +69,7 @@ export default function TeamClient() {
       await removeOrgImage(activeOrgId);
       const res = await updateOrgImage(activeOrgId, null);
       if (!res.success) throw new Error(res.error);
-      showMsg('조직 이미지를 지웠어요.', 'success');
+      showMsg('조직 이미지를 지웠어요', 'success');
       router.refresh();
     } catch (err) {
       showMsg(err instanceof Error ? err.message : String(err), 'error');

@@ -15,7 +15,18 @@ import { Button } from '@/components/ui';
 import { showMsg } from '@/lib/toast';
 import { cn, formatRelativeDay } from '@/lib/utils';
 import type { Profile } from '@/types/db';
-import { AppContextProvider, type OrgWithRole } from './OrgContext';
+import { AppContextProvider, type BoardMode, type OrgWithRole } from './OrgContext';
+
+/* 헤더 가운데에 놓는 뷰 전환. 셋뿐이라 아이콘 모양으로 구분된다 */
+const VIEW_MODES: {
+  key: BoardMode;
+  label: string;
+  Icon: (p: { className?: string }) => React.ReactElement;
+}[] = [
+  { key: 'board', label: '보드', Icon: BoardViewIcon },
+  { key: 'dashboard', label: '대시보드', Icon: DashboardIcon },
+  { key: 'calendar', label: '달력', Icon: CalendarIcon },
+];
 
 /**
  * 앱은 보드 한 화면이 전부다.
@@ -46,6 +57,7 @@ export default function AppShell({
   const orgIds = useMemo(() => orgs.map(o => o.id), [orgs]);
   const [activeOrgId, selectOrg] = useActiveOrg(orgIds);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [boardMode, setBoardMode] = useState<BoardMode>('board');
 
   const activeOrg = orgs.find(o => o.id === activeOrgId) ?? null;
   const onBoard = pathname === '/board';
@@ -105,6 +117,8 @@ export default function AppShell({
         openMenu: () => setMenuOpen(true),
         pendingInvites: pendingCount,
         isManager: activeOrg?.role === 'owner' || activeOrg?.role === 'admin',
+        boardMode,
+        setBoardMode,
       }}
     >
       <div className="flex min-h-dvh flex-col">
@@ -122,7 +136,7 @@ export default function AppShell({
             )}
 
             {/* 조직 전환은 프로필 메뉴로 옮겼다 — 여기는 지금 어느 조직인지 알려 주기만 한다 */}
-            <div className="flex min-w-0 flex-1 items-center gap-1.5 px-2 no-select">
+            <div className="mr-1 flex min-w-0 flex-1 items-center gap-1.5 px-2 no-select">
               {activeOrg && (
                 <OrgIcon
                   name={activeOrg.name}
@@ -136,11 +150,33 @@ export default function AppShell({
               </span>
             </div>
 
+            {/* 보드에서만 뜬다 — 팀·설정 화면에서는 고를 것이 없다 */}
+            {onBoard && (
+              <div className="flex h-9 shrink-0 overflow-hidden rounded-lg border border-hairline no-select">
+                {VIEW_MODES.map(({ key, label, Icon }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setBoardMode(key)}
+                    aria-pressed={boardMode === key}
+                    aria-label={label}
+                    title={label}
+                    className={cn(
+                      'grid w-10 place-items-center transition-colors',
+                      boardMode === key ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted'
+                    )}
+                  >
+                    <Icon className="size-[18px]" />
+                  </button>
+                ))}
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
               aria-label="메뉴"
-              className="relative grid size-10 shrink-0 place-items-center rounded-full no-select active:bg-canvas-soft"
+              className="relative ml-0.5 grid size-10 shrink-0 place-items-center rounded-full no-select active:bg-canvas-soft"
             >
               <Avatar
                 name={profile?.display_name ?? email ?? '나'}
@@ -277,6 +313,33 @@ function CheckIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2">
       <path d="m5 12.5 4.5 4.5L19 7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function BoardViewIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="3.5" y="4" width="7" height="16" rx="1.6" />
+      <rect x="13.5" y="4" width="7" height="16" rx="1.6" />
+    </svg>
+  );
+}
+
+function DashboardIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="3.5" y="4" width="17" height="5.5" rx="1.6" />
+      <rect x="3.5" y="12.5" width="17" height="7.5" rx="1.6" />
+    </svg>
+  );
+}
+
+function CalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+      <path d="M3.5 10h17M8 3.5v3M16 3.5v3" strokeLinecap="round" />
     </svg>
   );
 }

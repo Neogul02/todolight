@@ -68,7 +68,7 @@ export function useEventMutations(orgId: string | null) {
       return res.data;
     },
     onSuccess: () => {
-      showMsg('일정을 고쳤어요.', 'success');
+      showMsg('일정을 고쳤어요', 'success');
       resync();
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
@@ -80,7 +80,7 @@ export function useEventMutations(orgId: string | null) {
       if (!res.success) throw new Error(res.error);
     },
     onSuccess: () => {
-      showMsg('일정을 지웠어요.', 'success');
+      showMsg('일정을 지웠어요', 'success');
       resync();
     },
     onError: (e: Error) => showMsg(e.message, 'error'),

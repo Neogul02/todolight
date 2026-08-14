@@ -3,6 +3,13 @@
 import { createContext, useContext } from 'react';
 import type { MemberRole, Organization, Profile } from '@/types/db';
 
+/**
+ * board     = 멤버별 가로 캐러셀 (기본)
+ * dashboard = 세로로 전부 쌓아 한 번에 훑기
+ * calendar  = 마감일·일정 기준으로 언제 몰려 있나 보기
+ */
+export type BoardMode = 'board' | 'dashboard' | 'calendar';
+
 export type OrgWithRole = Organization & { role: MemberRole; member_count: number };
 
 interface AppContextValue {
@@ -19,6 +26,9 @@ interface AppContextValue {
   pendingInvites: number;
   /** 현재 조직에서 내가 방장/관리자인지 */
   isManager: boolean;
+  /** 보드가 어떤 뷰인지. 전환 버튼이 헤더에 있어서 셸이 들고 있는다 */
+  boardMode: BoardMode;
+  setBoardMode: (mode: BoardMode) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);

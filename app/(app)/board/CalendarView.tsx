@@ -1,6 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/ui';
 import { getEventColor } from '@/lib/event-colors';
@@ -111,11 +113,23 @@ export function CalendarView({
 }) {
   const today = todayKST();
   const [month, setMonth] = useState(() => today.slice(0, 7));
+  /** 어느 쪽으로 넘겼는지 — 들어오고 나가는 방향을 맞춰야 넘긴 느낌이 난다 */
+  const [direction, setDirection] = useState(0);
   const [selected, setSelected] = useState(today);
   const [editing, setEditing] = useState<OrgEvent | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const events = useOrgEvents(orgId);
+
+  const shift = useCallback((delta: number) => {
+    setDirection(delta);
+    setMonth(m => shiftMonth(m, delta));
+  }, []);
+
+  // 손가락으로도 마우스로도 옆으로 밀어 달을 넘긴다
+  const swipeRef = useHorizontalSwipe(shift);
+
+  const reduceMotion = useReducedMotion();
 
   const visible = useMemo(
     () => (showDone ? todos : todos.filter(t => t.status !== 'done')),
@@ -181,7 +195,7 @@ export function CalendarView({
       <div className="flex items-center justify-between pb-2">
         <button
           type="button"
-          onClick={() => setMonth(m => shiftMonth(m, -1))}
+          onClick={() => shift(-1)}
           aria-label="이전 달"
           className="grid size-10 place-items-center rounded-xl text-[18px] text-ink-muted active:bg-canvas-soft"
         >
@@ -192,7 +206,7 @@ export function CalendarView({
         </p>
         <button
           type="button"
-          onClick={() => setMonth(m => shiftMonth(m, 1))}
+          onClick={() => shift(1)}
           aria-label="다음 달"
           className="grid size-10 place-items-center rounded-xl text-[18px] text-ink-muted active:bg-canvas-soft"
         >
@@ -208,7 +222,20 @@ export function CalendarView({
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-x-1 gap-y-1.5">
+      {/*
+        touch-action: pan-y — 가로 제스처는 우리가 쓰고 세로 스크롤은 브라우저에 남긴다.
+        날짜 숫자를 드래그로 선택하게 두면 넘기는 동안 텍스트가 잡히므로 선택을 막는다.
+      */}
+      <div ref={swipeRef} className="touch-pan-y select-none overflow-hidden">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={month}
+            initial={reduceMotion ? false : { opacity: 0, x: direction * 32 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: direction * -32 }}
+            transition={{ duration: reduceMotion ? 0 : 0.16, ease: [0.22, 0.61, 0.36, 1] }}
+            className="grid grid-cols-7 gap-x-1 gap-y-1.5"
+          >
         {days.map((date, i) => {
           if (!date) return <span key={`blank-${i}`} />;
 
@@ -329,6 +356,8 @@ export function CalendarView({
             </button>
           );
         })}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       <section className="mt-4 border-t border-hairline pt-3">
@@ -368,7 +397,7 @@ export function CalendarView({
         )}
 
         {selectedTodos.length === 0 && selectedEvents.length === 0 ? (
-          <p className="py-6 text-center text-caption text-ink-faint">이 날은 비어 있어요.</p>
+          <p className="py-6 text-center text-caption text-ink-faint">이 날은 비어 있어요</p>
         ) : (
           <ul className="flex flex-col gap-1.5">
             {selectedTodos.map(t => (

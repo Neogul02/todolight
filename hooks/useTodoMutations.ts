@@ -108,7 +108,7 @@ export function useTodoMutations(orgId: string | null) {
     },
     onError: (error: Error, _todo, context) => rollback(context?.snapshot, error),
     // 확인 창 없이 지우는 대신 되돌릴 기회를 준다 (소프트 삭제라 행은 남아 있다)
-    onSuccess: todo => showUndo('지웠어요.', () => restore.mutate(todo)),
+    onSuccess: todo => showUndo('일정을 지웠어요', () => restore.mutate(todo)),
     onSettled: (_data, _error, todo) => settle(todo.id),
   });
 

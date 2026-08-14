@@ -180,7 +180,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
 
         {visible.length === 0 && (
           <li className="rounded-xl border border-dashed border-hairline px-3 py-8 text-center text-caption text-ink-faint">
-            {isMine ? '할 일이 비어 있어요.' : '남은 할 일이 없어요.'}
+            {isMine ? '할 일이 비어 있어요' : '남은 할 일이 없어요'}
           </li>
         )}
       </ul>

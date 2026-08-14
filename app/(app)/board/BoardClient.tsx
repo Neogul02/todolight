@@ -22,22 +22,17 @@ import MemberColumn from './MemberColumn';
 import HandoffModal from './HandoffModal';
 import { BoardSkeleton } from './BoardSkeleton';
 
-/**
- * board     = 멤버별 가로 캐러셀 (기본)
- * dashboard = 세로로 전부 쌓아 한 번에 훑기
- * calendar  = 마감일 기준으로 언제 몰려 있나 보기
- */
-type Mode = 'board' | 'dashboard' | 'calendar';
-
-const MODES: { key: Mode; label: string; Icon: (p: { className?: string }) => React.ReactElement }[] =
-  [
-    { key: 'board', label: '보드', Icon: BoardIcon },
-    { key: 'dashboard', label: '대시보드', Icon: DashboardIcon },
-    { key: 'calendar', label: '달력', Icon: CalendarIcon },
-  ];
-
 export default function BoardClient() {
-  const { activeOrgId, userId, orgs, isManager, openMenu, pendingInvites, profile } = useApp();
+  const {
+    activeOrgId,
+    userId,
+    orgs,
+    isManager,
+    openMenu,
+    pendingInvites,
+    profile,
+    boardMode: mode,
+  } = useApp();
   const queryClient = useQueryClient();
 
   const members = useOrgMembers(activeOrgId);
@@ -48,25 +43,26 @@ export default function BoardClient() {
   // 완료 표시 여부는 설정(내 설정)에서 계정에 저장한다 — 기기를 옮겨도 같은 화면이어야 한다.
   // 기본은 보임: 팀원이 뭘 끝냈는지가 곧 공유의 목적이다.
   const showDone = profile?.show_done ?? true;
-  const [mode, setMode] = useState<Mode>('board');
   const [handoff, setHandoff] = useState<Todo | null>(null);
+
   /*
     펼쳐 둔 카드는 보드 전체에서 하나뿐이다.
     여러 개가 동시에 열려 있으면 컬럼이 길어져 무엇이 남았는지 한눈에 안 들어온다.
-  */
-  const [openTodoId, setOpenTodoId] = useState<string | null>(null);
-  const toggleOpenTodo = (todoId: string) =>
-    setOpenTodoId(current => (current === todoId ? null : todoId));
 
-  /** 다른 곳으로 시선을 옮기면 펼쳐 둔 카드는 접는다 */
-  function switchMode(next: Mode) {
-    setMode(next);
-    setOpenTodoId(null);
-  }
+    어느 뷰에서 열었는지도 같이 들고 있는다 — 뷰를 바꿨다 돌아왔을 때 카드가 펼쳐진 채로
+    남아 있으면 안 되는데, 뷰 전환은 헤더에서 일어나서 여기서 감지할 수가 없다.
+    렌더할 때 뷰를 비교하면 상태를 하나 더 두지 않고도 같은 결과가 된다.
+  */
+  const [openTodo, setOpenTodo] = useState<{ mode: string; id: string } | null>(null);
+  const openTodoId = openTodo?.mode === mode ? openTodo.id : null;
+  const toggleOpenTodo = (todoId: string) =>
+    setOpenTodo(current =>
+      current?.id === todoId && current.mode === mode ? null : { mode, id: todoId }
+    );
 
   function goToMember(index: number) {
     goTo(index);
-    setOpenTodoId(null);
+    setOpenTodo(null);
   }
 
   // 내 컬럼을 항상 맨 앞으로 — 내 할 일을 먼저 보게 한다.
@@ -159,7 +155,7 @@ export default function BoardClient() {
 
   return (
     <main className="mx-auto w-full max-w-[1400px]">
-      {/* ── 툴바 : 멤버 칩 + 뷰 전환. 완료 보기는 설정으로 내렸다 ── */}
+      {/* ── 툴바 : 멤버 칩만. 뷰 전환은 헤더로, 완료 보기는 설정으로 옮겼다 ── */}
       <div className="flex h-[var(--board-toolbar-h)] items-center gap-2 px-3 sm:px-4">
         {mode === 'board' && orderedMembers.length > 0 && (
           <div className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-1 sm:hidden [&::-webkit-scrollbar]:hidden">
@@ -179,24 +175,6 @@ export default function BoardClient() {
         )}
 
         {/* 아이콘만 — 셋뿐이라 모양으로 구분되고, 라벨은 멤버 칩이 쓸 자리를 뺏는다 */}
-        <div className="ml-auto flex h-9 shrink-0 overflow-hidden rounded-lg border border-hairline no-select">
-          {MODES.map(({ key, label, Icon }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => switchMode(key)}
-              aria-pressed={mode === key}
-              aria-label={label}
-              title={label}
-              className={cn(
-                'grid w-10 place-items-center transition-colors',
-                mode === key ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted'
-              )}
-            >
-              <Icon className="size-[18px]" />
-            </button>
-          ))}
-        </div>
       </div>
 
       {loading && <BoardSkeleton />}
@@ -387,29 +365,5 @@ function MemberChip({
   );
 }
 
-function BoardIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
-      <rect x="3.5" y="4" width="7" height="16" rx="1.6" />
-      <rect x="13.5" y="4" width="7" height="16" rx="1.6" />
-    </svg>
-  );
-}
 
-function CalendarIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
-      <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
-      <path d="M3.5 10h17M8 3.5v3M16 3.5v3" strokeLinecap="round" />
-    </svg>
-  );
-}
 
-function DashboardIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
-      <rect x="3.5" y="4" width="17" height="5.5" rx="1.6" />
-      <rect x="3.5" y="12.5" width="17" height="7.5" rx="1.6" />
-    </svg>
-  );
-}

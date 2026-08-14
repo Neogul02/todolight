@@ -60,7 +60,7 @@ export default function MeClient() {
       const res = await updateMyProfile({ avatarUrl: null });
       if (!res.success) throw new Error(res.error);
       setPhoto(null);
-      showMsg('사진을 지웠어요.', 'success');
+      showMsg('사진을 지웠어요', 'success');
       router.refresh();
     } catch (err) {
       showMsg(err instanceof Error ? err.message : String(err), 'error');
