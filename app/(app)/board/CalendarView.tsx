@@ -264,7 +264,12 @@ export function CalendarView({
                 세그먼트는 주 경계와 달 경계에서 끊는다. 달 경계를 안 끊으면 말일 다음
                 빈 칸(다음 달 자리) 위로 띠가 흘러간다.
               */}
-              <span className="flex min-h-[45px] flex-col gap-[2px]">
+              {/*
+                띠는 보여 주기만 한다. 세그먼트가 여러 칸에 걸쳐 넓어져 있어서 클릭을 받으면,
+                28일 위를 눌러도 그 세그먼트가 시작한 23일 칸이 선택된다 —
+                띠는 시작 칸 button의 자식이기 때문이다. 클릭은 칸이 받아야 한다.
+              */}
+              <span className="pointer-events-none flex min-h-[45px] flex-col gap-[2px]">
                 {Array.from({ length: MAX_LANES }, (_, lane) => {
                   const event = dayEvents.find(e => laneOf.get(e.id) === lane);
                   if (!event) return <span key={lane} className="h-[13px]" />;
