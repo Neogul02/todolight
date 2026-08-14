@@ -22,8 +22,15 @@ export function useTodoMutations(orgId: string | null) {
   const queryClient = useQueryClient();
   const key = boardKeys.todos(orgId ?? '');
 
-  /** 캐시를 즉시 바꾸고 되돌릴 스냅샷을 반환한다 */
-  function patch(updater: (todos: Todo[]) => Todo[]): Todo[] | undefined {
+  /**
+   * 캐시를 즉시 바꾸고 되돌릴 스냅샷을 반환한다.
+   *
+   * 진행 중인 refetch를 먼저 취소해야 한다. onSettled마다 invalidate가 돌기 때문에
+   * 이전 요청이 아직 날아다니는 상황이 흔한데, 그게 낙관적 패치보다 늦게 도착하면
+   * 방금 바꾼 값을 옛날 값으로 덮어써서 체크가 저 혼자 풀리는 것처럼 보인다.
+   */
+  async function patch(updater: (todos: Todo[]) => Todo[]): Promise<Todo[] | undefined> {
+    await queryClient.cancelQueries({ queryKey: key });
     const snapshot = queryClient.getQueryData<Todo[]>(key);
     queryClient.setQueryData<Todo[]>(key, old => (old ? updater(old) : old));
     return snapshot;
@@ -45,10 +52,10 @@ export function useTodoMutations(orgId: string | null) {
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
-    onMutate: input => {
+    onMutate: async input => {
       const done = input.next === 'done';
       return {
-        snapshot: patch(todos =>
+        snapshot: await patch(todos =>
           todos.map(t =>
             t.id === input.todo.id
               ? {
@@ -84,7 +91,9 @@ export function useTodoMutations(orgId: string | null) {
       if (!res.success) throw new Error(res.error);
       return todo;
     },
-    onMutate: todo => ({ snapshot: patch(todos => todos.filter(t => t.id !== todo.id)) }),
+    onMutate: async todo => ({
+      snapshot: await patch(todos => todos.filter(t => t.id !== todo.id)),
+    }),
     onError: (error: Error, _todo, context) => rollback(context?.snapshot, error),
     // 확인 창 없이 지우는 대신 되돌릴 기회를 준다 (소프트 삭제라 행은 남아 있다)
     onSuccess: todo => showUndo('지웠어요.', () => restore.mutate(todo)),
@@ -97,8 +106,8 @@ export function useTodoMutations(orgId: string | null) {
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
-    onMutate: input => ({
-      snapshot: patch(todos =>
+    onMutate: async input => ({
+      snapshot: await patch(todos =>
         todos.map(t =>
           t.id === input.todo.id ? { ...t, title: input.title, due_date: input.dueDate } : t
         )

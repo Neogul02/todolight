@@ -66,7 +66,8 @@ export default function BoardClient() {
   const { scrollerRef, slides, activeIndex, onScroll, goTo, registerNode } = useLoopCarousel(
     orderedMembers,
     m => m.user_id,
-    oneAtATime
+    oneAtATime,
+    activeOrgId
   );
 
   function refresh() {

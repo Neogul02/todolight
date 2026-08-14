@@ -28,11 +28,18 @@ function offsetFromSnapLine(scroller: HTMLElement, el: HTMLElement): number {
 export function useLoopCarousel<T>(
   items: T[],
   keyOf: (item: T) => string,
-  enabled: boolean
+  enabled: boolean,
+  /**
+   * 이 값이 바뀌면 목록이 완전히 다른 것으로 갈렸다고 보고 첫 슬라이드로 다시 맞춘다.
+   * 조직을 바꾸면 멤버가 통째로 달라지므로 내 컬럼부터 다시 보여야 한다.
+   */
+  resetKey?: string | null
 ) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const nodeRefs = useRef<(HTMLElement | null)[]>([]);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const positioned = useRef(false);
+  const lastResetKey = useRef(resetKey);
   const [activeIndex, setActiveIndex] = useState(0);
 
   const loop = enabled && items.length > 1;
@@ -93,15 +100,31 @@ export function useLoopCarousel<T>(
     }, 120);
   }, [count, jumpTo, loop, nearestSlide]);
 
-  // 복제본을 앞에 뒀으므로 처음에는 두 번째 슬라이드(= 진짜 첫 번째)에서 시작해야 한다.
-  // 멤버 수가 바뀌면 슬라이드 배열이 통째로 달라지므로 다시 맞춘다.
+  // 복제본을 앞에 뒀으므로 처음 한 번은 두 번째 슬라이드(= 진짜 첫 번째)로 맞춰 줘야 한다.
+  // 다만 멤버 수가 바뀔 때마다 되돌리면 안 된다 — 팀원이 한 명 들어왔다고 해서
+  // 남의 컬럼을 보던 사람을 자기 컬럼으로 끌고 오면 자리를 잃는다.
   useEffect(() => {
     // 슬라이드 수가 줄었을 때 남는 뒤쪽 ref를 잘라 낸다
     nodeRefs.current.length = loop ? count + 2 : count;
-    if (!loop) return;
-    const id = requestAnimationFrame(() => jumpTo(1, false));
+
+    // 조직이 바뀌면 목록이 통째로 갈리므로 위치를 처음부터 다시 잡는다
+    if (lastResetKey.current !== resetKey) {
+      lastResetKey.current = resetKey;
+      positioned.current = false;
+    }
+
+    if (!loop) {
+      positioned.current = false;
+      return;
+    }
+    if (positioned.current) return;
+
+    const id = requestAnimationFrame(() => {
+      jumpTo(1, false);
+      positioned.current = true;
+    });
     return () => cancelAnimationFrame(id);
-  }, [loop, count, jumpTo]);
+  }, [loop, count, jumpTo, resetKey]);
 
   useEffect(() => {
     return () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTodoMutations } from '@/hooks/useTodoMutations';
 import { cn, dueState, formatRelativeDay } from '@/lib/utils';
@@ -36,6 +36,8 @@ export default function TodoCard({
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(todo.title);
   const [draftDue, setDraftDue] = useState<string | null>(todo.due_date);
+  // 편집을 시작한 순간의 값. "안 바뀜" 판정의 기준이 된다.
+  const editBase = useRef({ title: todo.title, due: todo.due_date });
   const { toggleStatus, edit, remove, addNote } = useTodoMutations(todo.org_id);
   const busy = toggleStatus.isPending || remove.isPending || addNote.isPending;
 
@@ -55,9 +57,10 @@ export default function TodoCard({
   }
 
   function startEditing() {
-    // 편집을 시작할 때마다 지금 값으로 초안을 다시 채운다 — 실시간으로 바뀐 값을 덮어쓰지 않게
+    // 편집을 시작할 때마다 지금 값으로 초안을 다시 채운다
     setDraftTitle(todo.title);
     setDraftDue(todo.due_date);
+    editBase.current = { title: todo.title, due: todo.due_date };
     setEditing(true);
   }
 
@@ -66,7 +69,12 @@ export default function TodoCard({
     const title = draftTitle.trim();
     if (!title) return;
     setEditing(false);
-    if (title === todo.title && draftDue === todo.due_date) return;
+
+    // 기준은 편집을 시작한 순간의 값이다. 지금의 todo.title과 비교하면,
+    // 편집하는 동안 남이 고친 내용이 "내가 바꾼 것"으로 오인돼 그대로 덮어써진다.
+    const untouched = title === editBase.current.title && draftDue === editBase.current.due;
+    if (untouched) return;
+
     edit.mutate({ todo, title, dueDate: draftDue });
   }
 
