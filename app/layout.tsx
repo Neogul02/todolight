@@ -42,7 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var T=['ink','sand','ink-dark','midnight','forest'];var p=localStorage.getItem('todolight_theme')||'system';var t=T.indexOf(p)>=0?p:(matchMedia('(prefers-color-scheme: dark)').matches?'ink-dark':'ink');document.documentElement.dataset.theme=t}catch(e){}})()`,
+            __html: `(function(){try{var T=['ink','ink-dark','solarized','nord','dracula'];var p=localStorage.getItem('todolight_theme')||'system';var t=T.indexOf(p)>=0?p:(matchMedia('(prefers-color-scheme: dark)').matches?'ink-dark':'ink');document.documentElement.dataset.theme=t}catch(e){}})()`,
           }}
         />
       </head>

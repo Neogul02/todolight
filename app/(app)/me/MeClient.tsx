@@ -155,10 +155,7 @@ export default function MeClient() {
                   />
                 ))}
               </span>
-              <span className="min-w-0">
-                <span className="block truncate text-[13px] font-medium text-ink">{t.name}</span>
-                <span className="block truncate text-[11px] text-ink-faint">{t.hint}</span>
-              </span>
+              <span className="block truncate text-[13px] font-medium text-ink">{t.name}</span>
             </button>
           ))}
         </div>

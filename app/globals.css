@@ -77,20 +77,12 @@
 
 /* 잉크 블랙 — 위 팔레트의 명암을 뒤집되 잉크의 따뜻한 기운은 유지한다 */
 /* ── 어두운 테마 공통 ──
-   밝은 배경용 상태색을 검은 배경에 그대로 쓰면 칩이 눈을 찌르고,
-   옅은 그림자는 아예 보이지 않아 층이 사라진다. 캔버스 색만 테마마다 다르다. */
+   각 팔레트가 상태색을 따로 갖고 있어 여기서는 그림자와 color-scheme만 공유한다.
+   옅은 검정 그림자는 어두운 배경에서 아예 보이지 않아 층이 사라진다. */
 :root[data-theme="ink-dark"],
-:root[data-theme="midnight"],
-:root[data-theme="forest"] {
+:root[data-theme="nord"],
+:root[data-theme="dracula"] {
   color-scheme: dark;
-
-  --success: #86cfa2;
-  --success-soft: #1a3226;
-  --warning: #e2ba6a;
-  --warning-soft: #33280f;
-  --danger: #ef8b83;
-  --danger-soft: #3a1f1d;
-  --danger-ink: #2a100e;
 
   --shadow-1: rgba(0, 0, 0, 0.5) 0 1px 2px, rgba(0, 0, 0, 0.42) 0 4px 14px;
   --shadow-2:
@@ -117,69 +109,102 @@
   --accent: #f5f2ec;
   --accent-soft: #2d2c2a;
   --accent-ink: #101010;
+
+  --success: #86cfa2;
+  --success-soft: #1a3226;
+  --warning: #e2ba6a;
+  --warning-soft: #33280f;
+  --danger: #ef8b83;
+  --danger-soft: #3a1f1d;
+  --danger-ink: #2a100e;
 }
 
-/* 미드나잇 — 남색으로 기운 다크. 검정보다 차분하고 눈이 덜 시리다 */
-:root[data-theme="midnight"] {
-  --canvas: #0f1420;
-  --canvas-soft: #161d2e;
-  --surface: #1a2233;
-  --surface-alt: #212a3d;
+/* Solarized Light — Ethan Schoonover.
+   배경을 CIELAB에서 균등한 간격으로 잡아 대비가 눈에 고르게 걸린다. */
+:root[data-theme="solarized"] {
+  --canvas: #fdf6e3; /* base3 */
+  --canvas-soft: #eee8d5; /* base2 */
+  --surface: #fdf6e3;
+  --surface-alt: #f5efdc;
 
-  --ink: #e8ecf5;
-  --ink-secondary: #ccd4e3;
-  --ink-muted: #8e99ad;
-  --ink-faint: #5d687c;
-  --ink-invert: #0f1420;
+  --ink: #073642; /* base02 */
+  --ink-secondary: #586e75; /* base01 */
+  --ink-muted: #657b83; /* base00 */
+  --ink-faint: #93a1a1; /* base1 */
+  --ink-invert: #fdf6e3;
 
-  --hairline: #262f42;
-  --hairline-strong: #3a4557;
+  --hairline: #e6dfc8;
+  --hairline-strong: #d2cab0;
 
-  --accent: #e8ecf5;
-  --accent-soft: #262f42;
-  --accent-ink: #0f1420;
+  --accent: #073642;
+  --accent-soft: #eee8d5;
+  --accent-ink: #fdf6e3;
+
+  --success: #4f7a1f; /* green을 배경 대비에 맞게 낮춤 */
+  --success-soft: #e8ecd2;
+  --warning: #97690b; /* yellow 계열 */
+  --warning-soft: #f3ead0;
+  --danger: #c02b28; /* red */
+  --danger-soft: #f6e0d8;
+  --danger-ink: #fdf6e3;
 }
 
-/* 포레스트 — 초록으로 기운 다크 */
-:root[data-theme="forest"] {
-  --canvas: #0e1512;
-  --canvas-soft: #141d19;
-  --surface: #182220;
-  --surface-alt: #1f2a26;
+/* Nord — 북극 팔레트. Polar Night 배경에 Snow Storm 글자, 강조는 Frost. */
+:root[data-theme="nord"] {
+  --canvas: #2e3440; /* nord0 */
+  --canvas-soft: #363d4a;
+  --surface: #3b4252; /* nord1 */
+  --surface-alt: #434c5e; /* nord2 */
 
-  --ink: #e6f0e9;
-  --ink-secondary: #c9d8ce;
-  --ink-muted: #8b9c92;
-  --ink-faint: #5c6b63;
-  --ink-invert: #0e1512;
+  --ink: #eceff4; /* nord6 */
+  --ink-secondary: #d8dee9; /* nord4 */
+  --ink-muted: #a3adbf;
+  --ink-faint: #79839a;
+  --ink-invert: #2e3440;
 
-  --hairline: #24302b;
-  --hairline-strong: #38463f;
+  --hairline: #434c5e;
+  --hairline-strong: #4c566a; /* nord3 */
 
-  --accent: #e6f0e9;
-  --accent-soft: #24302b;
-  --accent-ink: #0e1512;
+  --accent: #88c0d0; /* nord8 */
+  --accent-soft: #434c5e;
+  --accent-ink: #2e3440;
+
+  --success: #a3be8c; /* nord14 */
+  --success-soft: #333f31;
+  --warning: #ebcb8b; /* nord13 */
+  --warning-soft: #40381f;
+  --danger: #bf616a; /* nord11 */
+  --danger-soft: #40292d;
+  --danger-ink: #eceff4;
 }
 
-/* 샌드 — 밝은 베이지. 상태색·그림자는 :root의 밝은 기본값을 그대로 쓴다 */
-:root[data-theme="sand"] {
-  --canvas: #f3eee5;
-  --canvas-soft: #ece5d8;
-  --surface: #fbf9f5;
-  --surface-alt: #f6f2ea;
+/* Dracula — 보라를 강조로 쓰는 대비 높은 다크. */
+:root[data-theme="dracula"] {
+  --canvas: #282a36;
+  --canvas-soft: #2f313f;
+  --surface: #343746;
+  --surface-alt: #3c3f51;
 
-  --ink: #14120f;
-  --ink-secondary: #35312b;
-  --ink-muted: #6b655b;
-  --ink-faint: #a49c8f;
-  --ink-invert: #fbf9f5;
+  --ink: #f8f8f2;
+  --ink-secondary: #dcdce0;
+  --ink-muted: #9aa0bd;
+  --ink-faint: #6272a4; /* comment */
+  --ink-invert: #282a36;
 
-  --hairline: #e0d8c8;
-  --hairline-strong: #cdc2ac;
+  --hairline: #44475a; /* current line */
+  --hairline-strong: #565a70;
 
-  --accent: #14120f;
-  --accent-soft: #e6dfd0;
-  --accent-ink: #fbf9f5;
+  --accent: #bd93f9; /* purple */
+  --accent-soft: #44475a;
+  --accent-ink: #282a36;
+
+  --success: #50fa7b;
+  --success-soft: #1f3a29;
+  --warning: #f1fa8c;
+  --warning-soft: #3b3d21;
+  --danger: #ff5555;
+  --danger-soft: #40252a;
+  --danger-ink: #282a36;
 }
 
 :root {
