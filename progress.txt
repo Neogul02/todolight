@@ -48,3 +48,9 @@ US-006 키보드 접근성 · 포커스 링 — 완료
 - TodoCard 펼침 버튼에 aria-expanded
 - 검증: 빌드 CSS에 focus-visible 규칙 확인, yarn lint 경고 0
 
+US-007 멤버가 나뿐일 때 초대 유도 — 완료
+- BoardClient에 InviteColumn 추가. 멤버가 1명일 때만 컬럼 끝(대시보드는 목록 끝)에 붙는다
+- 방장/관리자는 /team으로 가는 버튼, 일반 멤버는 "방장에게 초대를 요청해 주세요" 안내
+- 점선 테두리 + 투명 배경이라 실제 컬럼과 구분된다
+- 검증: yarn build 성공, yarn lint 경고 0
+

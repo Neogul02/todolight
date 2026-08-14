@@ -102,6 +102,8 @@ export default function BoardClient() {
 
   const loading = members.isLoading || todos.isLoading;
   const error = members.error ?? todos.error;
+  // 공유 보드인데 혼자면 기능의 절반이 비어 있는 셈이다 — 다음 할 일을 알려 준다
+  const soloMember = !loading && !error && orderedMembers.length === 1;
   const handoffOwner = handoff
     ? orderedMembers.find(m => m.user_id === handoff.owner_id)?.display_name ?? '팀원'
     : '';
@@ -203,6 +205,8 @@ export default function BoardClient() {
               className="w-full sm:w-[330px]"
             />
           ))}
+
+          {soloMember && <InviteColumn isManager={isManager} className="w-full sm:w-[330px]" />}
         </div>
       )}
 
@@ -224,6 +228,8 @@ export default function BoardClient() {
               onHandoff={setHandoff}
             />
           ))}
+
+          {soloMember && <InviteColumn isManager={isManager} className="w-full" />}
         </div>
       )}
 
@@ -236,6 +242,34 @@ export default function BoardClient() {
         />
       )}
     </main>
+  );
+}
+
+function InviteColumn({ isManager, className }: { isManager: boolean; className?: string }) {
+  return (
+    <section
+      className={cn(
+        'snap-col flex h-full shrink-0 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-hairline-strong bg-transparent p-6 text-center',
+        className
+      )}
+    >
+      <p className="text-title text-ink">아직 혼자예요</p>
+      <p className="text-caption text-ink-muted">
+        {isManager
+          ? '팀원을 초대하면 서로의 할 일이 여기 나란히 놓여요.'
+          : '방장이 팀원을 초대하면 서로의 할 일이 여기 나란히 놓여요.'}
+      </p>
+      {isManager ? (
+        <Link
+          href="/team"
+          className="mt-2 flex h-11 items-center justify-center rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-ink transition-transform active:scale-[0.98]"
+        >
+          팀원 초대하기
+        </Link>
+      ) : (
+        <p className="mt-2 text-caption text-ink-faint">방장에게 초대를 요청해 주세요.</p>
+      )}
+    </section>
   );
 }
 
