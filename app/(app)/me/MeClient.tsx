@@ -171,15 +171,12 @@ export default function MeClient() {
       </Card>
 
       <Card className="p-5">
-        <div className="flex items-center gap-2">
-          <h2 className="text-title text-ink">테마</h2>
-          <Badge>기본 무료</Badge>
-        </div>
+        <h2 className="text-title text-ink">테마</h2>
         <p className="mt-1 text-caption text-ink-muted">
-          유료 테마는 준비 중이에요. 지금은 미리보기로 적용해 볼 수 있어요.
+          누르면 바로 적용돼요. 저장을 눌러야 다음에도 유지돼요.
         </p>
 
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <div className="mt-3 grid grid-cols-2 gap-2">
           {THEMES.map(t => (
             <button
               key={t.key}
@@ -204,10 +201,7 @@ export default function MeClient() {
                   />
                 ))}
               </span>
-              <span className="flex items-center gap-1.5 text-[13px] font-medium text-ink">
-                {t.name}
-                {!t.free && <Badge tone="warning">준비중</Badge>}
-              </span>
+              <span className="text-[13px] font-medium text-ink">{t.name}</span>
             </button>
           ))}
         </div>

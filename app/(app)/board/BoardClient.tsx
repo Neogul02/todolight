@@ -22,7 +22,7 @@ import HandoffModal from './HandoffModal';
 type Mode = 'board' | 'dashboard';
 
 export default function BoardClient() {
-  const { activeOrgId, userId, orgs, isManager } = useApp();
+  const { activeOrgId, userId, orgs, isManager, openOrgSheet, pendingInvites } = useApp();
   const queryClient = useQueryClient();
 
   const members = useOrgMembers(activeOrgId);
@@ -104,12 +104,14 @@ export default function BoardClient() {
           >
             조직 만들기
           </Link>
-          <Link
-            href="/invites"
-            className="flex h-13 items-center justify-center rounded-2xl border border-hairline-strong bg-surface px-6 text-[16px] font-medium text-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]"
+          <button
+            type="button"
+            onClick={openOrgSheet}
+            className="flex h-13 items-center justify-center gap-1.5 rounded-2xl border border-hairline-strong bg-surface px-6 text-[16px] font-medium text-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]"
           >
             받은 초대 확인
-          </Link>
+            {pendingInvites > 0 && <span className="size-2 rounded-full bg-danger" />}
+          </button>
         </div>
       </main>
     );

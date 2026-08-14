@@ -8,9 +8,8 @@ export interface ThemeDef {
 }
 
 export const THEMES: ThemeDef[] = [
-  { key: 'ink', name: '잉크', swatch: ['#ffffff', '#f4f2ee', '#14120f'], free: true },
-  { key: 'sand', name: '샌드', swatch: ['#f3eee5', '#fbf9f5', '#14120f'], free: true },
-  { key: 'mint', name: '민트', swatch: ['#eef4f0', '#fbfdfc', '#0d5a3c'], free: false },
+  { key: 'ink', name: '잉크 (화이트)', swatch: ['#ffffff', '#f4f2ee', '#14120f'], free: true },
+  { key: 'ink-dark', name: '잉크 (블랙)', swatch: ['#101010', '#232221', '#f5f2ec'], free: true },
 ];
 
 export const DEFAULT_THEME = 'ink';

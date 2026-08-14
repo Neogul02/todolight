@@ -50,7 +50,7 @@ NEXT_PUBLIC_SITE_URL             앱 절대 URL
 
 ```
 proxy.ts                  ← 보호 라우트 세션 검증 (getClaims()로 JWT 로컬 검증)
-                             /board /team /me /invites /orgs → 미인증이면 /login?next=... 리다이렉트
+                             /board /team /me /orgs → 미인증이면 /login?next=... 리다이렉트
 app/auth/callback/route.ts ← 메일 링크(PKCE code)를 세션으로 교환하는 자리
 app/(app)/layout.tsx      ← 서버 컴포넌트에서 사용자·조직·프로필 로드 후 AppShell에 주입
 app/(app)/AppShell.tsx    ← 클라이언트 셸: 헤더, 조직 전환 시트, 아바타 메뉴 시트, 테마 적용
@@ -90,9 +90,8 @@ app/
 ├── login/                로그인·회원가입
 └── (app)/                ← proxy.ts 보호 + AppShell 래핑
     ├── board/            메인 보드 — 멤버별 컬럼 가로 스냅 캐러셀. 앱의 사실상 유일한 화면
-    ├── team/             멤버 목록, 초대 발송·취소, 역할 변경, 조직 이름 변경
-    ├── invites/          나에게 온 초대 수락·거절
-    ├── me/               프로필(이름·아바타)·테마 설정
+    ├── team/             멤버 목록, 초대 발송·취소, 역할 변경, 조직 이름 변경, Discord 웹훅
+    ├── me/               프로필(이름·아바타 사진/색)·테마 설정
     └── orgs/new/         새 조직 만들기
 ```
 
@@ -189,8 +188,14 @@ todo_notes      id, todo_id, author_id, content, created_at
 ```
 
 **하단 탭바는 두지 않는다.** 이 앱의 화면은 공유 투두 보드 하나뿐이고,
-팀 관리·받은 초대·내 설정·로그아웃은 자주 쓰지 않으므로 전부 아바타 탭 시트(`MENU`) 안에 있다.
+팀 관리·내 설정·로그아웃은 자주 쓰지 않으므로 아바타 탭 시트(`MENU`) 안에 있다.
 보드 툴바에도 멤버 칩과 완료 토글 외의 버튼을 새로 붙이지 말 것 — 메인 기능을 가린다.
+
+**받은 초대는 전용 화면을 두지 않는다.** 초대를 받는다는 건 결국 "어느 조직을 볼지"의
+문제라서, 조직 전환 시트 맨 위에서 바로 수락·거절한다. 대기 중인 초대가 있으면 헤더의
+조직 이름 옆에 **작은 빨간 점**만 띄운다(숫자 배지는 화면을 시끄럽게 만든다).
+수락하면 그 조직으로 바로 전환하고 시트를 닫는다 — 수락하고 또 고르게 하면 한 단계가 남는다.
+시트를 밖에서 열어야 하면 `useApp()`의 `openOrgSheet`를 쓴다.
 
 높이 상수는 `app/globals.css`의 `:root`에 `--header-h` · `--board-toolbar-h`로 두고
 미디어 쿼리에서 값만 바꾼다. `board-viewport`가 `100dvh`에서 이 둘과 세이프 에어리어를 빼기 때문에,
@@ -280,7 +285,8 @@ apple-icon만 PNG로 그린다.
 (`lib/avatar.ts`, `components/Avatar.tsx`).
 색을 고르지 않은 사용자는 `getAvatarColor(null, userId)`가 id 해시로 하나를 결정적으로 배정하므로,
 가입 직후에도 팀원끼리 색이 겹치지 않고 안정적이다. 저장 컬럼은 `profiles.avatar_color`
-(색 키 문자열, 예: `sea`). 팔레트를 늘릴 때는 `AVATAR_COLORS`에만 추가하면 된다.
+(색 키 문자열, 예: `sea`). 팔레트는 12색이고, 늘릴 때는 `AVATAR_COLORS`에만 추가하면 된다.
+색은 화이트·블랙 두 테마 위에서 모두 읽히도록 중간 밝기로 골랐다.
 
 **사진 업로드**(`lib/avatar-upload.ts`)는 Supabase Storage의 `avatars` 버킷을 쓴다.
 
@@ -302,8 +308,8 @@ apple-icon만 PNG로 그린다.
 
 ## 디자인 시스템
 
-흰 배경 + 블랙 잉크(`ink` 테마)가 기본이고, 베이지(`sand`)는 설정에서 고르는 선택지다.
-두 테마의 잉크·헤어라인은 같은 계열이라 어느 쪽이든 톤이 차갑게 튀지 않는다.
+테마는 **잉크 화이트(`ink`, 기본)** 와 **잉크 블랙(`ink-dark`)** 둘뿐이다.
+같은 잉크 계열의 명암만 뒤집은 것이라 어느 쪽이든 톤이 차갑게 튀지 않는다.
 컴포넌트는 항상 시맨틱 토큰만 쓴다:
 
 ```
@@ -317,7 +323,6 @@ bg-accent / text-accent-ink
 **새 테마를 추가할 때는 이 블록 하나와 `lib/themes.ts`의 `THEMES` 배열만 건드리면 된다** —
 컴포넌트에 하드코딩된 색이 들어가면 테마 유료화가 깨진다.
 
-`ink`(다크) · `mint` 테마는 프리뷰로만 노출되어 있고, 결제 연동 전까지 "준비중" 배지가 붙는다.
 테마 선택값은 `profiles.theme`에 저장하고 localStorage(`todolight_theme`)에 캐시해서
 로드 시 깜빡임을 막는다.
 

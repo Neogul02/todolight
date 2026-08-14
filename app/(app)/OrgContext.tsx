@@ -13,6 +13,10 @@ interface AppContextValue {
   activeOrgId: string | null;
   activeOrg: OrgWithRole | null;
   selectOrg: (id: string) => void;
+  /** 조직 전환 시트 열기 — 받은 초대도 이 시트 안에서 처리한다 */
+  openOrgSheet: () => void;
+  /** 받은 초대 수 */
+  pendingInvites: number;
   /** 현재 조직에서 내가 방장/관리자인지 */
   isManager: boolean;
 }

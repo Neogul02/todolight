@@ -3,25 +3,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
-import { fetchMyInvites } from '@/app/actions/orgs';
+import { fetchMyInvites, respondToInvite } from '@/app/actions/orgs';
 import { useActiveOrg } from '@/hooks/useActiveOrg';
 import { applyTheme } from '@/app/providers';
 import { Avatar } from '@/components/Avatar';
 import { BottomSheet } from '@/components/BottomSheet';
-import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui';
+import { showMsg } from '@/lib/toast';
+import { cn, formatRelativeDay } from '@/lib/utils';
 import type { Profile } from '@/types/db';
 import { AppContextProvider, type OrgWithRole } from './OrgContext';
 
 /**
  * 앱은 보드 한 화면이 전부다.
- * 팀 관리·초대·설정은 자주 쓰는 기능이 아니라서 아바타 메뉴 안으로 넣고,
- * 화면에는 공유 투두만 남긴다.
+ * 팀 관리·설정은 자주 쓰는 기능이 아니라서 아바타 메뉴 안으로 넣고, 화면에는 공유 투두만 남긴다.
+ * 받은 초대는 결국 "어느 조직을 볼지"의 문제라 별도 탭 없이 조직 시트 안에서 바로 처리한다.
  */
 const MENU = [
   { href: '/team', label: '팀 관리', hint: '멤버 초대·역할' },
-  { href: '/invites', label: '받은 초대', hint: '수락 대기 중인 조직' },
   { href: '/me', label: '내 설정', hint: '이름·아바타·테마' },
 ];
 
@@ -40,6 +41,7 @@ export default function AppShell({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const orgIds = useMemo(() => orgs.map(o => o.id), [orgs]);
   const [activeOrgId, selectOrg] = useActiveOrg(orgIds);
   const [orgSheetOpen, setOrgSheetOpen] = useState(false);
@@ -63,6 +65,26 @@ export default function AppShell({
 
   const pendingCount = invites.data?.length ?? 0;
 
+  const respond = useMutation({
+    mutationFn: async (input: { id: string; accept: boolean }) => {
+      const res = await respondToInvite(input.id, input.accept);
+      if (!res.success) throw new Error(res.error);
+      return { ...res.data, accept: input.accept };
+    },
+    onSuccess: data => {
+      showMsg(data.accept ? '조직에 합류했어요.' : '초대를 거절했어요.', 'success');
+      queryClient.invalidateQueries({ queryKey: ['my-invites'] });
+      // 수락한 조직으로 바로 넘어간다 — 수락하고 또 고르게 하면 한 단계가 남는다
+      if (data.accept && data.orgId) {
+        selectOrg(data.orgId);
+        setOrgSheetOpen(false);
+        router.push('/board');
+      }
+      router.refresh();
+    },
+    onError: (e: Error) => showMsg(e.message, 'error'),
+  });
+
   async function signOut() {
     const supabase = createSupabaseBrowserClient();
     await supabase.auth.signOut();
@@ -80,6 +102,8 @@ export default function AppShell({
         activeOrgId,
         activeOrg,
         selectOrg,
+        openOrgSheet: () => setOrgSheetOpen(true),
+        pendingInvites: pendingCount,
         isManager: activeOrg?.role === 'owner' || activeOrg?.role === 'admin',
       }}
     >
@@ -106,13 +130,20 @@ export default function AppShell({
                 {activeOrg?.name ?? 'todolight'}
               </span>
               <ChevronIcon className="size-4 shrink-0 text-ink-faint" />
+              {/* 받은 초대가 있으면 여기서 알린다 — 초대를 처리하는 곳이 이 시트 안이다 */}
+              {pendingCount > 0 && (
+                <span
+                  className="size-2 shrink-0 rounded-full bg-danger"
+                  aria-label={`받은 초대 ${pendingCount}건`}
+                />
+              )}
             </button>
 
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
               aria-label="메뉴"
-              className="relative grid size-10 shrink-0 place-items-center rounded-full no-select active:bg-canvas-soft"
+              className="grid size-10 shrink-0 place-items-center rounded-full no-select active:bg-canvas-soft"
             >
               <Avatar
                 name={profile?.display_name ?? email ?? '나'}
@@ -121,9 +152,6 @@ export default function AppShell({
                 seed={userId}
                 size="sm"
               />
-              {pendingCount > 0 && (
-                <span className="absolute right-0.5 top-0.5 size-2.5 rounded-full border-2 border-canvas bg-accent" />
-              )}
             </button>
           </div>
         </header>
@@ -131,8 +159,48 @@ export default function AppShell({
         <div className="flex-1">{children}</div>
       </div>
 
-      {/* 조직 전환 */}
+      {/* 조직 전환 + 받은 초대 */}
       <BottomSheet open={orgSheetOpen} onClose={() => setOrgSheetOpen(false)} title="조직">
+        {pendingCount > 0 && (
+          <section className="mb-4">
+            <h3 className="flex items-center gap-1.5 px-1 pb-2 text-caption font-semibold text-ink-secondary">
+              <span className="size-2 rounded-full bg-danger" />
+              받은 초대 {pendingCount}
+            </h3>
+            <ul className="flex flex-col gap-2">
+              {invites.data!.map(inv => (
+                <li key={inv.id} className="rounded-xl border border-hairline bg-canvas-soft p-3">
+                  <p className="truncate text-[15px] font-semibold text-ink">
+                    {inv.org_name ?? '이름 없는 조직'}
+                  </p>
+                  <p className="mt-0.5 text-caption text-ink-muted">
+                    {inv.inviter_name ?? '누군가'}님이 초대 · {formatRelativeDay(inv.created_at)}
+                  </p>
+                  <div className="mt-2.5 flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => respond.mutate({ id: inv.id, accept: false })}
+                      disabled={respond.isPending}
+                    >
+                      거절
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-[2]"
+                      onClick={() => respond.mutate({ id: inv.id, accept: true })}
+                      disabled={respond.isPending}
+                    >
+                      수락
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <ul className="flex flex-col gap-1">
           {orgs.map(o => (
             <li key={o.id}>
@@ -183,11 +251,6 @@ export default function AppShell({
                   <span className="block text-[15px] font-medium text-ink">{item.label}</span>
                   <span className="block text-[12px] text-ink-faint">{item.hint}</span>
                 </span>
-                {item.href === '/invites' && pendingCount > 0 && (
-                  <span className="grid min-w-[20px] place-items-center rounded-full bg-accent px-1.5 py-0.5 text-[11px] font-bold text-accent-ink">
-                    {pendingCount}
-                  </span>
-                )}
               </Link>
             </li>
           ))}
