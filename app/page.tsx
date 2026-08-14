@@ -3,9 +3,9 @@ import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 const POINTS = [
-  { title: '가볍게', body: '설치도 설정도 없습니다. 초대만 하면 바로 씁니다.' },
-  { title: '간단하게', body: '화면은 보드 하나. 옆으로 밀면 팀원의 할 일이 나옵니다.' },
-  { title: '빠르게', body: '체크하는 순간 모두의 화면에 반영됩니다.' },
+  { title: '가볍게', body: '설치도 설정도 필요없어요, 초대로 바로 시작해요' },
+  { title: '간단하게', body: '간단하지만 강력하게, 우리 조직의 할 일을 파악해요' },
+  { title: '빠르게', body: '체크하는 순간 화면에 반영돼요.' },
 ];
 
 export default async function LandingPage() {
@@ -32,7 +32,7 @@ export default async function LandingPage() {
           빠르게.
         </h1>
         <p className="mt-4 text-body-sm text-ink-muted sm:mt-5 sm:text-body-md">
-          팀의 할 일을 한 페이지에서 보는 공유 투두 보드.
+          팀의 할 일을 한 페이지에서 보는 TodoList
         </p>
 
         <div className="mt-7 flex flex-col gap-2 sm:mt-8 sm:flex-row sm:flex-wrap">

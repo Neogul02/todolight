@@ -8,7 +8,7 @@ import type { ApiResponse } from '@/types/api';
 import type { MemberRole, MemberSummary, OrgInvite, Organization } from '@/types/db';
 
 const orgNameSchema = z.string().trim().min(1, '조직 이름을 입력해 주세요.').max(60);
-const emailSchema = z.string().trim().toLowerCase().email('이메일 형식이 올바르지 않습니다.');
+const emailSchema = z.string().trim().toLowerCase().email('이메일 형식이 맞지 않아요.');
 
 /** 호출자가 해당 조직의 멤버인지 확인하고 역할을 돌려준다. 아니면 throw. */
 async function requireMembership(orgId: string, userId: string): Promise<MemberRole> {
@@ -19,13 +19,13 @@ async function requireMembership(orgId: string, userId: string): Promise<MemberR
     .eq('user_id', userId)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  if (!data) throw new Error('해당 조직의 멤버가 아닙니다.');
+  if (!data) throw new Error('이 조직의 멤버가 아니에요.');
   return data.role as MemberRole;
 }
 
 async function requireManager(orgId: string, userId: string): Promise<MemberRole> {
   const role = await requireMembership(orgId, userId);
-  if (role !== 'owner' && role !== 'admin') throw new Error('방장만 할 수 있는 작업입니다.');
+  if (role !== 'owner' && role !== 'admin') throw new Error('방장만 할 수 있어요.');
   return role;
 }
 
@@ -95,7 +95,7 @@ export async function fetchOrgMembers(orgId: string): Promise<ApiResponse<Member
 
     const { data, error } = await getSupabaseAdmin()
       .from('org_members')
-      .select('user_id, role, joined_at, profiles!inner (display_name, avatar_color, email)')
+      .select('user_id, role, joined_at, profiles!inner (display_name, avatar_color, avatar_url, email)')
       .eq('org_id', orgId)
       .order('joined_at', { ascending: true });
     if (error) throw new Error(error.message);
@@ -103,12 +103,18 @@ export async function fetchOrgMembers(orgId: string): Promise<ApiResponse<Member
     return ((data ?? []) as unknown as {
       user_id: string;
       role: MemberRole;
-      profiles: { display_name: string; avatar_color: string | null; email: string | null };
+      profiles: {
+        display_name: string;
+        avatar_color: string | null;
+        avatar_url: string | null;
+        email: string | null;
+      };
     }[]).map(r => ({
       user_id: r.user_id,
       role: r.role,
       display_name: r.profiles.display_name,
       avatar_color: r.profiles.avatar_color,
+      avatar_url: r.profiles.avatar_url,
       email: r.profiles.email,
     }));
   });
@@ -121,7 +127,7 @@ export async function inviteMember(orgId: string, email: string): Promise<ApiRes
     await requireManager(orgId, user.id);
     const target = emailSchema.parse(email);
 
-    if (target === user.email?.toLowerCase()) throw new Error('본인은 초대할 수 없습니다.');
+    if (target === user.email?.toLowerCase()) throw new Error('본인은 초대할 수 없어요.');
 
     // 이미 멤버인 이메일인지 확인
     const { data: existingProfile } = await getSupabaseAdmin()
@@ -137,7 +143,7 @@ export async function inviteMember(orgId: string, email: string): Promise<ApiRes
         .eq('org_id', orgId)
         .eq('user_id', existingProfile.id)
         .maybeSingle();
-      if (already) throw new Error('이미 조직에 속한 멤버입니다.');
+      if (already) throw new Error('이미 조직에 있는 멤버예요.');
     }
 
     const { data, error } = await getSupabaseAdmin()
@@ -146,7 +152,7 @@ export async function inviteMember(orgId: string, email: string): Promise<ApiRes
       .select('id, org_id, email, invited_by, status, created_at, responded_at')
       .single();
     if (error) {
-      if (error.code === '23505') throw new Error('이미 초대장을 보냈습니다.');
+      if (error.code === '23505') throw new Error('이미 초대장을 보냈어요.');
       throw new Error(error.message);
     }
 
@@ -209,7 +215,7 @@ export async function respondToInvite(
 ): Promise<ApiResponse<{ orgId: string | null }>> {
   return wrap(async () => {
     const user = await requireAuth();
-    if (!user.email) throw new Error('이메일 정보가 없어 초대를 처리할 수 없습니다.');
+    if (!user.email) throw new Error('이메일 정보가 없어서 초대를 처리할 수 없어요.');
 
     const { data: invite, error } = await getSupabaseAdmin()
       .from('org_invites')
@@ -217,10 +223,10 @@ export async function respondToInvite(
       .eq('id', inviteId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!invite) throw new Error('초대장을 찾을 수 없습니다.');
-    if (invite.status !== 'pending') throw new Error('이미 처리된 초대장입니다.');
+    if (!invite) throw new Error('초대장을 찾을 수 없어요.');
+    if (invite.status !== 'pending') throw new Error('이미 처리한 초대장이에요.');
     if (invite.email.toLowerCase() !== user.email.toLowerCase())
-      throw new Error('본인에게 온 초대장이 아닙니다.');
+      throw new Error('본인에게 온 초대장이 아니에요.');
 
     if (!accept) {
       await getSupabaseAdmin()
@@ -255,7 +261,7 @@ export async function revokeInvite(inviteId: string): Promise<ApiResponse<null>>
       .select('org_id')
       .eq('id', inviteId)
       .maybeSingle();
-    if (!invite) throw new Error('초대장을 찾을 수 없습니다.');
+    if (!invite) throw new Error('초대장을 찾을 수 없어요.');
     await requireManager(invite.org_id, user.id);
 
     await getSupabaseAdmin()
@@ -274,7 +280,7 @@ export async function removeMember(orgId: string, userId: string): Promise<ApiRe
 
     const isSelf = userId === user.id;
     if (!isSelf && myRole !== 'owner' && myRole !== 'admin')
-      throw new Error('방장만 할 수 있는 작업입니다.');
+      throw new Error('방장만 할 수 있어요.');
 
     const { data: target } = await getSupabaseAdmin()
       .from('org_members')
@@ -282,8 +288,8 @@ export async function removeMember(orgId: string, userId: string): Promise<ApiRe
       .eq('org_id', orgId)
       .eq('user_id', userId)
       .maybeSingle();
-    if (!target) throw new Error('해당 멤버를 찾을 수 없습니다.');
-    if (target.role === 'owner') throw new Error('방장은 조직에서 뺄 수 없습니다.');
+    if (!target) throw new Error('멤버를 찾을 수 없어요.');
+    if (target.role === 'owner') throw new Error('방장은 조직에서 뺄 수 없어요.');
 
     const { error } = await getSupabaseAdmin()
       .from('org_members')
@@ -306,8 +312,8 @@ export async function updateMemberRole(
   return wrap(async () => {
     const user = await requireAuth();
     const myRole = await requireMembership(orgId, user.id);
-    if (myRole !== 'owner') throw new Error('방장만 할 수 있는 작업입니다.');
-    if (userId === user.id) throw new Error('본인의 역할은 바꿀 수 없습니다.');
+    if (myRole !== 'owner') throw new Error('방장만 할 수 있어요.');
+    if (userId === user.id) throw new Error('본인 역할은 바꿀 수 없어요.');
 
     const { error } = await getSupabaseAdmin()
       .from('org_members')
@@ -346,7 +352,7 @@ export async function updateOrgWebhook(
 
     const trimmed = webhookUrl.trim();
     if (trimmed && !/^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\//.test(trimmed))
-      throw new Error('Discord 웹훅 URL이 아닙니다.');
+      throw new Error('Discord 웹훅 주소가 아니에요.');
 
     const { error } = await getSupabaseAdmin()
       .from('organizations')

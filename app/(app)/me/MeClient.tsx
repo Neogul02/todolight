@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { updateMyProfile } from '@/app/actions/profile';
 import { applyTheme } from '@/app/providers';
 import { THEMES } from '@/lib/themes';
 import { AVATAR_COLORS, getAvatarColor } from '@/lib/avatar';
+import { removeAvatar, uploadAvatar } from '@/lib/avatar-upload';
 import { Avatar } from '@/components/Avatar';
 import { Badge, Button, Card, Input } from '@/components/ui';
 import { showMsg } from '@/lib/toast';
@@ -22,8 +23,50 @@ export default function MeClient() {
   const [color, setColor] = useState(
     profile?.avatar_color ?? getAvatarColor(null, userId).key
   );
-  const [theme, setTheme] = useState(profile?.theme ?? 'sand');
+  const [theme, setTheme] = useState(profile?.theme ?? 'ink');
+  const [photo, setPhoto] = useState<string | null>(profile?.avatar_url ?? null);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  // 사진은 저장 버튼을 기다리지 않고 고르는 즉시 반영한다 —
+  // 업로드가 끝났는데 "저장"을 또 눌러야 하면 올라간 건지 아닌지 헷갈린다.
+  async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || uploading) return;
+
+    setUploading(true);
+    try {
+      const url = await uploadAvatar(userId, file);
+      const res = await updateMyProfile({ avatarUrl: url });
+      if (!res.success) throw new Error(res.error);
+      setPhoto(url);
+      showMsg('사진을 바꿨어요.', 'success');
+      router.refresh();
+    } catch (err) {
+      showMsg(err instanceof Error ? err.message : String(err), 'error');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function clearPhoto() {
+    if (uploading) return;
+    setUploading(true);
+    try {
+      await removeAvatar(userId);
+      const res = await updateMyProfile({ avatarUrl: null });
+      if (!res.success) throw new Error(res.error);
+      setPhoto(null);
+      showMsg('사진을 지웠어요.', 'success');
+      router.refresh();
+    } catch (err) {
+      showMsg(err instanceof Error ? err.message : String(err), 'error');
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function save() {
     if (busy) return;
@@ -39,7 +82,7 @@ export default function MeClient() {
       return;
     }
     applyTheme(res.data.theme);
-    showMsg('저장했습니다.', 'success');
+    showMsg('저장했어요.', 'success');
     router.refresh();
   }
 
@@ -56,11 +99,41 @@ export default function MeClient() {
 
       <Card className="p-5">
         <div className="flex items-center gap-3">
-          <Avatar name={name || '나'} color={color} seed={userId} size="lg" />
-          <div className="min-w-0">
+          <Avatar
+            name={name || '나'}
+            color={color}
+            imageUrl={photo}
+            seed={userId}
+            size="lg"
+            className="size-14 text-[20px]"
+          />
+          <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-semibold text-ink">{name || '이름 없음'}</p>
             <p className="truncate text-caption text-ink-faint">{email}</p>
           </div>
+        </div>
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          onChange={pickPhoto}
+          className="hidden"
+        />
+        <div className="mt-3 flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? '올리는 중…' : photo ? '사진 바꾸기' : '사진 올리기'}
+          </Button>
+          {photo && (
+            <Button variant="ghost" onClick={clearPhoto} disabled={uploading}>
+              지우기
+            </Button>
+          )}
         </div>
 
         <label className="mt-5 flex flex-col gap-1.5">
@@ -69,7 +142,10 @@ export default function MeClient() {
         </label>
 
         <div className="mt-4">
-          <span className="text-caption font-medium text-ink-secondary">아바타 색</span>
+          <span className="text-caption font-medium text-ink-secondary">
+            아바타 색
+            {photo && <span className="ml-1 text-ink-faint">(사진을 지우면 이 색으로 보여요)</span>}
+          </span>
           <div className="mt-2 flex flex-wrap gap-2">
             {AVATAR_COLORS.map(c => (
               <button
@@ -100,7 +176,7 @@ export default function MeClient() {
           <Badge>기본 무료</Badge>
         </div>
         <p className="mt-1 text-caption text-ink-muted">
-          유료 테마는 준비 중입니다. 지금은 미리보기로 적용해 볼 수 있습니다.
+          유료 테마는 준비 중이에요. 지금은 미리보기로 적용해 볼 수 있어요.
         </p>
 
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -140,7 +216,7 @@ export default function MeClient() {
       <Card className="p-5">
         <h2 className="text-title text-ink">소속 조직</h2>
         {orgs.length === 0 ? (
-          <p className="mt-2 text-caption text-ink-muted">아직 속한 조직이 없습니다.</p>
+          <p className="mt-2 text-caption text-ink-muted">아직 속한 조직이 없어요.</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-1">
             {orgs.map(o => (

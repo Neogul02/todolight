@@ -70,7 +70,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     }
     setTitle('');
     setDue(todayKST());
-    if (!isMine) showMsg(`${member.display_name}님 목록에 추가했습니다.`, 'success');
+    if (!isMine) showMsg(`${member.display_name}님 목록에 추가했어요.`, 'success');
     onMutated();
   }
 
@@ -87,7 +87,12 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
       )}
     >
       <header className="flex items-center gap-2 px-3 pt-3 pb-2 no-select">
-        <Avatar name={member.display_name} color={member.avatar_color} seed={member.user_id} />
+        <Avatar
+          name={member.display_name}
+          color={member.avatar_color}
+          imageUrl={member.avatar_url}
+          seed={member.user_id}
+        />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-semibold text-ink sm:text-[14px]">
             {member.display_name}
@@ -142,7 +147,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
 
         {visible.length === 0 && (
           <li className="rounded-xl border border-dashed border-hairline px-3 py-8 text-center text-caption text-ink-faint">
-            {isMine ? '할 일이 비어 있습니다.' : '남은 할 일이 없습니다.'}
+            {isMine ? '할 일이 비어 있어요.' : '남은 할 일이 없어요.'}
           </li>
         )}
       </ul>

@@ -38,7 +38,7 @@ export default function LoginForm() {
         if (error) throw error;
         // 이메일 확인이 켜져 있으면 session이 비어서 온다 — 이 경우 바로 들어갈 수 없다.
         if (!data.session) {
-          showMsg('확인 메일을 보냈습니다. 메일함에서 인증을 마쳐 주세요.', 'info');
+          showMsg('확인 메일을 보냈어요. 메일함에서 인증을 마쳐 주세요.', 'info');
           setMode('signin');
           return;
         }
@@ -56,7 +56,7 @@ export default function LoginForm() {
       const message = err instanceof Error ? err.message : String(err);
       showMsg(
         message.includes('Invalid login credentials')
-          ? '이메일 또는 비밀번호가 맞지 않습니다.'
+          ? '이메일이나 비밀번호가 맞지 않아요.'
           : message,
         'error'
       );

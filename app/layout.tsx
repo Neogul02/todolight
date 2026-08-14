@@ -4,11 +4,11 @@ import './globals.css';
 import Providers from './providers';
 
 export const metadata: Metadata = {
-  title: 'todolight — 조직 공유 할 일',
+  title: 'TodoLight',
   description: '팀원끼리 서로의 할 일을 한 화면에서 보고, 대신 처리해 주는 공유 투두 보드',
   manifest: '/manifest.json',
   // 홈 화면에 추가했을 때 주소창 없이 앱처럼 열린다 (iOS 우선 타깃)
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'todolight' },
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'TodoLight' },
   formatDetection: { telephone: false },
 };
 

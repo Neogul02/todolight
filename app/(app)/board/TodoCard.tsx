@@ -208,6 +208,7 @@ export default function TodoCard({
                         <Avatar
                           name={n.author_name ?? '?'}
                           color={n.author_color}
+                          imageUrl={n.author_avatar_url}
                           seed={n.author_id}
                           size="sm"
                           className="size-4 text-[9px]"

@@ -116,7 +116,9 @@ export default function AppShell({
             >
               <Avatar
                 name={profile?.display_name ?? email ?? '나'}
-                color={profile?.avatar_color} seed={userId}
+                color={profile?.avatar_color}
+                imageUrl={profile?.avatar_url}
+                seed={userId}
                 size="sm"
               />
               {pendingCount > 0 && (

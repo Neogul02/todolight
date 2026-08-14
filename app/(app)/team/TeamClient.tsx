@@ -17,9 +17,11 @@ import {
 import { useOrgMembers } from '@/hooks/useOrgBoard';
 import { useApp } from '../OrgContext';
 import { Avatar } from '@/components/Avatar';
+import { BottomSheet } from '@/components/BottomSheet';
 import { Badge, Button, Card, EmptyState, Input, Spinner } from '@/components/ui';
 import { showMsg } from '@/lib/toast';
 import { formatRelativeDay } from '@/lib/utils';
+import type { MemberSummary } from '@/types/db';
 
 const ROLE_LABEL = { owner: '방장', admin: '관리자', member: '팀원' } as const;
 
@@ -32,6 +34,8 @@ export default function TeamClient() {
   const [email, setEmail] = useState('');
   const [orgName, setOrgName] = useState('');
   const [webhook, setWebhook] = useState<string | null>(null);
+  // 내보내기는 되돌릴 수 없다 — 빨간 버튼 하나로 끝내지 않고 시트에서 한 번 더 확인받는다
+  const [pendingKick, setPendingKick] = useState<MemberSummary | null>(null);
 
   const invites = useQuery({
     queryKey: ['org-invites', activeOrgId],
@@ -51,7 +55,7 @@ export default function TeamClient() {
     },
     onSuccess: () => {
       setEmail('');
-      showMsg('초대장을 보냈습니다.', 'success');
+      showMsg('초대장을 보냈어요.', 'success');
       queryClient.invalidateQueries({ queryKey: ['org-invites', activeOrgId] });
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
@@ -73,7 +77,8 @@ export default function TeamClient() {
       return targetId;
     },
     onSuccess: targetId => {
-      showMsg(targetId === userId ? '조직에서 나왔습니다.' : '멤버를 내보냈습니다.', 'success');
+      showMsg(targetId === userId ? '조직에서 나왔어요.' : '멤버를 내보냈어요.', 'success');
+      setPendingKick(null);
       queryClient.invalidateQueries({ queryKey: ['members', activeOrgId] });
       router.refresh();
     },
@@ -86,7 +91,7 @@ export default function TeamClient() {
       if (!res.success) throw new Error(res.error);
     },
     onSuccess: () => {
-      showMsg('역할을 바꿨습니다.', 'success');
+      showMsg('역할을 바꿨어요.', 'success');
       queryClient.invalidateQueries({ queryKey: ['members', activeOrgId] });
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
@@ -110,7 +115,7 @@ export default function TeamClient() {
       return value;
     },
     onSuccess: value => {
-      showMsg(value ? 'Discord 알림을 켰습니다.' : 'Discord 알림을 껐습니다.', 'success');
+      showMsg(value ? 'Discord 알림을 켰어요.' : 'Discord 알림을 껐어요.', 'success');
       queryClient.invalidateQueries({ queryKey: ['org-webhook', activeOrgId] });
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
@@ -122,7 +127,7 @@ export default function TeamClient() {
       if (!res.success) throw new Error(res.error);
     },
     onSuccess: () => {
-      showMsg('조직 이름을 바꿨습니다.', 'success');
+      showMsg('조직 이름을 바꿨어요.', 'success');
       setOrgName('');
       router.refresh();
     },
@@ -132,7 +137,7 @@ export default function TeamClient() {
   if (!activeOrgId || !activeOrg) {
     return (
       <main className="mx-auto max-w-[560px] px-6 py-20 text-center">
-        <h1 className="text-heading-1 text-ink">조직이 없습니다</h1>
+        <h1 className="text-heading-1 text-ink">조직이 없어요</h1>
         <Link href="/orgs/new" className="mt-6 inline-block">
           <Button size="lg">조직 만들기</Button>
         </Link>
@@ -153,7 +158,7 @@ export default function TeamClient() {
         <Card className="p-5">
           <h2 className="text-title text-ink">팀원 초대</h2>
           <p className="mt-1 text-caption text-ink-muted">
-            초대할 사람의 이메일을 넣으면, 그 계정으로 로그인했을 때 초대함에 뜹니다.
+            초대할 사람의 이메일을 넣으면, 그 계정으로 로그인했을 때 초대함에 떠요.
           </p>
           <form
             onSubmit={e => {
@@ -213,7 +218,7 @@ export default function TeamClient() {
 
         {members.isLoading && <Spinner className="mt-4" />}
         {members.data && members.data.length === 0 && (
-          <EmptyState title="아직 멤버가 없습니다." />
+          <EmptyState title="아직 멤버가 없어요." />
         )}
 
         <ul className="mt-3 flex flex-col gap-1">
@@ -229,7 +234,12 @@ export default function TeamClient() {
                 key={m.user_id}
                 className="flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-xl border-b border-hairline px-1 py-3 last:border-b-0 sm:border-b-0 sm:py-2"
               >
-                <Avatar name={m.display_name} color={m.avatar_color} seed={m.user_id} />
+                <Avatar
+                  name={m.display_name}
+                  color={m.avatar_color}
+                  imageUrl={m.avatar_url}
+                  seed={m.user_id}
+                />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15px] font-medium text-ink sm:text-[14px]">
                     {m.display_name}
@@ -262,9 +272,9 @@ export default function TeamClient() {
                     {canRemove && (
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant={isSelf ? 'outline' : 'danger'}
                         className="flex-1 sm:flex-none"
-                        onClick={() => kick.mutate(m.user_id)}
+                        onClick={() => (isSelf ? kick.mutate(m.user_id) : setPendingKick(m))}
                         disabled={kick.isPending}
                       >
                         {isSelf ? '나가기' : '내보내기'}
@@ -282,8 +292,8 @@ export default function TeamClient() {
         <Card className="p-5">
           <h2 className="text-title text-ink">Discord 알림</h2>
           <p className="mt-1 text-caption text-ink-muted">
-            할 일이 추가되거나 누가 대신 처리하면 이 채널로 알림이 갑니다.
-            채널 설정 → 연동 → 웹후크에서 URL을 복사해 붙여 넣으세요. 비우면 알림을 끕니다.
+            할 일이 추가되거나 누가 대신 처리하면 이 채널로 알림이 가요.
+            채널 설정 → 연동 → 웹후크에서 주소를 복사해 붙여 넣어 주세요. 비우면 알림을 꺼요.
           </p>
           <form
             onSubmit={e => {
@@ -331,6 +341,33 @@ export default function TeamClient() {
           </form>
         </Card>
       )}
+      <BottomSheet
+        open={!!pendingKick}
+        onClose={() => setPendingKick(null)}
+        title="멤버를 내보낼까요?"
+      >
+        <p className="text-body-sm text-ink">
+          <span className="font-semibold">{pendingKick?.display_name}</span>님을 이 조직에서
+          내보내요.
+        </p>
+        <p className="mt-1.5 text-caption text-ink-muted">
+          내보내면 이 조직의 보드를 더 이상 볼 수 없어요. 그동안 쌓인 할 일과 메모는 그대로
+          남아요. 다시 부르려면 초대를 새로 보내야 해요.
+        </p>
+
+        <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="outline" onClick={() => setPendingKick(null)}>
+            취소
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => pendingKick && kick.mutate(pendingKick.user_id)}
+            disabled={kick.isPending}
+          >
+            내보내기
+          </Button>
+        </div>
+      </BottomSheet>
     </main>
   );
 }

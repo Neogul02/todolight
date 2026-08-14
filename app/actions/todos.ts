@@ -13,7 +13,7 @@ const noteSchema = z.string().trim().min(1, '메모를 입력해 주세요.').ma
 const statusSchema = z.enum(['todo', 'doing', 'done']);
 const dueSchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식이 올바르지 않습니다.')
+  .regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식이 맞지 않아요.')
   .nullable()
   .optional();
 
@@ -25,7 +25,7 @@ async function assertMember(orgId: string, userId: string): Promise<void> {
     .eq('user_id', userId)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  if (!data) throw new Error('해당 조직의 멤버가 아닙니다.');
+  if (!data) throw new Error('이 조직의 멤버가 아니에요.');
 }
 
 /** todo id로 조직을 되짚어 멤버 여부를 확인하고 해당 todo를 돌려준다. */
@@ -37,7 +37,7 @@ async function loadTodoForMember(todoId: string, userId: string): Promise<Todo> 
     .is('deleted_at', null)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  if (!data) throw new Error('할 일을 찾을 수 없습니다.');
+  if (!data) throw new Error('할 일을 찾을 수 없어요.');
   await assertMember(data.org_id, userId);
   return data as Todo;
 }
@@ -77,14 +77,14 @@ export async function fetchOrgTodos(orgId: string): Promise<ApiResponse<Todo[]>>
 
     const { data: notes, error: noteError } = await getSupabaseAdmin()
       .from('todo_notes')
-      .select('id, todo_id, author_id, content, created_at, profiles!inner (display_name, avatar_color)')
+      .select('id, todo_id, author_id, content, created_at, profiles!inner (display_name, avatar_color, avatar_url)')
       .in('todo_id', todos.map(t => t.id))
       .order('created_at', { ascending: true });
     if (noteError) throw new Error(noteError.message);
 
     const byTodo = new Map<string, TodoNote[]>();
     ((notes ?? []) as unknown as (TodoNote & {
-      profiles: { display_name: string; avatar_color: string | null };
+      profiles: { display_name: string; avatar_color: string | null; avatar_url: string | null };
     })[]).forEach(n => {
       const list = byTodo.get(n.todo_id) ?? [];
       list.push({
@@ -95,6 +95,7 @@ export async function fetchOrgTodos(orgId: string): Promise<ApiResponse<Todo[]>>
         created_at: n.created_at,
         author_name: n.profiles?.display_name,
         author_color: n.profiles?.avatar_color ?? null,
+        author_avatar_url: n.profiles?.avatar_url ?? null,
       });
       byTodo.set(n.todo_id, list);
     });
@@ -158,8 +159,8 @@ export async function createTodo(input: {
         webhook,
         '새 할 일',
         ownerId === user.id
-          ? `**${actor}**님이 할 일을 추가했습니다.`
-          : `**${actor}**님이 **${owner}**님 목록에 할 일을 추가했습니다.`,
+          ? `**${actor}**님이 할 일을 추가했어요.`
+          : `**${actor}**님이 **${owner}**님 목록에 할 일을 추가했어요.`,
         [
           { name: '내용', value: truncate(title) },
           { name: '담당', value: owner, inline: true },
@@ -250,7 +251,7 @@ export async function deleteTodo(todoId: string): Promise<ApiResponse<null>> {
         .eq('user_id', user.id)
         .maybeSingle();
       if (!me || (me.role !== 'owner' && me.role !== 'admin'))
-        throw new Error('본인 할 일이나 방장만 지울 수 있습니다.');
+        throw new Error('본인 할 일이거나 방장만 지울 수 있어요.');
     }
 
     const { error } = await getSupabaseAdmin()
@@ -278,7 +279,7 @@ export async function addTodoNote(todoId: string, content: string): Promise<ApiR
 
     const { data: profile } = await getSupabaseAdmin()
       .from('profiles')
-      .select('display_name, avatar_color')
+      .select('display_name, avatar_color, avatar_url')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -286,6 +287,7 @@ export async function addTodoNote(todoId: string, content: string): Promise<ApiR
       ...(data as TodoNote),
       author_name: profile?.display_name,
       author_color: profile?.avatar_color ?? null,
+      author_avatar_url: profile?.avatar_url ?? null,
     };
   });
 }
@@ -321,7 +323,7 @@ export async function handleForMember(
 
     const { data: profile } = await getSupabaseAdmin()
       .from('profiles')
-      .select('display_name, avatar_color')
+      .select('display_name, avatar_color, avatar_url')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -333,7 +335,7 @@ export async function handleForMember(
       await notifyDiscord(
         webhook,
         '대신 처리',
-        `**${nameOf(user.id)}**님이 **${nameOf(todo.owner_id)}**님의 할 일을 대신 처리했습니다.`,
+        `**${nameOf(user.id)}**님이 **${nameOf(todo.owner_id)}**님의 할 일을 대신 처리했어요.`,
         [
           { name: '내용', value: truncate(todo.title) },
           { name: '메모', value: truncate(parsedNote, 900) },
@@ -348,6 +350,7 @@ export async function handleForMember(
         ...(noteRow as TodoNote),
         author_name: profile?.display_name,
         author_color: profile?.avatar_color ?? null,
+        author_avatar_url: profile?.avatar_url ?? null,
       },
     };
   });
@@ -361,8 +364,8 @@ export async function deleteTodoNote(noteId: string): Promise<ApiResponse<null>>
       .select('id, author_id')
       .eq('id', noteId)
       .maybeSingle();
-    if (!note) throw new Error('메모를 찾을 수 없습니다.');
-    if (note.author_id !== user.id) throw new Error('본인이 쓴 메모만 지울 수 있습니다.');
+    if (!note) throw new Error('메모를 찾을 수 없어요.');
+    if (note.author_id !== user.id) throw new Error('본인이 쓴 메모만 지울 수 있어요.');
 
     const { error } = await getSupabaseAdmin().from('todo_notes').delete().eq('id', noteId);
     if (error) throw new Error(error.message);

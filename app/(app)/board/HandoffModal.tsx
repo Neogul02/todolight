@@ -36,7 +36,7 @@ export default function HandoffModal({
       showMsg(res.error, 'error');
       return;
     }
-    showMsg('대신 처리했습니다.', 'success');
+    showMsg('대신 처리했어요.', 'success');
     onDone();
     onClose();
   }
@@ -45,7 +45,7 @@ export default function HandoffModal({
     <BottomSheet open onClose={onClose} title="대신 처리">
       <p className="text-body-sm text-ink">{todo.title}</p>
       <p className="mt-1 text-caption text-ink-muted">
-        {ownerName}님의 할 일입니다. 어떻게 처리했는지 한 줄 남겨 주세요.
+        {ownerName}님의 할 일이에요. 어떻게 처리했는지 한 줄 남겨 주세요.
       </p>
 
       <form onSubmit={submit} className="mt-4 flex flex-col gap-3">

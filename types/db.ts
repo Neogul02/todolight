@@ -7,6 +7,8 @@ export interface Profile {
   email: string | null;
   display_name: string;
   avatar_color: string | null;
+  /** 업로드한 프로필 사진. 없으면 색 아바타로 떨어진다 */
+  avatar_url: string | null;
   theme: string;
   created_at: string;
 }
@@ -32,6 +34,7 @@ export interface MemberSummary {
   role: MemberRole;
   display_name: string;
   avatar_color: string | null;
+  avatar_url: string | null;
   email: string | null;
 }
 
@@ -56,6 +59,7 @@ export interface TodoNote {
   created_at: string;
   author_name?: string;
   author_color?: string | null;
+  author_avatar_url?: string | null;
 }
 
 export interface Todo {

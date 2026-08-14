@@ -21,7 +21,7 @@ export default function NewPasswordForm() {
     e.preventDefault();
     if (busy) return;
     if (password !== confirm) {
-      showMsg('두 비밀번호가 서로 다릅니다.', 'error');
+      showMsg('두 비밀번호가 서로 달라요.', 'error');
       return;
     }
     setBusy(true);
@@ -30,14 +30,14 @@ export default function NewPasswordForm() {
       const supabase = createSupabaseBrowserClient();
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      showMsg('비밀번호를 바꿨습니다.', 'success');
+      showMsg('비밀번호를 바꿨어요.', 'success');
       router.replace('/board');
       router.refresh();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       showMsg(
         message.includes('Auth session missing')
-          ? '링크가 만료됐습니다. 재설정 메일을 다시 받아 주세요.'
+          ? '링크가 만료됐어요. 재설정 메일을 다시 받아 주세요.'
           : message,
         'error'
       );
@@ -49,7 +49,7 @@ export default function NewPasswordForm() {
   return (
     <Card className="w-full max-w-[400px] p-6 sm:p-7">
       <h1 className="text-title text-ink">새 비밀번호</h1>
-      <p className="mt-1 text-caption text-ink-muted">앞으로 쓸 비밀번호를 정하세요.</p>
+      <p className="mt-1 text-caption text-ink-muted">앞으로 쓸 비밀번호를 정해 주세요.</p>
 
       <form onSubmit={submit} className="mt-5 flex flex-col gap-3">
         <label className="flex flex-col gap-1.5">

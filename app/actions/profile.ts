@@ -15,11 +15,11 @@ export async function fetchMyProfile(): Promise<ApiResponse<Profile>> {
     const user = await requireAuth();
     const { data, error } = await getSupabaseAdmin()
       .from('profiles')
-      .select('id, email, display_name, avatar_color, theme, created_at')
+      .select('id, email, display_name, avatar_color, avatar_url, theme, created_at')
       .eq('id', user.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!data) throw new Error('프로필을 찾을 수 없습니다.');
+    if (!data) throw new Error('프로필을 찾을 수 없어요.');
     return data as Profile;
   });
 }
@@ -27,6 +27,7 @@ export async function fetchMyProfile(): Promise<ApiResponse<Profile>> {
 export async function updateMyProfile(patch: {
   displayName?: string;
   avatarColor?: string | null;
+  avatarUrl?: string | null;
   theme?: string;
 }): Promise<ApiResponse<Profile>> {
   return wrap(async () => {
@@ -36,17 +37,18 @@ export async function updateMyProfile(patch: {
     if (patch.displayName !== undefined) update.display_name = nameSchema.parse(patch.displayName);
     if (patch.avatarColor !== undefined)
       update.avatar_color = patch.avatarColor ? patch.avatarColor.slice(0, 8) : null;
+    if (patch.avatarUrl !== undefined) update.avatar_url = patch.avatarUrl || null;
     if (patch.theme !== undefined) {
-      if (!isValidTheme(patch.theme)) throw new Error('존재하지 않는 테마입니다.');
+      if (!isValidTheme(patch.theme)) throw new Error('없는 테마예요.');
       update.theme = patch.theme;
     }
-    if (Object.keys(update).length === 0) throw new Error('변경할 내용이 없습니다.');
+    if (Object.keys(update).length === 0) throw new Error('바꿀 내용이 없어요.');
 
     const { data, error } = await getSupabaseAdmin()
       .from('profiles')
       .update(update)
       .eq('id', user.id)
-      .select('id, email, display_name, avatar_color, theme, created_at')
+      .select('id, email, display_name, avatar_color, avatar_url, theme, created_at')
       .single();
     if (error) throw new Error(error.message);
 

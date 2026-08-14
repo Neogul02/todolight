@@ -34,13 +34,13 @@ export default function ResetRequestForm() {
   if (sent) {
     return (
       <Card className="w-full max-w-[400px] p-6 sm:p-7">
-        <h1 className="text-title text-ink">메일을 보냈습니다</h1>
+        <h1 className="text-title text-ink">메일을 보냈어요</h1>
         <p className="mt-2 text-body-sm text-ink-muted">
           <span className="font-medium text-ink">{email.trim()}</span> 으로 재설정 링크를
-          보냈습니다. 메일함에서 링크를 눌러 새 비밀번호를 정하세요.
+          보냈어요. 메일함에서 링크를 눌러 새 비밀번호를 정해 주세요.
         </p>
         <p className="mt-3 text-caption text-ink-faint">
-          메일이 안 보이면 스팸함도 확인해 주세요. 링크는 1시간 뒤 만료됩니다.
+          메일이 안 보이면 스팸함도 확인해 주세요. 링크는 1시간 뒤 만료돼요.
         </p>
         <Link href="/login" className="mt-5 block">
           <Button size="lg" variant="outline" className="w-full">
@@ -55,7 +55,7 @@ export default function ResetRequestForm() {
     <Card className="w-full max-w-[400px] p-6 sm:p-7">
       <h1 className="text-title text-ink">비밀번호 재설정</h1>
       <p className="mt-1 text-caption text-ink-muted">
-        가입한 이메일로 재설정 링크를 보내 드립니다.
+        가입한 이메일로 재설정 링크를 보내 드려요.
       </p>
 
       <form onSubmit={submit} className="mt-5 flex flex-col gap-3">

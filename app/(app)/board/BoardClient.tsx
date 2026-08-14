@@ -93,9 +93,9 @@ export default function BoardClient() {
   if (orgs.length === 0) {
     return (
       <main className="mx-auto flex max-w-[520px] flex-col items-center px-6 py-16 pb-safe text-center">
-        <h1 className="text-heading-1 text-ink">아직 조직이 없습니다</h1>
+        <h1 className="text-heading-1 text-ink">아직 조직이 없어요</h1>
         <p className="mt-2 text-body-sm text-ink-muted">
-          조직을 만들어 팀원을 초대하거나, 받은 초대를 수락하세요.
+          조직을 만들어 팀원을 초대하거나, 받은 초대를 수락해 주세요.
         </p>
         <div className="mt-7 flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <Link
@@ -183,7 +183,7 @@ export default function BoardClient() {
 
       {error && (
         <Card className="mx-3 p-5 text-[14px] text-danger sm:mx-4">
-          {error instanceof Error ? error.message : '보드를 불러오지 못했습니다.'}
+          {error instanceof Error ? error.message : '보드를 불러오지 못했어요.'}
         </Card>
       )}
 
@@ -284,7 +284,13 @@ function MemberChip({
           : 'border-transparent bg-canvas-soft text-ink-muted'
       )}
     >
-      <Avatar name={member.display_name} color={member.avatar_color} seed={member.user_id} size="sm" />
+      <Avatar
+        name={member.display_name}
+        color={member.avatar_color}
+        imageUrl={member.avatar_url}
+        seed={member.user_id}
+        size="sm"
+      />
       <span className="max-w-[80px] truncate text-[13px] font-medium">
         {isMe ? '나' : member.display_name}
       </span>

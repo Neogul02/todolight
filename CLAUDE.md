@@ -118,7 +118,7 @@ export async function fetchXxx(): Promise<ApiResponse<T>> {
 ## DB 스키마
 
 ```
-profiles        id (FK auth.users), email, display_name, avatar_color, theme, created_at
+profiles        id (FK auth.users), email, display_name, avatar_color, avatar_url, theme, created_at
 organizations   id, name, owner_id, discord_webhook_url, created_at
 org_members     id, org_id, user_id, role('owner'|'admin'|'member'), joined_at   UNIQUE(org_id,user_id)
 org_invites     id, org_id, email, invited_by, status('pending'|'accepted'|'declined'|'revoked'),
@@ -260,12 +260,40 @@ todo_notes      id, todo_id, author_id, content, created_at
 둘 다 베이지 배경 + 검정 "Todo" 텍스트다. iOS는 SVG 터치 아이콘을 제대로 다루지 않아
 apple-icon만 PNG로 그린다.
 
+### 안내 문구 말투
+
+사용자에게 보이는 모든 문구는 **해요체**로 쓴다 — 토스트, 빈 화면, 폼 설명, 그리고
+**서버 액션이 throw하는 에러 메시지까지**. 액션 에러는 `wrap()`을 거쳐 그대로 토스트에 뜨기
+때문에 "~할 수 없습니다"가 하나만 섞여도 바로 튄다.
+개발자만 보는 문구(`OrgContext`의 훅 사용 오류 등)는 예외다.
+
+### 위험한 동작
+
+`Button`의 `danger`는 **꽉 채운 빨강**이고 되돌릴 수 없는 동작에만 쓴다.
+멤버 내보내기처럼 복구 수단이 없는 건 빨간 버튼 하나로 끝내지 않고
+`BottomSheet` 확인을 한 단계 더 둔다(`TeamClient`의 `pendingKick` 패턴).
+반면 할 일 X는 소프트 삭제라 확인 없이 바로 지운다 — 복구 가능한 것과 아닌 것을 구분한다.
+
 ### 아바타
 
-이모지 대신 **이름 첫 글자 + 색**으로 사람을 구분한다(`lib/avatar.ts`, `components/Avatar.tsx`).
+프로필 사진이 있으면 사진, 없으면 **이름 첫 글자 + 색**으로 사람을 구분한다
+(`lib/avatar.ts`, `components/Avatar.tsx`).
 색을 고르지 않은 사용자는 `getAvatarColor(null, userId)`가 id 해시로 하나를 결정적으로 배정하므로,
 가입 직후에도 팀원끼리 색이 겹치지 않고 안정적이다. 저장 컬럼은 `profiles.avatar_color`
 (색 키 문자열, 예: `sea`). 팔레트를 늘릴 때는 `AVATAR_COLORS`에만 추가하면 된다.
+
+**사진 업로드**(`lib/avatar-upload.ts`)는 Supabase Storage의 `avatars` 버킷을 쓴다.
+
+- 원본을 그대로 올리지 않는다 — 캔버스로 가운데를 정사각형으로 잘라 **256px webp**로 줄인다
+  (폰 사진 3~5MB → 보통 20KB대).
+- 경로는 사용자마다 하나로 고정(`{userId}/avatar.webp`)하고 `upsert`로 덮어쓴다.
+  파일이 쌓이지 않는 대신 브라우저가 옛 이미지를 캐시하므로, 저장하는 URL 끝에
+  `?v={timestamp}`를 붙여 무효화한다.
+- 버킷은 **public**이다. 서명 URL 만료를 관리할 필요가 없고 아바타는 새어도 피해가 없다.
+  쓰기는 `storage.objects` 정책이 `(storage.foldername(name))[1] = auth.uid()`로 막는다 —
+  즉 남의 폴더에는 못 올린다.
+- 사진은 "저장" 버튼을 기다리지 않고 고르는 즉시 업로드·반영한다. 업로드가 끝났는데 저장을
+  또 눌러야 하면 올라간 건지 알 수 없다.
 
 ### 상태를 effect로 만들지 말 것
 

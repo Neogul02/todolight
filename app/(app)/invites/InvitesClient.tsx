@@ -29,7 +29,7 @@ export default function InvitesClient() {
       return { ...res.data, accept: input.accept };
     },
     onSuccess: data => {
-      showMsg(data.accept ? '조직에 합류했습니다.' : '초대를 거절했습니다.', 'success');
+      showMsg(data.accept ? '조직에 합류했어요.' : '초대를 거절했어요.', 'success');
       queryClient.invalidateQueries({ queryKey: ['my-invites'] });
       if (data.accept && data.orgId) {
         selectOrg(data.orgId);
@@ -50,7 +50,7 @@ export default function InvitesClient() {
       {invites.isLoading && <Spinner />}
 
       {invites.data && invites.data.length === 0 && (
-        <EmptyState title="받은 초대가 없습니다." hint="방장에게 이 이메일로 초대를 요청하세요." />
+        <EmptyState title="받은 초대가 없어요." hint="방장에게 이 이메일로 초대를 요청해 주세요." />
       )}
 
       {(invites.data ?? []).map(inv => (

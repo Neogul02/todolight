@@ -51,6 +51,6 @@ export async function getAuthUser(): Promise<AuthUser | null> {
  */
 export async function requireAuth(): Promise<AuthUser> {
   const user = await getAuthUser();
-  if (!user) throw new Error('로그인이 필요합니다.');
+  if (!user) throw new Error('로그인이 필요해요.');
   return user;
 }

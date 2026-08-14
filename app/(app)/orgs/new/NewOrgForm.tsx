@@ -26,7 +26,7 @@ export default function NewOrgForm() {
     }
 
     selectOrg(res.data.id);
-    showMsg('조직을 만들었습니다. 이제 팀원을 초대하세요.', 'success');
+    showMsg('조직을 만들었어요. 이제 팀원을 초대해 보세요.', 'success');
     router.push('/team');
     router.refresh();
   }
@@ -35,7 +35,7 @@ export default function NewOrgForm() {
     <Card className="p-6">
       <h1 className="text-heading-2 text-ink">새 조직 만들기</h1>
       <p className="mt-1 text-caption text-ink-muted">
-        만든 사람이 방장이 됩니다. 팀원은 이메일로 초대할 수 있습니다.
+        만든 사람이 방장이 돼요. 팀원은 이메일로 초대할 수 있어요.
       </p>
 
       <form onSubmit={submit} className="mt-5 flex flex-col gap-3">
