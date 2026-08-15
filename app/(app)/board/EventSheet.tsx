@@ -128,8 +128,13 @@ function EventForm({
 
       <div>
         <span className="text-caption font-medium text-ink-secondary">{t('startLabel')}</span>
+        {/*
+          allowNone={false} — 일정은 시작과 끝이 반드시 있다. 기본값 그대로 두면 맨 앞에
+          "마감 없음" 칸이 서는데, 누르면 라벨과 달리 오늘로 바뀌어 버린다.
+        */}
         <DuePicker
           value={start}
+          allowNone={false}
           onChange={next => {
             const day = next ?? todayKST();
             setStart(day);
@@ -144,6 +149,7 @@ function EventForm({
         <span className="text-caption font-medium text-ink-secondary">{t('endLabel')}</span>
         <DuePicker
           value={end}
+          allowNone={false}
           onChange={next => setEnd(next ?? start)}
           className="mt-1.5"
         />
@@ -160,9 +166,11 @@ function EventForm({
             {t('delete')}
           </Button>
         )}
-        <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-          {tCommon('cancel')}
-        </Button>
+        {/*
+          취소 버튼은 두지 않는다 — BottomSheet는 ESC · 바깥 누르기 · 아래로 끌기 셋으로
+          이미 닫힌다. 네 번째 수단을 두느니 그 폭을 주 동작에 준다.
+          편집 중에는 지우기와 나란히 서므로 393px에서도 둘 다 손가락에 맞는다.
+        */}
         <Button type="submit" className="flex-1" disabled={busy || !title.trim()}>
           {event ? tCommon('save') : t('add')}
         </Button>

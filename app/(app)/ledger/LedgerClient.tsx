@@ -180,7 +180,11 @@ export default function LedgerClient() {
         <p className="mt-1 text-heading-1 text-ink tabular-nums">{formatMoney(total, locale)}</p>
         <p className="mt-0.5 text-caption text-ink-faint">{t('entryCount', { count: rows.length })}</p>
 
-        {byPayer.length > 0 && (
+        {/*
+          낸 사람이 한 명뿐이면 그 줄은 총액과 같은 값을 한 번 더 쓰는 것이라 지운다 —
+          이 목록은 "누가 얼마 냈나"를 가르는 데 쓰는 것이고, 가를 것이 없으면 값이 없다.
+        */}
+        {byPayer.length > 1 && (
           <ul className="mt-4 flex flex-col gap-2 border-t border-hairline pt-3">
             {byPayer.map(([payerId, sum]) => {
               const m = memberOf(payerId);
@@ -284,6 +288,8 @@ export default function LedgerClient() {
               payerName={memberOf(entry.payer_id)?.display_name ?? t('unknownMember')}
               payerColor={memberOf(entry.payer_id)?.avatar_color ?? null}
               payerAvatar={memberOf(entry.payer_id)?.avatar_url ?? null}
+              /* 낸 사람이 한 명뿐이면 매 행에 같은 얼굴과 이름이 반복될 뿐이다 */
+              showPayer={byPayer.length > 1}
               canRemove={entry.created_by === userId || entry.payer_id === userId}
               onRemove={() => remove.mutate(entry.id)}
               removing={remove.isPending}
@@ -302,6 +308,7 @@ function EntryRow({
   payerName,
   payerColor,
   payerAvatar,
+  showPayer,
   canRemove,
   onRemove,
   removing,
@@ -312,6 +319,7 @@ function EntryRow({
   payerName: string;
   payerColor: string | null;
   payerAvatar: string | null;
+  showPayer: boolean;
   canRemove: boolean;
   onRemove: () => void;
   removing: boolean;
@@ -319,18 +327,21 @@ function EntryRow({
 }) {
   return (
     <li className="flex items-start gap-2.5 rounded-xl border border-hairline bg-surface px-3 py-2.5">
-      <Avatar
-        name={payerName}
-        color={payerColor}
-        imageUrl={payerAvatar}
-        seed={entry.payer_id}
-        size="sm"
-        className="mt-0.5"
-      />
+      {showPayer && (
+        <Avatar
+          name={payerName}
+          color={payerColor}
+          imageUrl={payerAvatar}
+          seed={entry.payer_id}
+          size="sm"
+          className="mt-0.5"
+        />
+      )}
       <div className="min-w-0 flex-1">
         <p className="text-body-sm break-words text-ink">{entry.title}</p>
         <p className="mt-0.5 text-caption text-ink-faint">
-          {payerName} · {formatRelativeDay(`${entry.spent_on}T00:00:00Z`, locale)}
+          {showPayer && `${payerName} · `}
+          {formatRelativeDay(`${entry.spent_on}T00:00:00Z`, locale)}
         </p>
       </div>
       <p className="shrink-0 pt-0.5 text-body-sm font-medium text-ink tabular-nums">

@@ -54,9 +54,9 @@
     "newOrg": "+ New org",
     "manageTitle": "Manage",
     "teamLabel": "Team",
-    "teamHint": "Invite members, roles",
+    "teamHint": "Members and org settings",
     "meLabel": "Settings",
-    "meHint": "Name, avatar, theme",
+    "meHint": "Name, theme, language",
     "signOut": "Sign out"
   },
   "auth": {

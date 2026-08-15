@@ -54,9 +54,9 @@
     "newOrg": "+ 새 조직 만들기",
     "manageTitle": "관리",
     "teamLabel": "팀",
-    "teamHint": "멤버 초대·역할",
+    "teamHint": "멤버·조직 설정",
     "meLabel": "설정",
-    "meHint": "이름·아바타·테마",
+    "meHint": "이름·테마·언어",
     "signOut": "로그아웃"
   },
   "auth": {
