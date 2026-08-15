@@ -27,16 +27,9 @@
         "dracula": "Dracula"
       }
     },
-    "board": {
-      "title": "보드",
-      "showDone": "완료한 할 일도 보기",
-      "showAvatars": "프로필 사진 보기"
-    },
-    "orgs": {
-      "title": "소속 조직",
-      "empty": "아직 속한 조직이 없어요.",
-      "memberCount": "{count}명"
-    }
+    "viewTitle": "화면",
+    "showDone": "완료한 할 일도 보기",
+    "showLedger": "가계부 쓰기"
   },
   "appshell": {
     "boardBack": "보드로",
@@ -45,6 +38,7 @@
     "viewBoard": "보드",
     "viewDashboard": "대시보드",
     "viewCalendar": "달력",
+    "viewLedger": "가계부",
     "pendingInvitesAria": "받은 초대 {count}건",
     "receivedInvites": "받은 초대 {count}",
     "unnamedOrg": "이름 없는 조직",
@@ -138,7 +132,6 @@
       "deleteNoteAria": "메모 지우기",
       "notePlaceholder": "메모 남기기",
       "noteSubmitAria": "메모 등록",
-      "handleForMember": "대신 처리",
       "joinTogether": "같이하기",
       "leaveTogether": "그만하기",
       "typingIndicator": "{name}님이 입력 중...",
@@ -157,6 +150,25 @@
       "emptyOther": "남은 할 일이 없어요"
     }
   },
+  "ledger": {
+    "title": "가계부",
+    "prevMonth": "이전 달",
+    "nextMonth": "다음 달",
+    "totalLabel": "이 달에 쓴 돈",
+    "entryCount": "{count}건",
+    "amountPlaceholder": "금액",
+    "titlePlaceholder": "어디에 썼나요",
+    "addEntry": "추가",
+    "empty": "이 달에 적어 둔 지출이 없어요.",
+    "unknownMember": "알 수 없음",
+    "disabledTitle": "가계부를 꺼 두셨어요",
+    "disabledDescription": "내 설정에서 가계부를 켜면 다시 쓸 수 있어요.",
+    "goToSettings": "설정으로 가기",
+    "noOrgTitle": "먼저 조직이 필요해요",
+    "noOrgDescription": "가계부도 조직 단위로 기록해요. 조직을 만들거나 초대를 받아 주세요.",
+    "createOrg": "조직 만들기",
+    "checkInvites": "받은 초대 보기"
+  },
   "calendar": {
     "prevMonth": "이전 달",
     "nextMonth": "다음 달",
@@ -168,7 +180,7 @@
     "emptyDay": "이 날은 비어 있어요",
     "noDueDate": "마감 없음 · {count}건",
     "selectedSummary": "{date} · 일정 {events} · 할 일 {todos}",
-    "closeDay": "날짜 목록 닫기"
+    "resizePanel": "목록 크기 조절"
   },
   "event": {
     "editTitle": "일정 고치기",
@@ -196,7 +208,7 @@
     "createOrg": "조직 만들기",
     "memberCount": "멤버 {count}명",
     "inviteTitle": "팀원 초대",
-    "inviteDescription": "초대할 사람의 이메일을 넣으면, 그 계정으로 로그인했을 때 초대함에 떠요.",
+    "inviteDescription": "이메일을 넣으면 그 사람이 로그인할 때 초대장이 떠요.",
     "inviteButton": "초대",
     "cancelInvite": "취소",
     "membersTitle": "멤버",
@@ -207,17 +219,15 @@
     "leave": "나가기",
     "kick": "내보내기",
     "discordTitle": "Discord 알림",
-    "discordDescription": "할 일이 추가되거나 누가 대신 처리하면 이 채널로 알림이 가요. 채널 설정 → 연동 → 웹후크에서 주소를 복사해 붙여 넣어 주세요. 비우면 알림을 꺼요.",
-    "orgImageTitle": "조직 이미지",
-    "orgImageDescription": "헤더와 조직 목록에 보여요. 없으면 이름 첫 글자로 그려요.",
+    "discordDescription": "할 일 추가와 대신 처리를 이 채널로 알려요. 비우면 꺼져요.",
     "uploading": "올리는 중…",
     "changeImage": "이미지 바꾸기",
     "uploadImage": "이미지 올리기",
-    "renameTitle": "조직 이름 바꾸기",
-    "kickSheetTitle": "멤버를 내보낼까요?",
+    "renameTitle": "이름",
     "kickConfirmDescription": "{name}님을 이 조직에서 내보내요.",
     "kickConfirmDetail": "내보내면 이 조직의 보드를 더 이상 볼 수 없어요. 그동안 쌓인 할 일과 메모는 그대로 남아요. 다시 부르려면 초대를 새로 보내야 해요.",
-    "loadingMembers": "멤버를 불러오는 중"
+    "loadingMembers": "멤버를 불러오는 중",
+    "orgSettingsTitle": "조직 설정"
   },
   "landing": {
     "login": "로그인",
@@ -288,7 +298,6 @@
     "unauthorized": "로그인이 필요해요.",
     "notAMember": "이 조직의 멤버가 아니에요.",
     "managerOnly": "방장만 할 수 있어요.",
-    "generic": "문제가 생겼어요. 잠시 후 다시 시도해 주세요.",
     "orgNameRequired": "조직 이름을 입력해 주세요.",
     "invalidEmail": "이메일 형식이 맞지 않아요.",
     "cannotInviteSelf": "본인은 초대할 수 없어요.",
@@ -305,6 +314,7 @@
     "todoTitleRequired": "할 일 내용을 입력해 주세요.",
     "noteRequired": "메모를 입력해 주세요.",
     "invalidDateFormat": "날짜 형식이 맞지 않아요.",
+    "invalidId": "올바르지 않은 요청이에요.",
     "todoNotFound": "할 일을 찾을 수 없어요.",
     "cannotDeleteTodo": "본인 할 일이거나 방장만 지울 수 있어요.",
     "noteNotFound": "메모를 찾을 수 없어요.",
@@ -320,6 +330,11 @@
     "profileNotFound": "프로필을 찾을 수 없어요.",
     "invalidTheme": "없는 테마예요.",
     "invalidLocale": "없는 언어예요.",
-    "nothingToUpdate": "바꿀 내용이 없어요."
+    "nothingToUpdate": "바꿀 내용이 없어요.",
+    "ledgerTitleRequired": "어디에 썼는지 적어 주세요.",
+    "ledgerAmountRequired": "금액을 0원보다 큰 정수로 적어 주세요.",
+    "ledgerAmountTooLarge": "금액이 너무 커요.",
+    "ledgerEntryNotFound": "지출 내역을 찾을 수 없어요.",
+    "cannotDeleteLedgerEntry": "본인이 적었거나 본인이 낸 지출, 또는 방장만 지울 수 있어요."
   }
 }

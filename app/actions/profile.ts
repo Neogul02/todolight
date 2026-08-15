@@ -13,7 +13,7 @@ import type { Profile } from '@/types/db';
 const nameSchema = (t: ActionT) => z.string().trim().min(1, t('nameRequired')).max(30);
 
 const PROFILE_COLUMNS =
-  'id, email, display_name, avatar_color, avatar_url, theme, locale, show_done, show_avatars, created_at';
+  'id, email, display_name, avatar_color, avatar_url, theme, locale, show_done, show_ledger, created_at';
 
 export async function fetchMyProfile(): Promise<ApiResponse<Profile>> {
   return wrap(async () => {
@@ -36,7 +36,7 @@ export async function updateMyProfile(patch: {
   theme?: string;
   locale?: string;
   showDone?: boolean;
-  showAvatars?: boolean;
+  showLedger?: boolean;
 }): Promise<ApiResponse<Profile>> {
   return wrap(async () => {
     const user = await requireAuth();
@@ -46,7 +46,7 @@ export async function updateMyProfile(patch: {
     if (patch.displayName !== undefined) update.display_name = nameSchema(t).parse(patch.displayName);
     if (patch.avatarUrl !== undefined) update.avatar_url = patch.avatarUrl || null;
     if (patch.showDone !== undefined) update.show_done = patch.showDone;
-    if (patch.showAvatars !== undefined) update.show_avatars = patch.showAvatars;
+    if (patch.showLedger !== undefined) update.show_ledger = patch.showLedger;
     if (patch.theme !== undefined) {
       if (!isValidTheme(patch.theme)) throw new Error(t('invalidTheme'));
       update.theme = patch.theme;

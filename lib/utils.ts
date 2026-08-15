@@ -42,6 +42,48 @@ export function formatKSTTime(iso: string): string {
   return kst.toISOString().slice(11, 16);
 }
 
+/** 이번 달(KST) YYYY-MM */
+export function currentMonthKST(): string {
+  return todayKST().slice(0, 7);
+}
+
+/** YYYY-MM에 달 수를 더한다 */
+export function addMonths(month: string, delta: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const shifted = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return shifted.toISOString().slice(0, 7);
+}
+
+/** YYYY-MM의 첫날·마지막날 (경계 포함) */
+export function monthRange(month: string): { start: string; end: string } {
+  const [y, m] = month.split('-').map(Number);
+  return {
+    start: `${month}-01`,
+    end: new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10),
+  };
+}
+
+/** "2026년 8월" · "August 2026" */
+export function formatMonth(month: string, locale: Locale = DEFAULT_LOCALE): string {
+  const [y, m] = month.split('-').map(Number);
+  return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long', timeZone: 'UTC' }).format(
+    new Date(Date.UTC(y, m - 1, 1))
+  );
+}
+
+/**
+ * 금액 표시. 통화는 원화로 고정한다 —
+ * 로케일에 따라 통화를 바꾸면 같은 조직 안에서 사람마다 다른 금액이 보인다.
+ * 표기(₩12,000 / 12,000원)만 로케일을 따른다.
+ */
+export function formatMoney(amount: number, locale: Locale = DEFAULT_LOCALE): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'KRW',
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
 /** YYYY-MM-DD에 일 수를 더한다 (문자열 기준이라 타임존 영향을 받지 않는다) */
 export function addDays(date: string, delta: number): string {
   const [y, m, d] = date.split('-').map(Number);

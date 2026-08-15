@@ -14,8 +14,8 @@ export interface Profile {
   locale: string;
   /** 보드에 완료한 할 일도 보일지 — 기기를 옮겨도 같아야 해서 계정에 붙였다 */
   show_done: boolean;
-  /** 업로드한 프로필 사진을 볼지 — 꺼도 색 아바타(이름 첫 글자)는 그대로 보인다 */
-  show_avatars: boolean;
+  /** 가계부를 쓸지. 끄면 헤더의 가계부 버튼이 사라진다 */
+  show_ledger: boolean;
   created_at: string;
 }
 
@@ -109,6 +109,26 @@ export interface OrgEvent {
   start_date: string;
   /** 하루짜리면 start_date와 같다 */
   end_date: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+/**
+ * 가계부 한 줄. 할 일도 일정도 아니다 —
+ * "낸 사람"이 있고, 완료 상태가 없고, 보드에 뜨지 않는다.
+ */
+export interface LedgerEntry {
+  id: string;
+  org_id: string;
+  /** 돈을 낸 사람. 남 대신 적어 줄 수 있어서 created_by와 다를 수 있다 */
+  payer_id: string;
+  /** 원 단위 정수 */
+  amount: number;
+  title: string;
+  /** 쓴 날 (YYYY-MM-DD, KST 기준). created_at과 다르다 */
+  spent_on: string;
   created_by: string;
   created_at: string;
   updated_at: string;

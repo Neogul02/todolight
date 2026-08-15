@@ -4,7 +4,8 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
-import { useOutsideClick } from '@/hooks/useOutsideClick';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
+import { useResizablePanel } from '@/hooks/useResizablePanel';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/ui';
 import { getEventColor } from '@/lib/event-colors';
@@ -22,6 +23,11 @@ const MAX_LANES = 3;
 const CELL_GAP_PX = 4;
 /** 점 모드(칸이 좁을 때)에서 한 칸에 찍는 점의 최대 개수 — 넘치면 +N */
 const MAX_DOTS = 4;
+/**
+ * 목록 패널이 차지하는 화면 비율. 아래에서부터 "살짝 보임 · 반반 · 목록 위주".
+ * 맨 아래 값이 0이 아닌 이유: 목록은 늘 보여야 한다. 0이면 예전처럼 "없는 화면"이 된다.
+ */
+const PANEL_SNAPS = [0.24, 0.5, 0.76];
 
 function weekdayOf(date: string): number {
   return new Date(`${date}T00:00:00Z`).getUTCDay();
@@ -134,14 +140,23 @@ export function CalendarView({
   /** 어느 쪽으로 넘겼는지 — 들어오고 나가는 방향을 맞춰야 넘긴 느낌이 난다 */
   const [direction, setDirection] = useState(0);
   const [selected, setSelected] = useState(today);
-  /** 날짜를 탭하기 전엔 목록 패널을 접어 두고 달력을 화면 전체로 쓴다 (모바일 전용 — sm:부턴 CSS가 무시한다) */
-  const [panelOpen, setPanelOpen] = useState(false);
-  /** 달력 전체(격자 + 패널) 바깥의 빈 화면을 누르면 패널을 닫는다. 격자 안의 다른 날짜를
-   *  누르는 것까지 "바깥 클릭"으로 잡으면, mousedown이 먼저 패널을 닫고 뒤이은 onClick의
-   *  selectDate가 그 시점의 panelOpen(=false)을 보고 토글을 오판해 다시 열려버린다 —
-   *  그래서 ref는 격자까지 포함한 컴포넌트 전체 루트에 건다. */
   const rootRef = useRef<HTMLDivElement>(null);
-  useOutsideClick(rootRef, () => setPanelOpen(false), panelOpen);
+  const isDesktop = useIsDesktop();
+  /*
+    목록은 늘 화면에 있다. 핸들을 위아래로 끌면 목록이 커지고 그만큼 달력이 줄어든다 —
+    "이번 달이 어떻게 생겼나"와 "오늘 뭐가 있나"는 번갈아 보는 것이지 둘 중 하나를
+    고르는 게 아니다. 예전처럼 날짜를 눌러야만 목록이 나타나면, 목록이 있다는 것 자체를
+    모르는 사람이 생긴다.
+    데스크톱은 세로 여유가 있어 둘 다 그냥 펴 둔다(enabled=false).
+  */
+  const panel = useResizablePanel({
+    snaps: PANEL_SNAPS,
+    initial: 0,
+    containerRef: rootRef,
+    enabled: !isDesktop,
+  });
+  /** 목록이 커지면 칸이 납작해진다 — 그 높이에는 일정 띠가 안 들어가서 점으로 바꾼다 */
+  const compact = panel.ratio > PANEL_SNAPS[0] + 0.05;
   const [editing, setEditing] = useState<OrgEvent | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -275,14 +290,13 @@ export function CalendarView({
     setSheetOpen(true);
   }
 
-  /** 날짜를 탭하면 목록 패널이 뜬다. 이미 열려 있는 그 날짜를 다시 탭하면 접힌다(토글) */
+  /**
+   * 날짜를 탭하면 그 날짜를 고르고, 목록이 살짝만 보이는 상태였으면 반쯤 펴 준다.
+   * 이미 편 상태에서는 건드리지 않는다 — 날짜만 바꿔 가며 훑을 때 높이가 매번 튀면 어지럽다.
+   */
   function selectDate(date: string) {
-    if (panelOpen && date === selected) {
-      setPanelOpen(false);
-      return;
-    }
     setSelected(date);
-    setPanelOpen(true);
+    panel.expandAtLeast(1);
   }
 
   return (
@@ -340,12 +354,16 @@ export function CalendarView({
         날짜 숫자를 드래그로 선택하게 두면 넘기는 동안 텍스트가 잡히므로 선택을 막는다.
       */}
       {/*
-        칸 높이는 auto-rows-fr로 남은 화면을 억지로 채우지 않는다 — 그러면 달이 5주짜리든
-        6주짜리든 칸이 뷰포트 높이에 맞춰 늘어나서 정사각형을 한참 넘는 길쭉한 직사각형이 된다.
-        대신 아래 각 칸에 aspect-[6/7]을 줘서 폭 기준으로 스스로 높이를 정하게 한다 —
-        칸이 촘촘히 쌓여도 달력 전체 높이가 늘 비슷하게 나온다.
+        모바일에서는 격자가 **남은 높이를 그대로 받아** 줄 수만큼 나눠 갖는다
+        (flex-1 min-h-0 + auto-rows-fr). 패널을 위로 끌면 남는 높이가 줄고 칸이 납작해진다 —
+        그게 "달력 축소"다. 칸에 aspect-[6/7]을 걸면 폭이 높이를 정해 버려서 아무리 끌어도
+        달력이 줄지 않고 잘리기만 한다.
+        sm:부터는 패널이 고정 높이를 갖지 않으므로 예전대로 폭 기준 정사각형에 가깝게 둔다.
       */}
-      <div ref={swipeRef} className="touch-pan-y select-none overflow-hidden">
+      <div
+        ref={swipeRef}
+        className="min-h-0 flex-1 touch-pan-y select-none overflow-hidden sm:flex-none"
+      >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={month}
@@ -355,7 +373,7 @@ export function CalendarView({
             transition={{ duration: reduceMotion ? 0 : 0.16, ease: [0.22, 0.61, 0.36, 1] }}
             role="grid"
             aria-label={t('gridLabel', { month: monthLabel })}
-            className="grid grid-cols-7 gap-x-1 gap-y-1.5"
+            className="grid h-full auto-rows-fr grid-cols-7 gap-x-1 gap-y-1.5 sm:h-auto sm:auto-rows-auto"
           >
         {days.map((date, i) => {
           if (!date) return <span key={`blank-${i}`} role="gridcell" aria-hidden />;
@@ -380,7 +398,13 @@ export function CalendarView({
               */
               aria-label={describeDay(date, remaining, dayEvents)}
               className={cn(
-                'flex aspect-[6/7] flex-col items-stretch gap-1 rounded-xl border pt-1.5 pb-1 transition-colors',
+                /*
+                  overflow-hidden을 걸지 말 것 — 일정 띠는 시작 칸의 자식인데 폭이
+                  calc(100% * n)으로 여러 칸에 걸쳐 있어서, 칸에서 잘라 내면 띠가 시작한 하루만
+                  남고 나머지 날은 빈칸이 된다(기간 일정이 중간중간 끊겨 보인다).
+                  세로로 넘치는 건 칸이 납작해질 때의 문제인데, 그건 점 모드로 따로 해결한다.
+                */
+                'flex min-h-0 flex-col items-stretch gap-1 rounded-xl border pt-1.5 pb-1 transition-colors sm:aspect-[6/7]',
                 isSelected
                   ? 'border-accent bg-accent-soft text-ink'
                   : 'border-transparent text-ink active:bg-canvas-soft'
@@ -418,15 +442,14 @@ export function CalendarView({
                 띠는 시작 칸 button의 자식이기 때문이다. 클릭은 칸이 받아야 한다.
               */}
               {/*
-                calendar-viewport가 패널 때문에 줄어든 동안(panelOpen, 모바일에서만) 칸 높이가
-                띠 3줄(52px)보다 좁아질 수 있다 — 그대로 두면 일정 많은 날이 잘려 보인다.
-                그 상태에서는 띠 대신 점으로만 표시한다. 데스크톱은 패널이 실제로 안 줄어들어서
-                sm:부터 다시 띠로 되돌린다(compact 여부와 무관하게 항상 sm:flex).
+                목록을 위로 끌어 칸이 납작해지면 띠 3줄(52px)이 안 들어간다 —
+                그대로 두면 일정 많은 날이 잘려 보이므로 그 상태에서는 점으로만 표시한다.
+                데스크톱은 패널이 높이를 뺏지 않으므로 compact 여부와 무관하게 늘 띠다(sm:flex).
               */}
               <span
                 className={cn(
                   'pointer-events-none min-h-[52px] flex-col gap-[2px] sm:flex',
-                  panelOpen ? 'hidden' : 'flex'
+                  compact ? 'hidden' : 'flex'
                 )}
               >
                 {Array.from({ length: MAX_LANES }, (_, lane) => {
@@ -487,14 +510,14 @@ export function CalendarView({
               </span>
 
               {/*
-                점 모드 — 위 띠 span과 자리를 맞바꾼다(panelOpen이면 모바일에서만 보임).
+                점 모드 — 위 띠 span과 자리를 맞바꾼다(칸이 납작할 때, 모바일에서만).
                 제목·기간 정보 없이 색만 찍어서, 일정이 몰린 날도 칸 높이가 줄어든 만큼만 차지한다.
               */}
               {dayEvents.length > 0 && (
                 <span
                   className={cn(
                     'pointer-events-none min-h-[10px] flex-wrap items-center justify-center gap-[3px] px-1 sm:hidden',
-                    panelOpen ? 'flex' : 'hidden'
+                    compact ? 'flex' : 'hidden'
                   )}
                 >
                   {dayEvents.slice(0, MAX_DOTS).map(e => (
@@ -524,19 +547,36 @@ export function CalendarView({
       </div>
 
       {/*
-        날짜 목록 패널. 접혀 있으면(panelOpen=false) 높이 0으로 그냥 사라져서 위 달력이
-        calendar-viewport 전체를 차지한다 — 화면 절반 정도로 펴지는 건 h-[50dvh] 하나로 끝난다.
-        sm:부턴 h-auto로 되돌려 원래처럼 늘 펼쳐진 정적 섹션으로 되돌아간다(패널 개념 자체가 무의미).
+        날짜 목록 패널.
+
+        높이를 px가 아니라 뷰포트 대비 비율(inline style)로 준다 — 주소창이 접혔다 펴지며
+        dvh가 실시간으로 변하는데 px로 잡으면 그때마다 비율이 어긋난다.
+        끄는 동안에는 transition을 끈다. 켜 두면 손가락을 300ms 뒤에서 따라온다.
+        sm:부턴 h-auto라 인라인 높이가 무시되고 예전처럼 늘 펼쳐진 정적 섹션이 된다.
       */}
       <div
+        style={{ height: `${panel.ratio * 100}%` }}
         className={cn(
-          'overflow-hidden transition-[height] duration-300 ease-out',
-          panelOpen ? 'h-[50dvh]' : 'h-0',
-          'sm:h-auto sm:overflow-visible sm:transition-none'
+          'flex shrink-0 flex-col overflow-hidden sm:!h-auto sm:overflow-visible',
+          panel.dragging ? 'transition-none' : 'transition-[height] duration-300 ease-out'
         )}
       >
-        <div className="mt-4 h-full overflow-y-auto border-t border-hairline pt-3 pb-safe sm:h-auto sm:overflow-visible">
-          <div className="flex items-center justify-between pb-2">
+        {/*
+          끌어서 크기를 바꾸는 손잡이. 누르기만 해도 다음 단계로 넘어간다 —
+          작은 화면에서 몇 픽셀을 정확히 끄는 것보다 한 번 누르는 쪽이 빠를 때가 많다.
+          touch-none이 없으면 브라우저가 이 세로 제스처를 페이지 스크롤로 먹어 버린다.
+        */}
+        <button
+          type="button"
+          aria-label={t('resizePanel')}
+          {...panel.handleProps}
+          className="grid h-6 shrink-0 touch-none place-items-center no-select sm:hidden"
+        >
+          <span className="h-1 w-10 rounded-full bg-hairline-strong" />
+        </button>
+
+        <div className="flex min-h-0 flex-1 flex-col border-t border-hairline pt-3 sm:mt-4 sm:min-h-0 sm:flex-none">
+          <div className="flex shrink-0 items-center justify-between pb-2">
             <h2 className="text-caption font-semibold text-ink-secondary">
               {t('selectedSummary', {
                 date: selected,
@@ -544,21 +584,12 @@ export function CalendarView({
                 todos: selectedTodos.length,
               })}
             </h2>
-            <div className="flex items-center gap-1.5">
-              <Button size="sm" variant="outline" onClick={openNewEvent}>
-                {t('newEvent')}
-              </Button>
-              {/* 데스크톱은 패널이 늘 펴져 있어 닫을 필요가 없다 */}
-              <button
-                type="button"
-                onClick={() => setPanelOpen(false)}
-                aria-label={t('closeDay')}
-                className="grid size-8 shrink-0 place-items-center rounded-lg text-[15px] text-ink-muted active:bg-canvas-soft sm:hidden"
-              >
-                ✕
-              </button>
-            </div>
+            <Button size="sm" variant="outline" onClick={openNewEvent}>
+              {t('newEvent')}
+            </Button>
           </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-safe sm:overflow-visible">
 
           {selectedEvents.length > 0 && (
             <ul className="mb-2 flex flex-col gap-1.5">
@@ -622,6 +653,7 @@ export function CalendarView({
               </ul>
             </div>
           )}
+          </div>
         </div>
       </div>
 

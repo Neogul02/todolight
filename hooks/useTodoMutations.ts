@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import {
   addTodoNote,
+  createTodo,
   deleteTodo,
   deleteTodoNote,
   restoreTodo,
@@ -86,6 +87,40 @@ export function useTodoMutations(orgId: string | null) {
           )
         ),
       };
+    },
+    onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
+    onSettled: (_data, _error, input) => settle(input.todo.id),
+  });
+
+  /**
+   * 할 일 추가.
+   *
+   * 예전에는 컴포넌트가 `createTodo`를 직접 부르고 응답을 기다린 뒤 목록을 통째로
+   * 다시 읽었다 — 서버 왕복 두 번(추가 ~350ms + 전체 재조회 ~300ms) 동안 화면이
+   * 아무 반응도 하지 않아서 "가끔 렉이 걸린다"로 느껴졌다. 체크·삭제와 같은 규칙으로 맞춘다.
+   *
+   * id를 **클라이언트가 먼저 정해서** 보낸다. 임시 id로 그렸다가 나중에 바꾸면,
+   * 그 사이 도착한 실시간 INSERT가 다른 id로 보여 카드가 둘로 늘어난다.
+   * 같은 id로 저장하면 실시간 병합이 그냥 같은 행 갱신이 된다.
+   */
+  const create = useMutation({
+    mutationFn: async (input: {
+      todo: Todo;
+      orgId: string;
+    }) => {
+      const res = await createTodo({
+        id: input.todo.id,
+        orgId: input.orgId,
+        title: input.todo.title,
+        ownerId: input.todo.owner_id,
+        dueDate: input.todo.due_date,
+      });
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onMutate: async input => {
+      markTodoPending(input.todo.id);
+      return { snapshot: await patch(todos => [input.todo, ...todos]) };
     },
     onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
     onSettled: (_data, _error, input) => settle(input.todo.id),
@@ -233,5 +268,5 @@ export function useTodoMutations(orgId: string | null) {
     onSettled: resync,
   });
 
-  return { toggleStatus, edit, remove, restore, addNote, editNote, deleteNote, join, leave };
+  return { create, toggleStatus, edit, remove, restore, addNote, editNote, deleteNote, join, leave };
 }

@@ -48,10 +48,16 @@ export default function AppShell({
   // useSyncExternalStore 기반이라 SSR과 어긋나지 않는다(useIsDesktop.ts 참고).
   const isDesktop = useIsDesktop();
   const [manualMode, setManualMode] = useState<BoardMode | null>(null);
-  const boardMode = manualMode ?? (isDesktop ? 'dashboard' : 'board');
+  const picked = manualMode ?? (isDesktop ? 'dashboard' : 'board');
+  /*
+    대시보드는 PC 전용이다. 폰에서는 멤버가 늘수록 세로로 한없이 길어져서
+    "누가 무엇을 들고 있나"가 오히려 안 보인다 — 그 일은 좌우로 미는 보드가 이미 한다.
+    창을 줄여서 넘어온 경우에도 보드로 떨어뜨린다(버튼이 없어 되돌아갈 길이 없으므로).
+  */
+  const boardMode: BoardMode = !isDesktop && picked === 'dashboard' ? 'board' : picked;
   const setBoardMode = setManualMode;
 
-  /* 헤더 가운데에 놓는 뷰 전환. 셋뿐이라 아이콘 모양으로 구분된다 */
+  /* 헤더 가운데에 놓는 뷰 전환. 아이콘 모양으로 구분된다 */
   const VIEW_MODES: {
     key: BoardMode;
     label: string;
@@ -74,6 +80,21 @@ export default function AppShell({
 
   const activeOrg = orgs.find(o => o.id === activeOrgId) ?? null;
   const onBoard = pathname === '/board';
+  const onLedger = pathname === '/ledger';
+  /*
+    보드의 세 뷰와 가계부는 "매일 들여다보는 화면"이라 같은 세그먼트에 둔다.
+    가계부만 별도 라우트라서, 가계부에 있는 동안 보드 뷰를 고르면 /board로 돌려보낸다 —
+    안 그러면 모드만 바뀌고 화면은 그대로라 버튼이 먹통처럼 보인다.
+  */
+  const showViewSwitch = onBoard || onLedger;
+  // 설정에서 끄면 버튼 자체를 감춘다. 다만 이미 /ledger에 있다면 남겨 둔다 —
+  // 켜 놓고 들어왔다가 다른 기기에서 끄면 나갈 길이 사라진다.
+  const showLedgerButton = (profile?.show_ledger ?? true) || onLedger;
+
+  function pickBoardMode(key: BoardMode) {
+    setBoardMode(key);
+    if (!onBoard) router.push('/board');
+  }
 
   useEffect(() => {
     if (profile?.theme) applyTheme(profile.theme);
@@ -149,8 +170,11 @@ export default function AppShell({
       <div className="flex min-h-dvh flex-col">
         <header className="sticky top-0 z-30 border-b border-hairline bg-canvas/85 backdrop-blur-md">
           <div className="mx-auto flex h-[var(--header-h)] w-full max-w-[1400px] items-center gap-1 px-2 sm:px-3">
-            {/* 보드가 아닌 화면에서는 되돌아갈 길을 남긴다 */}
-            {!onBoard && (
+            {/*
+              보드가 아닌 화면에서는 되돌아갈 길을 남긴다.
+              가계부는 예외 — 뷰 세그먼트가 그대로 떠 있어서 거기서 바로 보드로 갈 수 있다.
+            */}
+            {!onBoard && !onLedger && (
               <Link
                 href="/board"
                 aria-label={t('boardBack')}
@@ -175,28 +199,50 @@ export default function AppShell({
               </span>
             </div>
 
-            {/* 보드에서만 뜬다 — 팀·설정 화면에서는 고를 것이 없다 */}
-            {onBoard && (
+            {/* 보드·가계부에서만 뜬다 — 팀·설정 화면에서는 고를 것이 없다 */}
+            {showViewSwitch && (
               <div className="flex h-9 shrink-0 overflow-hidden rounded-lg border border-hairline no-select">
-                {VIEW_MODES.map(({ key, label, Icon }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setBoardMode(key)}
-                    aria-pressed={boardMode === key}
-                    aria-label={label}
-                    title={label}
+                {VIEW_MODES.map(({ key, label, Icon }) => {
+                  const active = onBoard && boardMode === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => pickBoardMode(key)}
+                      aria-pressed={active}
+                      aria-label={label}
+                      title={label}
+                      className={cn(
+                        'grid w-10 place-items-center transition-colors',
+                        active ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted',
+                        // 보드(가로 캐러셀)와 대시보드(격자)는 "여러 명 보기"로 겹친다 —
+                        // 폰에서는 보드만, PC에서는 대시보드만 둔다.
+                        key === 'board' && 'sm:hidden',
+                        key === 'dashboard' && 'hidden sm:grid'
+                      )}
+                    >
+                      <Icon className="size-[18px]" />
+                    </button>
+                  );
+                })}
+                {/*
+                  가계부는 같은 보드를 다르게 보는 뷰가 아니라 다른 페이지다 —
+                  구분선을 하나 넣어 앞의 세 칸과 성격이 다르다는 걸 드러낸다.
+                */}
+                {showLedgerButton && (
+                  <Link
+                    href="/ledger"
+                    aria-label={t('viewLedger')}
+                    title={t('viewLedger')}
+                    aria-current={onLedger ? 'page' : undefined}
                     className={cn(
-                      'grid w-10 place-items-center transition-colors',
-                      boardMode === key ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted',
-                      // 보드(가로 캐러셀)와 대시보드(격자)는 PC에서 둘 다 "여러 명 동시에
-                      // 보기"라 겹친다 — sm 이상에서는 대시보드·달력만 남긴다.
-                      key === 'board' && 'sm:hidden'
+                      'grid w-10 place-items-center border-l border-hairline transition-colors',
+                      onLedger ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted'
                     )}
                   >
-                    <Icon className="size-[18px]" />
-                  </button>
-                ))}
+                    <LedgerIcon className="size-[18px]" />
+                  </Link>
+                )}
               </div>
             )}
 
@@ -372,6 +418,17 @@ function CalendarIcon({ className }: { className?: string }) {
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
       <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
       <path d="M3.5 10h17M8 3.5v3M16 3.5v3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/* 지폐 — 달력(사각형 + 가로줄 + 위쪽 고리)과 실루엣이 겹치지 않게 가운데를 동그라미로 뚫었다 */
+function LedgerIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="2.5" y="6" width="19" height="12" rx="2.5" />
+      <circle cx="12" cy="12" r="2.6" />
+      <path d="M6 12h.01M18 12h.01" strokeLinecap="round" />
     </svg>
   );
 }

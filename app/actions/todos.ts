@@ -5,7 +5,7 @@ import { after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { notifyDiscord, truncate } from '@/lib/discord';
 import { requireAuth, wrap } from './_base';
-import { assertMember } from '@/lib/guards';
+import { assertMember, assertMembers } from '@/lib/guards';
 import { formatRelativeDay } from '@/lib/utils';
 import { type ActionT, getActionT } from '@/lib/server-i18n';
 import type { ApiResponse } from '@/types/api';
@@ -14,6 +14,8 @@ import type { Todo, TodoNote, TodoStatus } from '@/types/db';
 const titleSchema = (t: ActionT) => z.string().trim().min(1, t('todoTitleRequired')).max(500);
 const noteSchema = (t: ActionT) => z.string().trim().min(1, t('noteRequired')).max(1000);
 const statusSchema = z.enum(['todo', 'doing', 'done']);
+/** 클라이언트가 정한 행 id — 아무 문자열이나 PK로 들어가지 않게 형식만 본다 */
+const idSchema = (t: ActionT) => z.string().uuid(t('invalidId'));
 const dueSchema = (t: ActionT) =>
   z
     .string()
@@ -124,33 +126,48 @@ export async function createTodo(input: {
   title: string;
   ownerId?: string;
   dueDate?: string | null;
+  /**
+   * 클라이언트가 미리 정한 행 id. 낙관적으로 그린 카드와 **같은 id**로 저장해야
+   * 뒤이어 도착하는 실시간 INSERT가 같은 행으로 인식돼 카드가 둘로 늘지 않는다.
+   * 넘기지 않으면 DB의 기본값(gen_random_uuid)이 쓰인다.
+   */
+  id?: string;
 }): Promise<ApiResponse<Todo>> {
   return wrap(async () => {
     const user = await requireAuth();
-    await assertMember(input.orgId, user.id);
     const t = await getActionT();
 
     const title = titleSchema(t).parse(input.title);
     const dueDate = dueSchema(t).parse(input.dueDate ?? null) ?? null;
     const ownerId = input.ownerId ?? user.id;
-    if (ownerId !== user.id) await assertMember(input.orgId, ownerId);
+    const id = input.id ? idSchema(t).parse(input.id) : undefined;
 
-    // 같은 컬럼 맨 위로 — position은 double이라 앞에 넣을 때 재정렬이 필요 없다.
-    const { data: top } = await getSupabaseAdmin()
-      .from('todos')
-      .select('position')
-      .eq('org_id', input.orgId)
-      .eq('owner_id', ownerId)
-      .is('deleted_at', null)
-      .order('position', { ascending: true })
-      .limit(1)
-      .maybeSingle();
+    /*
+      소속 확인과 맨 위 position 조회는 서로를 기다릴 이유가 없다 —
+      직렬로 두면 왕복 하나가 통째로 응답 시간에 얹힌다.
+      남의 목록에 꽂는 경우 주인도 같은 조직인지 함께 본다(멤버 조회 한 번으로).
+    */
+    const [, top] = await Promise.all([
+      assertMembers(input.orgId, ownerId === user.id ? [user.id] : [user.id, ownerId]),
+      // 같은 컬럼 맨 위로 — position은 double이라 앞에 넣을 때 재정렬이 필요 없다.
+      getSupabaseAdmin()
+        .from('todos')
+        .select('position')
+        .eq('org_id', input.orgId)
+        .eq('owner_id', ownerId)
+        .is('deleted_at', null)
+        .order('position', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+        .then(r => r.data),
+    ]);
 
     const position = top ? top.position - 1 : 0;
 
     const { data, error } = await getSupabaseAdmin()
       .from('todos')
       .insert({
+        ...(id ? { id } : {}),
         org_id: input.orgId,
         owner_id: ownerId,
         title,
@@ -450,32 +467,5 @@ export async function deleteTodoNote(noteId: string): Promise<ApiResponse<null>>
     const { error } = await getSupabaseAdmin().from('todo_notes').delete().eq('id', noteId);
     if (error) throw new Error(error.message);
     return null;
-  });
-}
-
-/** 드래그 정렬 — 앞뒤 항목 position의 중간값을 준다 */
-export async function reorderTodo(
-  todoId: string,
-  beforePosition: number | null,
-  afterPosition: number | null
-): Promise<ApiResponse<Todo>> {
-  return wrap(async () => {
-    const user = await requireAuth();
-    const todo = await loadTodoForMember(todoId, user.id);
-
-    let position: number;
-    if (beforePosition === null && afterPosition === null) position = 0;
-    else if (beforePosition === null) position = afterPosition! - 1;
-    else if (afterPosition === null) position = beforePosition + 1;
-    else position = (beforePosition + afterPosition) / 2;
-
-    const { data, error } = await getSupabaseAdmin()
-      .from('todos')
-      .update({ position })
-      .eq('id', todo.id)
-      .select(TODO_COLUMNS)
-      .single();
-    if (error) throw new Error(error.message);
-    return data as Todo;
   });
 }

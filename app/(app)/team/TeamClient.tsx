@@ -28,6 +28,13 @@ import { formatRelativeDay } from '@/lib/utils';
 import type { Locale } from '@/lib/locales';
 import type { MemberSummary } from '@/types/db';
 
+/**
+ * 팀 화면 — 초대 · 멤버 · 조직 설정, 카드 세 장.
+ *
+ * 조직 설정(아이콘·이름·Discord)은 원래 카드 세 장에 나뉘어 있었다. 셋 다 방장만 보고,
+ * 셋 다 "이 조직이 어떻게 보이고 어디로 알림이 가나"라는 한 가지 얘기라 한 장으로 합쳤다.
+ * 저장 버튼도 하나면 된다 — 세 개가 각자 있으면 무엇이 저장됐는지 매번 헤아려야 한다.
+ */
 export default function TeamClient() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -48,8 +55,10 @@ export default function TeamClient() {
   const [email, setEmail] = useState('');
   const [orgName, setOrgName] = useState('');
   const [webhook, setWebhook] = useState<string | null>(null);
-  // 내보내기는 되돌릴 수 없다 — 빨간 버튼 하나로 끝내지 않고 시트에서 한 번 더 확인받는다
-  const [pendingKick, setPendingKick] = useState<MemberSummary | null>(null);
+  /** 관리 동작을 여는 멤버. 목록에 버튼을 늘어놓지 않고 누른 사람 것만 시트로 연다 */
+  const [managing, setManaging] = useState<MemberSummary | null>(null);
+  /** 내보내기는 되돌릴 수 없다 — 시트 안에서 한 번 더 확인받는다 */
+  const [confirmKick, setConfirmKick] = useState(false);
   const [uploading, setUploading] = useState(false);
   const orgFileRef = useRef<HTMLInputElement | null>(null);
 
@@ -122,6 +131,11 @@ export default function TeamClient() {
     onError: (e: Error) => showMsg(e.message, 'error'),
   });
 
+  function closeManage() {
+    setManaging(null);
+    setConfirmKick(false);
+  }
+
   const kick = useMutation({
     mutationFn: async (targetId: string) => {
       const res = await removeMember(activeOrgId!, targetId);
@@ -130,7 +144,7 @@ export default function TeamClient() {
     },
     onSuccess: targetId => {
       showMsg(targetId === userId ? tToast('leftOrg') : tToast('memberRemoved'), 'success');
-      setPendingKick(null);
+      closeManage();
       queryClient.invalidateQueries({ queryKey: ['members', activeOrgId] });
       router.refresh();
     },
@@ -144,6 +158,7 @@ export default function TeamClient() {
     },
     onSuccess: () => {
       showMsg(tToast('roleChanged'), 'success');
+      closeManage();
       queryClient.invalidateQueries({ queryKey: ['members', activeOrgId] });
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
@@ -166,10 +181,7 @@ export default function TeamClient() {
       if (!res.success) throw new Error(res.error);
       return value;
     },
-    onSuccess: value => {
-      showMsg(value ? tToast('discordOn') : tToast('discordOff'), 'success');
-      queryClient.invalidateQueries({ queryKey: ['org-webhook', activeOrgId] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['org-webhook', activeOrgId] }),
     onError: (e: Error) => showMsg(e.message, 'error'),
   });
 
@@ -179,12 +191,26 @@ export default function TeamClient() {
       if (!res.success) throw new Error(res.error);
     },
     onSuccess: () => {
-      showMsg(tToast('orgRenamed'), 'success');
       setOrgName('');
       router.refresh();
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
   });
+
+  /*
+    이름과 웹훅을 한 버튼으로 저장한다. 건드리지 않은 항목은 보내지 않는다 —
+    빈 이름으로 덮어쓰거나, 이름만 바꿨는데 웹훅까지 다시 쓰는 일이 없어야 한다.
+  */
+  const savingOrg = rename.isPending || saveWebhook.isPending;
+  const nameChanged = orgName.trim().length > 0 && orgName.trim() !== activeOrg?.name;
+  const webhookChanged = webhook !== null && webhook !== (savedWebhook.data ?? '');
+
+  async function saveOrgSettings() {
+    if (savingOrg) return;
+    if (nameChanged) await rename.mutateAsync(orgName.trim());
+    if (webhookChanged) await saveWebhook.mutateAsync(webhook!);
+    showMsg(tCommon('saved'), 'success');
+  }
 
   if (!activeOrgId || !activeOrg) {
     return (
@@ -197,15 +223,19 @@ export default function TeamClient() {
     );
   }
 
+  const canManage = (m: MemberSummary) => {
+    const isSelf = m.user_id === userId;
+    const canChangeRole = activeOrg.role === 'owner' && !isSelf && m.role !== 'owner';
+    const canRemove = isSelf ? m.role !== 'owner' : isManager && m.role !== 'owner';
+    return { isSelf, canChangeRole, canRemove, any: canChangeRole || canRemove };
+  };
+
+  const managed = managing ? canManage(managing) : null;
+
   return (
     <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-5 pb-safe sm:py-6">
       <div className="flex items-center gap-3">
-        <OrgIcon
-          name={activeOrg.name}
-          imageUrl={activeOrg.image_url}
-          seed={activeOrg.id}
-          size="lg"
-        />
+        <OrgIcon name={activeOrg.name} imageUrl={activeOrg.image_url} seed={activeOrg.id} size="lg" />
         <div className="min-w-0">
           <h1 className="truncate text-heading-2 text-ink">{activeOrg.name}</h1>
           <p className="mt-0.5 text-caption text-ink-muted">
@@ -283,67 +313,38 @@ export default function TeamClient() {
         {members.isLoading && <MemberRowsSkeleton loadingLabel={t('loadingMembers')} />}
         {members.data && members.data.length === 0 && <EmptyState title={t('noMembers')} />}
 
-        <ul className="mt-3 flex flex-col gap-1">
+        {/*
+          목록에는 사람만 둔다. 역할 변경·내보내기 버튼을 행마다 늘어놓으면 멤버가 늘수록
+          목록이 버튼밭이 되고, 되돌릴 수 없는 빨간 버튼이 늘 떠 있게 된다 —
+          누른 사람 것만 시트로 연다.
+        */}
+        <ul className="mt-3 flex flex-col">
           {(members.data ?? []).map(m => {
-            const isSelf = m.user_id === userId;
-            const canChangeRole = activeOrg.role === 'owner' && !isSelf && m.role !== 'owner';
-            const canRemove = isSelf ? m.role !== 'owner' : isManager && m.role !== 'owner';
-
+            const { isSelf, any } = canManage(m);
             return (
-              // 393px 폭에서 이름·역할·버튼 두 개를 한 줄에 넣으면 전부 뭉갠다 —
-              // 모바일에서는 버튼을 아랫줄로 내린다.
-              <li
-                key={m.user_id}
-                className="flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-xl border-b border-hairline px-1 py-3 last:border-b-0 sm:border-b-0 sm:py-2"
-              >
-                <Avatar
-                  name={m.display_name}
-                  color={m.avatar_color}
-                  imageUrl={m.avatar_url}
-                  seed={m.user_id}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[15px] font-medium text-ink sm:text-[14px]">
-                    {m.display_name}
-                    {isSelf && <span className="ml-1 text-[12px] text-ink-faint">{t('you')}</span>}
-                  </p>
-                  <p className="truncate text-[12px] text-ink-faint">{m.email}</p>
-                </div>
-
-                <Badge tone={m.role === 'owner' ? 'accent' : 'neutral'}>{ROLE_LABEL[m.role]}</Badge>
-
-                {(canChangeRole || canRemove) && (
-                  <div className="flex w-full gap-1.5 sm:w-auto">
-                    {canChangeRole && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 sm:flex-none"
-                        onClick={() =>
-                          changeRole.mutate({
-                            targetId: m.user_id,
-                            role: m.role === 'admin' ? 'member' : 'admin',
-                          })
-                        }
-                        disabled={changeRole.isPending}
-                      >
-                        {m.role === 'admin' ? t('demoteAdmin') : t('promoteAdmin')}
-                      </Button>
-                    )}
-
-                    {canRemove && (
-                      <Button
-                        size="sm"
-                        variant={isSelf ? 'outline' : 'danger'}
-                        className="flex-1 sm:flex-none"
-                        onClick={() => (isSelf ? kick.mutate(m.user_id) : setPendingKick(m))}
-                        disabled={kick.isPending}
-                      >
-                        {isSelf ? t('leave') : t('kick')}
-                      </Button>
-                    )}
-                  </div>
-                )}
+              <li key={m.user_id} className="border-b border-hairline last:border-b-0">
+                <button
+                  type="button"
+                  disabled={!any}
+                  onClick={() => setManaging(m)}
+                  className="flex w-full items-center gap-2.5 px-1 py-3 text-left transition-colors active:bg-canvas-soft disabled:active:bg-transparent sm:py-2.5"
+                >
+                  <Avatar
+                    name={m.display_name}
+                    color={m.avatar_color}
+                    imageUrl={m.avatar_url}
+                    seed={m.user_id}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-medium text-ink sm:text-[14px]">
+                      {m.display_name}
+                      {isSelf && <span className="ml-1 text-[12px] text-ink-faint">{t('you')}</span>}
+                    </span>
+                    <span className="block truncate text-[12px] text-ink-faint">{m.email}</span>
+                  </span>
+                  <Badge tone={m.role === 'owner' ? 'accent' : 'neutral'}>{ROLE_LABEL[m.role]}</Badge>
+                  {any && <ChevronIcon className="size-4 shrink-0 text-ink-faint" />}
+                </button>
               </li>
             );
           })}
@@ -352,36 +353,8 @@ export default function TeamClient() {
 
       {isManager && (
         <Card className="p-5">
-          <h2 className="text-title text-ink">{t('discordTitle')}</h2>
-          <p className="mt-1 text-caption text-ink-muted">{t('discordDescription')}</p>
-          <form
-            onSubmit={e => {
-              e.preventDefault();
-              saveWebhook.mutate(webhook ?? savedWebhook.data ?? '');
-            }}
-            className="mt-3 flex flex-col gap-2 sm:flex-row"
-          >
-            <Input
-              type="url"
-              inputMode="url"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              value={webhook ?? savedWebhook.data ?? ''}
-              onChange={e => setWebhook(e.target.value)}
-              placeholder="https://discord.com/api/webhooks/..."
-            />
-            <Button type="submit" variant="outline" disabled={saveWebhook.isPending}>
-              {tCommon('save')}
-            </Button>
-          </form>
-        </Card>
-      )}
+          <h2 className="text-title text-ink">{t('orgSettingsTitle')}</h2>
 
-      {isManager && (
-        <Card className="p-5">
-          <h2 className="text-title text-ink">{t('orgImageTitle')}</h2>
-          <p className="mt-1 text-caption text-ink-muted">{t('orgImageDescription')}</p>
           <input
             ref={orgFileRef}
             type="file"
@@ -410,57 +383,112 @@ export default function TeamClient() {
               </Button>
             )}
           </div>
-        </Card>
-      )}
 
-      {isManager && (
-        <Card className="p-5">
-          <h2 className="text-title text-ink">{t('renameTitle')}</h2>
-          <form
-            onSubmit={e => {
-              e.preventDefault();
-              if (orgName.trim()) rename.mutate(orgName);
-            }}
-            className="mt-3 flex gap-2"
-          >
+          <label className="mt-4 flex flex-col gap-1.5">
+            <span className="text-caption font-medium text-ink-secondary">{t('renameTitle')}</span>
             <Input
-              value={orgName}
+              value={orgName || activeOrg.name}
               onChange={e => setOrgName(e.target.value)}
-              placeholder={activeOrg.name}
+              enterKeyHint="done"
               maxLength={60}
             />
-            <Button type="submit" variant="outline" disabled={rename.isPending || !orgName.trim()}>
-              {tCommon('save')}
-            </Button>
-          </form>
+          </label>
+
+          <label className="mt-4 flex flex-col gap-1.5">
+            <span className="text-caption font-medium text-ink-secondary">{t('discordTitle')}</span>
+            <Input
+              type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="done"
+              value={webhook ?? savedWebhook.data ?? ''}
+              onChange={e => setWebhook(e.target.value)}
+              placeholder="https://discord.com/api/webhooks/..."
+            />
+            <span className="text-caption text-ink-faint">{t('discordDescription')}</span>
+          </label>
+
+          <Button
+            className="mt-4 w-full"
+            onClick={saveOrgSettings}
+            disabled={savingOrg || (!nameChanged && !webhookChanged)}
+          >
+            {tCommon('save')}
+          </Button>
         </Card>
       )}
-      <BottomSheet
-        open={!!pendingKick}
-        onClose={() => setPendingKick(null)}
-        title={t('kickSheetTitle')}
-      >
-        <p className="text-body-sm text-ink">
-          {t('kickConfirmDescription', {
-            name: pendingKick?.display_name ?? '',
-          })}
-        </p>
-        <p className="mt-1.5 text-caption text-ink-muted">{t('kickConfirmDetail')}</p>
 
-        <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button variant="outline" onClick={() => setPendingKick(null)}>
-            {t('cancelInvite')}
-          </Button>
-          <Button
-            variant="danger"
-            onClick={() => pendingKick && kick.mutate(pendingKick.user_id)}
-            disabled={kick.isPending}
-          >
-            {t('kick')}
-          </Button>
-        </div>
+      {/* 멤버 관리 — 역할 변경과 내보내기. 내보내기는 여기서 한 번 더 확인받는다 */}
+      <BottomSheet
+        open={!!managing}
+        onClose={closeManage}
+        title={managing?.display_name ?? ''}
+      >
+        {managing && managed && (
+          <div className="flex flex-col gap-2">
+            {managed.canChangeRole && (
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() =>
+                  changeRole.mutate({
+                    targetId: managing.user_id,
+                    role: managing.role === 'admin' ? 'member' : 'admin',
+                  })
+                }
+                disabled={changeRole.isPending}
+              >
+                {managing.role === 'admin' ? t('demoteAdmin') : t('promoteAdmin')}
+              </Button>
+            )}
+
+            {managed.canRemove &&
+              (confirmKick && !managed.isSelf ? (
+                <div className="rounded-xl border border-hairline bg-canvas-soft p-3">
+                  <p className="text-body-sm text-ink">
+                    {t('kickConfirmDescription', { name: managing.display_name })}
+                  </p>
+                  <p className="mt-1.5 text-caption text-ink-muted">{t('kickConfirmDetail')}</p>
+                  <div className="mt-3 flex gap-2">
+                    <Button variant="outline" className="flex-1" onClick={() => setConfirmKick(false)}>
+                      {t('cancelInvite')}
+                    </Button>
+                    <Button
+                      variant="danger"
+                      className="flex-1"
+                      onClick={() => kick.mutate(managing.user_id)}
+                      disabled={kick.isPending}
+                    >
+                      {t('kick')}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  size="lg"
+                  variant={managed.isSelf ? 'outline' : 'danger'}
+                  onClick={() =>
+                    managed.isSelf ? kick.mutate(managing.user_id) : setConfirmKick(true)
+                  }
+                  disabled={kick.isPending}
+                >
+                  {managed.isSelf ? t('leave') : t('kick')}
+                </Button>
+              ))}
+          </div>
+        )}
       </BottomSheet>
     </main>
+  );
+}
+
+function ChevronIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="m10 6 6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -471,9 +499,9 @@ export default function TeamClient() {
  */
 function MemberRowsSkeleton({ loadingLabel }: { loadingLabel: string }) {
   return (
-    <ul className="mt-3 flex flex-col gap-1" aria-busy="true" aria-label={loadingLabel}>
+    <ul className="mt-3 flex flex-col" aria-busy="true" aria-label={loadingLabel}>
       {[0, 1, 2].map(i => (
-        <li key={i} className="flex items-center gap-2.5 px-1 py-3 sm:py-2">
+        <li key={i} className="flex items-center gap-2.5 px-1 py-3 sm:py-2.5">
           <span className="size-8 shrink-0 rounded-full bg-canvas-soft animate-pulse-soft" />
           <span className="flex flex-1 flex-col gap-1.5">
             <span className="h-3.5 w-24 rounded-md bg-canvas-soft animate-pulse-soft" />

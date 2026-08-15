@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { updateMyProfile } from '@/app/actions/profile';
@@ -10,46 +10,108 @@ import { THEMES } from '@/lib/themes';
 import { LOCALES, type Locale } from '@/lib/locales';
 import { removeAvatar, uploadAvatar } from '@/lib/image-upload';
 import { Avatar } from '@/components/Avatar';
-import { Badge, Button, Card, Input } from '@/components/ui';
+import { Button, Card, Input } from '@/components/ui';
 import { showMsg } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { useApp } from '../OrgContext';
 
+/** 이름을 한 글자 칠 때마다 서버를 부르지 않도록 기다리는 시간 */
+const NAME_SAVE_DELAY_MS = 700;
+
+/**
+ * 내 설정.
+ *
+ * **저장 버튼을 두지 않는다.** 테마와 언어는 고르는 순간 화면이 이미 바뀌고 사진은 고르는
+ * 즉시 올라가는데, 그 상태에서 저장 버튼만 남겨 두면 "어떤 건 눌러야 남고 어떤 건 안 눌러도
+ * 남는지"를 화면이 설명하지 못한다. 전부 고르는 즉시 저장한다.
+ * 이름만 예외로, 입력이 멈춘 뒤에 보낸다.
+ */
 export default function MeClient() {
   const router = useRouter();
   const t = useTranslations('me');
   const tCommon = useTranslations('common');
   const tToast = useTranslations('toast');
-  const tRole = useTranslations('appshell');
-  const { profile, email, orgs, userId } = useApp();
+  const { profile, email, userId } = useApp();
 
   const [name, setName] = useState(profile?.display_name ?? '');
   const [theme, setTheme] = useState(profile?.theme ?? 'system');
   const [locale, setLocale] = useState<Locale>((profile?.locale as Locale) ?? 'ko');
   const [showDone, setShowDone] = useState(profile?.show_done ?? true);
-  const [showAvatars, setShowAvatars] = useState(profile?.show_avatars ?? true);
+  const [showLedger, setShowLedger] = useState(profile?.show_ledger ?? true);
   const [photo, setPhoto] = useState<string | null>(profile?.avatar_url ?? null);
-  const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  async function save() {
-    if (busy) return;
-    setBusy(true);
-    const res = await updateMyProfile({ displayName: name, theme, locale, showDone, showAvatars });
-    setBusy(false);
+  /**
+   * 한 항목만 서버로 보낸다.
+   * 실패하면 되돌리는 건 호출한 쪽 몫이다 — 무엇을 어떤 값으로 되돌릴지는 여기서 알 수 없다.
+   */
+  async function save(patch: Parameters<typeof updateMyProfile>[0], onFail?: () => void) {
+    const res = await updateMyProfile(patch);
     if (!res.success) {
       showMsg(res.error, 'error');
-      return;
+      onFail?.();
+      return false;
     }
-    applyTheme(res.data.theme);
-    applyLocale(res.data.locale);
-    showMsg(tCommon('saved'), 'success');
-    router.refresh();
+    return true;
   }
 
-  // 사진은 저장 버튼을 기다리지 않고 고르는 즉시 반영한다 —
-  // 업로드가 끝났는데 "저장"을 또 눌러야 하면 올라간 건지 아닌지 헷갈린다.
+  /*
+    이름은 매 글자마다 보내면 서버를 두들기고, 포커스를 잃을 때만 보내면 폼이 없는 화면이라
+    "언제 저장됐지"가 불안하다 — 입력이 멎으면 조용히 보낸다.
+    첫 렌더에서는 보내지 않는다(바뀐 게 없다).
+  */
+  const savedName = useRef(profile?.display_name ?? '');
+  useEffect(() => {
+    const next = name.trim();
+    if (!next || next === savedName.current) return;
+    const timer = setTimeout(async () => {
+      const before = savedName.current;
+      savedName.current = next;
+      const ok = await save({ displayName: next }, () => {
+        savedName.current = before;
+        setName(before);
+      });
+      if (ok) router.refresh();
+    }, NAME_SAVE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [name, router]);
+
+  function pickTheme(key: string) {
+    const before = theme;
+    setTheme(key);
+    applyTheme(key);
+    save({ theme: key }, () => {
+      setTheme(before);
+      applyTheme(before);
+    });
+  }
+
+  function pickLocale(next: Locale) {
+    const before = locale;
+    setLocale(next);
+    applyLocale(next);
+    router.refresh();
+    save({ locale: next }, () => {
+      setLocale(before);
+      applyLocale(before);
+      router.refresh();
+    });
+  }
+
+  function toggleShowDone() {
+    const next = !showDone;
+    setShowDone(next);
+    save({ showDone: next }, () => setShowDone(!next));
+  }
+
+  function toggleShowLedger() {
+    const next = !showLedger;
+    setShowLedger(next);
+    save({ showLedger: next }, () => setShowLedger(!next)).then(ok => ok && router.refresh());
+  }
+
+  // 사진은 고르는 즉시 올린다 — 업로드가 끝났는데 저장을 또 눌러야 하면 올라간 건지 모른다.
   async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -87,9 +149,6 @@ export default function MeClient() {
     }
   }
 
-  const roleLabel = (role: (typeof orgs)[number]['role']) =>
-    role === 'owner' ? tRole('roleOwner') : role === 'admin' ? tRole('roleAdmin') : tRole('roleMember');
-
   return (
     <main className="mx-auto flex w-full max-w-[560px] flex-col gap-4 px-4 py-5 pb-safe sm:py-6">
       <h1 className="text-heading-2 text-ink">{t('title')}</h1>
@@ -103,7 +162,6 @@ export default function MeClient() {
             seed={userId}
             size="lg"
             className="size-14 text-[20px]"
-            ignorePreference
           />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-semibold text-ink">{name || t('noName')}</p>
@@ -130,7 +188,12 @@ export default function MeClient() {
 
         <label className="mt-4 flex flex-col gap-1.5">
           <span className="text-caption font-medium text-ink-secondary">{t('nameLabel')}</span>
-          <Input value={name} onChange={e => setName(e.target.value)} maxLength={30} />
+          <Input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            enterKeyHint="done"
+            maxLength={30}
+          />
         </label>
 
         {/*
@@ -147,15 +210,16 @@ export default function MeClient() {
             <button
               key={themeDef.key}
               type="button"
-              onClick={() => {
-                setTheme(themeDef.key);
-                applyTheme(themeDef.key);
-              }}
+              onClick={() => pickTheme(themeDef.key)}
               aria-pressed={theme === themeDef.key}
               className={cn(
+                /*
+                  고른 표시는 accent 테두리로 준다. surface-alt만으로는 어두운 테마에서
+                  카드 배경과 거의 같은 색이라 무엇을 골랐는지 보이지 않았다.
+                */
                 'flex flex-col gap-2 rounded-xl border p-2.5 text-left transition-colors',
                 theme === themeDef.key
-                  ? 'border-hairline-strong bg-surface-alt'
+                  ? 'border-accent bg-accent-soft'
                   : 'border-hairline active:bg-surface-alt'
               )}
             >
@@ -184,16 +248,12 @@ export default function MeClient() {
             <button
               key={l}
               type="button"
-              onClick={() => {
-                setLocale(l);
-                applyLocale(l);
-                router.refresh();
-              }}
+              onClick={() => pickLocale(l)}
               aria-pressed={locale === l}
               className={cn(
                 'rounded-xl border p-2.5 text-center text-[14px] font-medium text-ink transition-colors',
                 locale === l
-                  ? 'border-hairline-strong bg-surface-alt'
+                  ? 'border-accent bg-accent-soft'
                   : 'border-hairline active:bg-surface-alt'
               )}
             >
@@ -203,45 +263,16 @@ export default function MeClient() {
         </div>
       </Card>
 
+      {/* 화면에 무엇을 띄울지 — 둘 다 계정에 저장해서 기기를 옮겨도 같은 화면이 나온다 */}
       <Card className="p-5">
-        <h2 className="text-title text-ink">{t('board.title')}</h2>
+        <h2 className="text-title text-ink">{t('viewTitle')}</h2>
         <div className="mt-3 flex flex-col gap-3">
-          <SettingCheckbox
-            checked={showDone}
-            onChange={() => setShowDone(v => !v)}
-            label={t('board.showDone')}
-          />
-          <SettingCheckbox
-            checked={showAvatars}
-            onChange={() => setShowAvatars(v => !v)}
-            label={t('board.showAvatars')}
-          />
+          <SettingCheckbox checked={showDone} onChange={toggleShowDone} label={t('showDone')} />
+          <SettingCheckbox checked={showLedger} onChange={toggleShowLedger} label={t('showLedger')} />
         </div>
       </Card>
 
-      <Card className="p-5">
-        <h2 className="text-title text-ink">{t('orgs.title')}</h2>
-        {orgs.length === 0 ? (
-          <p className="mt-2 text-caption text-ink-muted">{t('orgs.empty')}</p>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-1">
-            {orgs.map(o => (
-              <li key={o.id} className="flex items-center gap-2 py-1.5">
-                <span className="min-w-0 flex-1 truncate text-[14px] text-ink">{o.name}</span>
-                <span className="text-[12px] text-ink-faint">
-                  {t('orgs.memberCount', { count: o.member_count })}
-                </span>
-                <Badge tone={o.role === 'owner' ? 'accent' : 'neutral'}>{roleLabel(o.role)}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-
-      {/* 로그아웃은 아바타 메뉴에 있다 — 같은 동작을 두 군데 두지 않는다 */}
-      <Button size="lg" onClick={save} disabled={busy || !name.trim()}>
-        {tCommon('save')}
-      </Button>
+      {/* 소속 조직 목록과 로그아웃은 아바타 메뉴에 있다 — 같은 것을 두 군데 두지 않는다 */}
     </main>
   );
 }

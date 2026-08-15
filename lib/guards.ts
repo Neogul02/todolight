@@ -35,3 +35,22 @@ export async function requireManager(orgId: string, userId: string): Promise<Mem
 export async function assertMember(orgId: string, userId: string): Promise<void> {
   await requireMembership(orgId, userId);
 }
+
+/**
+ * 여러 사람이 한 조직의 멤버인지 **한 번의 쿼리로** 확인한다.
+ * "남의 목록에 할 일 꽂기"처럼 호출자와 주인을 함께 봐야 할 때 assertMember를 두 번
+ * 부르면 왕복이 그대로 두 배가 된다 — 추가가 굼떠 보이던 이유 중 하나였다.
+ */
+export async function assertMembers(orgId: string, userIds: string[]): Promise<void> {
+  const wanted = [...new Set(userIds)];
+  const { data, error } = await getSupabaseAdmin()
+    .from('org_members')
+    .select('user_id')
+    .eq('org_id', orgId)
+    .in('user_id', wanted);
+  if (error) throw new Error(error.message);
+  if ((data?.length ?? 0) !== wanted.length) {
+    const t = await getActionT();
+    throw new Error(t('notAMember'));
+  }
+}

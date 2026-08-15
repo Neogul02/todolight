@@ -195,7 +195,7 @@ export default function BoardClient() {
       */}
       {mode === 'board' && orderedMembers.length > 0 && (
         <div className="flex h-[var(--board-toolbar-h)] items-center px-3 sm:hidden">
-          <div className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-1 [&::-webkit-scrollbar]:hidden">
+          <div className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-1">
             {orderedMembers.map((m, i) => (
               <MemberChip
                 key={m.user_id}
@@ -250,7 +250,6 @@ export default function BoardClient() {
                   showDone={showDone}
                   openTodoId={openTodoId}
                   onToggleOpen={toggleOpenTodo}
-                  onCreated={refresh}
                   onHandoff={setHandoff}
                   typingByTodoId={typingByTodoId}
                   onTyping={broadcastTyping}
@@ -291,7 +290,6 @@ export default function BoardClient() {
                 stacked
                 openTodoId={openTodoId}
                 onToggleOpen={toggleOpenTodo}
-                onCreated={refresh}
                 onHandoff={setHandoff}
                 typingByTodoId={typingByTodoId}
                 onTyping={broadcastTyping}

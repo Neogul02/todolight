@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
@@ -8,6 +8,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { notifyLoggedIn, notifySignedUp } from '@/app/actions/auth-notify';
 import { showMsg } from '@/lib/toast';
 import { Button, Card, Input, Spinner } from '@/components/ui';
+import { focusNextOnEnter } from '@/lib/forms';
 import { cn } from '@/lib/utils';
 
 type Mode = 'signin' | 'signup';
@@ -17,6 +18,9 @@ export default function LoginForm() {
   const params = useSearchParams();
   const locale = useLocale();
   const t = useTranslations('auth.login');
+  // 회원가입: 이름 → 이메일 → 비밀번호 → 제출. iOS 키보드의 "다음"이 실제로 다음 칸을 연다.
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const tToast = useTranslations('toast');
   const nextPath = params.get('next') || '/board';
 
@@ -110,6 +114,8 @@ export default function LoginForm() {
               onChange={e => setDisplayName(e.target.value)}
               placeholder={t('namePlaceholder')}
               autoComplete="name"
+              enterKeyHint="next"
+              onKeyDown={e => focusNextOnEnter(e, emailRef.current)}
               maxLength={30}
             />
           </label>
@@ -127,8 +133,10 @@ export default function LoginForm() {
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="you@company.com"
+            ref={emailRef}
             autoComplete="email"
             enterKeyHint="next"
+            onKeyDown={e => focusNextOnEnter(e, passwordRef.current)}
             required
           />
         </label>
@@ -140,6 +148,7 @@ export default function LoginForm() {
             value={password}
             onChange={e => setPassword(e.target.value)}
             placeholder={t('passwordPlaceholder')}
+            ref={passwordRef}
             autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
             enterKeyHint="go"
             minLength={6}

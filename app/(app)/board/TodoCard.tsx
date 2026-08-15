@@ -5,7 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
 import { useTodoMutations } from '@/hooks/useTodoMutations';
 import { useOutsideClick } from '@/hooks/useOutsideClick';
-import { cn, dueState, formatRelativeDay, subjectParticle } from '@/lib/utils';
+import { cn, dueState, formatKSTTime, formatRelativeDay, subjectParticle } from '@/lib/utils';
 import { getAvatarColor } from '@/lib/avatar';
 import { vibrateTick } from '@/lib/haptics';
 import { Avatar } from '@/components/Avatar';
@@ -571,7 +571,12 @@ function TodoCardOpenContent({
                         size="sm"
                         className="size-4 text-[9px]"
                       />
-                      {n.author_name ?? t('unknown')} · {formatRelativeDay(n.created_at, locale)}
+                      {/*
+                        날짜만 있으면 같은 날 쌓인 메모의 순서를 알 수 없다 —
+                        "오늘"에 KST 24시간 시각을 붙여 몇 시에 남긴 말인지 드러낸다.
+                      */}
+                      {n.author_name ?? t('unknown')} · {formatRelativeDay(n.created_at, locale)}{' '}
+                      {formatKSTTime(n.created_at)}
                     </p>
                   </li>
                 );

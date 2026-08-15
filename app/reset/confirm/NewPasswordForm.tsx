@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { showMsg } from '@/lib/toast';
 import { Button, Card, Input, Spinner } from '@/components/ui';
+import { focusNextOnEnter } from '@/lib/forms';
 
 /**
  * 메일 링크 → /auth/callback에서 세션 교환 → 여기.
@@ -19,6 +20,8 @@ export default function NewPasswordForm() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
+  // "다음"으로 확인 칸까지 이어지게 한다 — 손가락이 화면으로 내려가지 않는다
+  const confirmRef = useRef<HTMLInputElement>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -59,6 +62,7 @@ export default function NewPasswordForm() {
             placeholder="6+"
             autoComplete="new-password"
             enterKeyHint="next"
+            onKeyDown={e => focusNextOnEnter(e, confirmRef.current)}
             minLength={6}
             autoFocus
             required
@@ -72,6 +76,7 @@ export default function NewPasswordForm() {
             value={confirm}
             onChange={e => setConfirm(e.target.value)}
             placeholder={t('confirmPlaceholder')}
+            ref={confirmRef}
             autoComplete="new-password"
             enterKeyHint="go"
             minLength={6}

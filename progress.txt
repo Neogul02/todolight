@@ -147,3 +147,13 @@ US-107 토스트를 작고 가운데로 — 완료
   업데이터는 순수해야 하고 StrictMode에서 두 번 불릴 수 있다
 - 리뷰어(architect) 실행했으나 보고서를 회수하지 못함 — 다음 세션에서 재검증 권장
 
+[ralph] todolight UI/UX 간소화 — 1차
+- 내 설정(/me): 저장 버튼 제거, 전 항목 즉시 저장(이름만 700ms 디바운스).
+  소속 조직 카드 삭제(아바타 시트와 중복), 프로필 사진 보기 토글 삭제.
+  선택 강조를 surface-alt -> accent로 (어두운 테마에서 안 보였음).
+- Avatar: show_avatars/ignorePreference 분기 제거 -> useApp 의존이 사라져
+  'use client'가 필요 없어짐. DB 컬럼은 그대로 둠(되돌릴 수 없어서).
+- 팀(/team): 카드 5장 -> 3장. 조직 아이콘·이름·Discord를 '조직 설정' 한 장으로,
+  저장 버튼 하나(바뀐 항목만 전송). 멤버 관리는 행을 눌러 여는 BottomSheet로.
+- 죽은 코드: reorderTodo 액션, 미사용 i18n 키 2개 제거.
+학습: messages/*.json은 python으로 편집해야 ko/en 구조가 안 어긋난다.

@@ -3,7 +3,7 @@
 import { forwardRef, useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
-import { createTodo } from '@/app/actions/todos';
+import { useTodoMutations } from '@/hooks/useTodoMutations';
 import { showMsg } from '@/lib/toast';
 import { cn, todayKST } from '@/lib/utils';
 import { DuePicker } from '@/components/DuePicker';
@@ -27,7 +27,6 @@ interface Props {
   /** 지금 펼쳐 둔 할 일. 보드 전체에서 하나만 열린다 */
   openTodoId: string | null;
   onToggleOpen: (todoId: string) => void;
-  onCreated: () => void;
   onHandoff: (todo: Todo) => void;
   /** 할 일 id별 입력 중인 다른 멤버 목록 */
   typingByTodoId: Map<string, TypingUser[]>;
@@ -52,7 +51,6 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     stacked = false,
     openTodoId,
     onToggleOpen,
-    onCreated,
     onHandoff,
     typingByTodoId,
     onTyping,
@@ -68,7 +66,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
   const [showAllDone, setShowAllDone] = useState(false);
   // 마감은 오늘이 기본 — 대부분 오늘 할 일이고, 아니면 스테퍼로 하루씩 밀면 된다
   const [due, setDue] = useState<string | null>(todayKST());
-  const [busy, setBusy] = useState(false);
+  const { create } = useTodoMutations(orgId);
 
   const isMine = member.user_id === currentUserId;
 
@@ -106,26 +104,43 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     ? [...open, ...(showAllDone ? done : done.slice(0, VISIBLE_DONE))]
     : open;
 
-  async function add(e: React.FormEvent) {
+  /*
+    입력칸은 서버를 기다리지 않고 바로 비운다. 카드는 낙관적으로 이미 컬럼 맨 위에 있고,
+    실패하면 useTodoMutations가 되돌리면서 이유를 토스트로 알린다 —
+    왕복 300~700ms 동안 손이 멈춰 있던 게 "렉"의 정체였다.
+  */
+  function add(e: React.FormEvent) {
     e.preventDefault();
     const value = title.trim();
-    if (!value || busy) return;
-    setBusy(true);
-    const res = await createTodo({
+    if (!value) return;
+
+    const now = new Date().toISOString();
+    create.mutate({
       orgId,
-      title: value,
-      ownerId: member.user_id,
-      dueDate: due,
+      todo: {
+        id: crypto.randomUUID(),
+        org_id: orgId,
+        owner_id: member.user_id,
+        title: value,
+        status: 'todo',
+        due_date: due,
+        // 서버도 "맨 위 position - 1"을 쓴다. 정확한 값은 응답·실시간으로 곧 맞춰지고,
+        // 그 전까지는 어느 카드보다 작기만 하면 맨 위에 놓인다.
+        position: Math.min(0, ...todos.map(t => t.position)) - 1,
+        created_by: currentUserId,
+        handled_by: null,
+        completed_at: null,
+        created_at: now,
+        updated_at: now,
+        deleted_at: null,
+        notes: [],
+        participant_ids: [],
+      },
     });
-    setBusy(false);
-    if (!res.success) {
-      showMsg(res.error, 'error');
-      return;
-    }
+
     setTitle('');
     setDue(todayKST());
     if (!isMine) showMsg(tToast('addedToMemberList', { name: member.display_name }), 'success');
-    onCreated();
   }
 
   return (
@@ -175,7 +190,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
           <>
             {/* 컬럼 패딩까지 스크롤 영역을 넓혀 가장자리에서 잘린 것처럼 보이지 않게 한다 */}
             <DuePicker value={due} onChange={setDue} className="-mx-3 px-3" />
-            <Button type="submit" className="h-11 sm:h-9" disabled={busy}>
+            <Button type="submit" className="h-11 sm:h-9">
               {t('addButton')}
             </Button>
           </>

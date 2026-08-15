@@ -27,16 +27,9 @@
         "dracula": "Dracula"
       }
     },
-    "board": {
-      "title": "Board",
-      "showDone": "Show completed to-dos",
-      "showAvatars": "Show profile photos"
-    },
-    "orgs": {
-      "title": "Your orgs",
-      "empty": "You're not in any orgs yet.",
-      "memberCount": "{count} members"
-    }
+    "viewTitle": "What to show",
+    "showDone": "Show completed to-dos",
+    "showLedger": "Use the ledger"
   },
   "appshell": {
     "boardBack": "Back to board",
@@ -45,6 +38,7 @@
     "viewBoard": "Board",
     "viewDashboard": "Dashboard",
     "viewCalendar": "Calendar",
+    "viewLedger": "Ledger",
     "pendingInvitesAria": "{count} pending invites",
     "receivedInvites": "Invites ({count})",
     "unnamedOrg": "Unnamed org",
@@ -138,7 +132,6 @@
       "deleteNoteAria": "Delete note",
       "notePlaceholder": "Leave a note",
       "noteSubmitAria": "Add note",
-      "handleForMember": "Handle for them",
       "joinTogether": "Join in",
       "leaveTogether": "Leave",
       "typingIndicator": "{name} is typing...",
@@ -157,6 +150,25 @@
       "emptyOther": "Nothing left to do"
     }
   },
+  "ledger": {
+    "title": "Ledger",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "totalLabel": "Spent this month",
+    "entryCount": "{count} entries",
+    "amountPlaceholder": "Amount",
+    "titlePlaceholder": "What was it for?",
+    "addEntry": "Add",
+    "empty": "Nothing logged for this month yet.",
+    "unknownMember": "Unknown",
+    "disabledTitle": "The ledger is turned off",
+    "disabledDescription": "Turn it back on in your settings to use it again.",
+    "goToSettings": "Go to settings",
+    "noOrgTitle": "You need an org first",
+    "noOrgDescription": "The ledger is kept per org too. Create one or accept an invite.",
+    "createOrg": "Create an org",
+    "checkInvites": "See invites"
+  },
   "calendar": {
     "prevMonth": "Previous month",
     "nextMonth": "Next month",
@@ -168,7 +180,7 @@
     "emptyDay": "Nothing on this day",
     "noDueDate": "No due date · {count}",
     "selectedSummary": "{date} · {events} events · {todos} to-dos",
-    "closeDay": "Close day list"
+    "resizePanel": "Resize the list"
   },
   "event": {
     "editTitle": "Edit event",
@@ -196,7 +208,7 @@
     "createOrg": "Create an org",
     "memberCount": "{count} members",
     "inviteTitle": "Invite teammates",
-    "inviteDescription": "Enter their email — the invite shows up next time they log in with that account.",
+    "inviteDescription": "Enter an email — they see the invite next time they log in.",
     "inviteButton": "Invite",
     "cancelInvite": "Cancel",
     "membersTitle": "Members",
@@ -207,17 +219,15 @@
     "leave": "Leave",
     "kick": "Remove",
     "discordTitle": "Discord notifications",
-    "discordDescription": "New to-dos and handoffs post to this channel. Copy the URL from Channel Settings → Integrations → Webhooks. Leave blank to turn notifications off.",
-    "orgImageTitle": "Org image",
-    "orgImageDescription": "Shows in the header and org list. Falls back to the first letter of the name.",
+    "discordDescription": "New to-dos and handoffs post here. Leave blank to turn it off.",
     "uploading": "Uploading…",
     "changeImage": "Change image",
     "uploadImage": "Upload image",
-    "renameTitle": "Rename org",
-    "kickSheetTitle": "Remove this member?",
+    "renameTitle": "Name",
     "kickConfirmDescription": "This removes {name} from the org.",
     "kickConfirmDetail": "They'll lose access to this org's board. Their to-dos and notes stay as they are. You'd need to send a new invite to bring them back.",
-    "loadingMembers": "Loading members"
+    "loadingMembers": "Loading members",
+    "orgSettingsTitle": "Org settings"
   },
   "landing": {
     "login": "Log in",
@@ -288,7 +298,6 @@
     "unauthorized": "Please log in.",
     "notAMember": "You're not a member of this org.",
     "managerOnly": "Only the owner or an admin can do this.",
-    "generic": "Something went wrong. Please try again.",
     "orgNameRequired": "Please enter an org name.",
     "invalidEmail": "That doesn't look like a valid email.",
     "cannotInviteSelf": "You can't invite yourself.",
@@ -305,6 +314,7 @@
     "todoTitleRequired": "Please enter what needs to be done.",
     "noteRequired": "Please enter a note.",
     "invalidDateFormat": "That date doesn't look right.",
+    "invalidId": "That request was not valid.",
     "todoNotFound": "Couldn't find that to-do.",
     "cannotDeleteTodo": "Only the owner or a manager can delete this.",
     "noteNotFound": "Couldn't find that note.",
@@ -320,6 +330,11 @@
     "profileNotFound": "Couldn't find your profile.",
     "invalidTheme": "That theme doesn't exist.",
     "invalidLocale": "That language doesn't exist.",
-    "nothingToUpdate": "Nothing to update."
+    "nothingToUpdate": "Nothing to update.",
+    "ledgerTitleRequired": "Say what the money went to.",
+    "ledgerAmountRequired": "Enter a whole amount greater than zero.",
+    "ledgerAmountTooLarge": "That amount is too large.",
+    "ledgerEntryNotFound": "That entry no longer exists.",
+    "cannotDeleteLedgerEntry": "Only the person who logged or paid it, or an owner, can remove it."
   }
 }

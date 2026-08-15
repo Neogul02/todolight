@@ -249,6 +249,25 @@ a {
 }
 
 /*
+  스크롤 막대는 그리지 않는다.
+
+  이 앱은 스크롤 영역이 겹겹이다 — 멤버 컬럼 안, 보드 가로 캐러셀, 시트 내용, 달력 목록,
+  날짜 피커. 그때마다 회색 막대가 카드 위에 얹혀 그려져서 테두리가 두 겹처럼 보이고,
+  가로 스크롤러에서는 막대가 차지한 높이만큼 칸이 위로 밀린다.
+
+  스크롤 자체와 키보드 이동은 그대로다 — 그리는 것만 끈다.
+  개별 컴포넌트마다 붙이지 않고 여기서 한 번에 잡는다(전에는 DuePicker 하나만 갖고 있었다).
+*/
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/*
   Tailwind v4의 preflight는 버튼 커서를 default로 되돌린다.
   터치에서는 티가 안 나지만 데스크톱에서는 "누를 수 있는 것"이라는 신호가 통째로 사라진다.
 */
@@ -267,17 +286,26 @@ button:disabled {
 /*
   키보드로 옮겨 다닐 때만 링을 보여 준다(:focus-visible). 마우스 클릭에는 뜨지 않는다.
   요소마다 붙이지 않고 여기서 한 번에 잡아야 새로 만든 버튼에서 빠뜨리지 않는다.
+
+  border-radius는 여기서 건드리지 않는다 — 이 규칙은 레이어 밖에 있어서 Tailwind의
+  rounded-* 유틸리티를 전부 이긴다. 값을 하나 박아 두면 rounded-xl 입력창이 포커스되는
+  순간 각진 상자로 바뀌어, 둥근 카드 위에 모서리가 튀어나온 것처럼 보인다.
+  링은 요소가 원래 가진 모서리를 그대로 따라간다.
 */
 :focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
-  border-radius: 4px;
 }
 
-/* 입력 요소는 자체 테두리가 있어 링이 겹쳐 보인다 — 오프셋만 줄인다 */
+/*
+  입력 요소는 자체 테두리가 있어 링이 겹쳐 보이고, 카드 안에서는 좌우 폭을 꽉 채워
+  가장자리가 곧 컨테이너의 안쪽 끝이다 — 밖으로 그리면 카드 패딩 위로 삐져나오고
+  overflow-x-hidden에 한쪽만 잘려 나간다. 안쪽으로 그린다.
+*/
 input:focus-visible,
-textarea:focus-visible {
-  outline-offset: 0;
+textarea:focus-visible,
+select:focus-visible {
+  outline-offset: -2px;
 }
 
 /* 헤더·탭바 같은 크롬 UI만 선택 해제 — 할 일 제목/메모는 복사할 수 있어야 한다 */
@@ -365,11 +393,6 @@ textarea:focus-visible {
 @utility snap-board {
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
-  /* 모바일에서 컬럼 사이 가로 스크롤바가 보이면 지저분하다 */
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
 }
 @utility snap-col {
   scroll-snap-align: start;
@@ -426,19 +449,6 @@ textarea:focus-visible {
 /* 실행취소 같은 액션 버튼이 글자에 밀려 잘리지 않게 */
 [data-sonner-toast] [data-button] {
   flex-shrink: 0;
-}
-
-/* ── Scrollbar ── */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--hairline-strong);
-  border-radius: 9999px;
 }
 
 /* ── 모션 최소화 설정 존중 ──

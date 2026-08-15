@@ -46,6 +46,7 @@ export default function NewOrgForm() {
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder={t('namePlaceholder')}
+            enterKeyHint="done"
             maxLength={60}
             autoFocus
             required
