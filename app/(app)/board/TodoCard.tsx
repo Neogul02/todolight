@@ -456,36 +456,6 @@ function TodoCardOpenContent({
         </form>
       ) : (
         <>
-          {/*
-            제목은 여닫기 전용이라 편집은 여기 따로 둔다 — 펼친 내용 맨 위, 오른쪽 정렬.
-            이 카드에서 오른쪽은 이미 "손대는 동작"의 자리다(헤더의 삭제 X, 배지의 참여자
-            아바타 등) — 왼쪽에 두면 제목·본문이 흐르는 시작점과 겹쳐 뭘 누르는 건지 헷갈린다.
-          */}
-          {canRemove && (
-            <div className="mb-2.5 flex justify-end">
-              <button
-                type="button"
-                onClick={startEditing}
-                className="flex items-center gap-1 text-caption text-ink-faint transition-colors active:scale-95 sm:hover:text-ink"
-              >
-                <svg
-                  viewBox="0 0 16 16"
-                  className="size-3"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    d="M11.5 2.5a1.5 1.5 0 0 1 2 2L6 12l-3 1 1-3 7.5-7.5Z"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                {t('card.edit')}
-              </button>
-            </div>
-          )}
-
           {noteCount > 0 && (
             <ul className="mb-2.5 flex flex-col gap-2">
               {todo.notes!.map(n => {
@@ -623,23 +593,35 @@ function TodoCardOpenContent({
           </form>
 
           {/*
-            대신 처리는 별도 버튼 없이 체크박스로만 들어간다(toggleDone → 남의 할 일이면
-            자동으로 onHandoff) — 같은 동작을 두 군데 두지 않는다.
+            동작 버튼은 전부 여기, 메모 아래에 모은다.
+            펼친 카드에서 실제로 자주 하는 일은 메모 한 줄이라 그게 먼저 와야 하고,
+            "수정"만 맨 위에 따로 떠 있으면 내 할 일과 남의 할 일에서 버튼이 있는 자리가
+            달라진다 — 어느 카드를 펼치든 같은 자리에 같은 것이 있어야 한다.
+
+            대신 처리는 여기 없다. 체크박스가 그 일을 한다(남의 할 일을 체크하면
+            toggleDone이 onHandoff로 넘긴다) — 같은 동작을 두 군데 두지 않는다.
           */}
-          {!isMine && !done && (
+          {(canRemove || (!isMine && !done)) && (
             <div className="mt-2.5 flex gap-1.5">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  isParticipant
-                    ? leave.mutate({ todoId: todo.id, userId: currentUserId })
-                    : join.mutate({ todoId: todo.id, userId: currentUserId })
-                }
-                disabled={join.isPending || leave.isPending}
-              >
-                {isParticipant ? t('card.leaveTogether') : t('card.joinTogether')}
-              </Button>
+              {canRemove && (
+                <Button size="sm" variant="outline" onClick={startEditing}>
+                  {t('card.edit')}
+                </Button>
+              )}
+              {!isMine && !done && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    isParticipant
+                      ? leave.mutate({ todoId: todo.id, userId: currentUserId })
+                      : join.mutate({ todoId: todo.id, userId: currentUserId })
+                  }
+                  disabled={join.isPending || leave.isPending}
+                >
+                  {isParticipant ? t('card.leaveTogether') : t('card.joinTogether')}
+                </Button>
+              )}
             </div>
           )}
         </>

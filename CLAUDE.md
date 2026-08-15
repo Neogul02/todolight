@@ -89,9 +89,10 @@ app/
 ├── page.tsx              랜딩 (로그인 상태면 /board로 리다이렉트)
 ├── login/                로그인·회원가입
 └── (app)/                ← proxy.ts 보호 + AppShell 래핑
-    ├── board/            메인 보드 — 멤버별 컬럼 가로 스냅 캐러셀. 앱의 사실상 유일한 화면
-    ├── team/             멤버 목록, 초대 발송·취소, 역할 변경, 조직 이름 변경, Discord 웹훅
-    ├── me/               프로필(이름·아바타 사진/색)·테마 설정
+    ├── board/            메인 보드 — 멤버별 컬럼 가로 스냅 캐러셀. 앱의 중심 화면
+    ├── ledger/           가계부 — 조직이 쓴 돈을 달 단위로 적고 합계를 본다
+    ├── team/             초대 · 멤버 · 조직 설정(아이콘·이름·Discord) 세 카드
+    ├── me/               프로필·테마·언어·화면 설정. 저장 버튼 없이 즉시 저장한다
     └── orgs/new/         새 조직 만들기
 ```
 
@@ -108,7 +109,8 @@ export async function fetchXxx(): Promise<ApiResponse<T>> {
 }
 ```
 
-도메인별 파일: `orgs.ts`(조직·멤버·초대) · `todos.ts`(할 일·메모·대신 처리) · `profile.ts`.
+도메인별 파일: `orgs.ts`(조직·멤버·초대) · `todos.ts`(할 일·메모·대신 처리) · `events.ts`(일정) ·
+`ledger.ts`(가계부) · `profile.ts`.
 
 `ApiResponse<T>`는 `{success:true, data} | {success:false, error}` 판별 유니온이라
 좁히기가 되려면 `strictNullChecks`가 켜져 있어야 한다 — `tsconfig.json`에서 켜 뒀다.
@@ -117,7 +119,9 @@ export async function fetchXxx(): Promise<ApiResponse<T>> {
 ## DB 스키마
 
 ```
-profiles        id (FK auth.users), email, display_name, avatar_color, avatar_url, theme, created_at
+profiles        id (FK auth.users), email, display_name, avatar_color, avatar_url,
+                theme, locale, show_done, show_ledger, created_at
+                — show_avatars 컬럼이 남아 있지만 코드에서는 쓰지 않는다(설정을 없앴다)
 organizations   id, name, owner_id, image_url, discord_webhook_url, created_at
 org_members     id, org_id, user_id, role('owner'|'admin'|'member'), joined_at   UNIQUE(org_id,user_id)
 org_invites     id, org_id, email, invited_by, status('pending'|'accepted'|'declined'|'revoked'),
@@ -130,6 +134,10 @@ todo_notes      id, todo_id, author_id, content, created_at
 org_events      id, org_id, title, color, start_date, end_date, created_by,
                 created_at, updated_at, deleted_at
                 — CHECK (end_date >= start_date)
+todo_participants id, todo_id, org_id, user_id, joined_at   UNIQUE(todo_id, user_id)
+ledger_entries  id, org_id, payer_id, amount(bigint, 원 단위), title, spent_on(date),
+                created_by, deleted_at, created_at, updated_at
+                — CHECK (amount > 0 and amount <= 1000000000000)
 ```
 
 - `todos.owner_id`가 보드에서 어느 컬럼에 놓일지를 결정한다. `created_by`와 다르면
@@ -172,6 +180,29 @@ org_events      id, org_id, title, color, start_date, end_date, created_by,
 - **띠에는 `pointer-events-none`이 필수다.** 세그먼트는 시작 칸 button의 자식인데 폭이
   여러 칸에 걸쳐 있어서, 클릭을 받으면 28일 위를 눌러도 그 세그먼트가 시작한 23일이 선택된다.
   날짜 선택은 칸이 받아야 한다.
+
+### 가계부(ledger_entries)도 할 일이 아니다
+
+일정과 같은 이유로 테이블을 나눴다 — 담당자 대신 **낸 사람**이 있고, 완료 상태가 없고,
+보드에 뜨지 않는다. 화면도 보드의 네 번째 뷰가 아니라 별도 라우트(`/ledger`)다:
+보드의 세 뷰는 전부 같은 `todos` 캐시를 다르게 그린 것이지만 가계부는 데이터도 연산도
+달라서, 보드에 얹으면 가계부만 보는 동안에도 보드 쿼리와 실시간 구독이 계속 돈다.
+
+- `amount`는 **원 단위 bigint**다. 원화는 소수점이 없어 `numeric`을 쓸 이유가 없고,
+  `double`은 합계를 낼 때 오차가 쌓인다. 상한(1조)은 DB `check`와 zod가 **같은 값**을
+  들고 있다 — 한쪽만 고치면 raw DB 에러가 그대로 토스트에 뜬다.
+- `spent_on`은 `created_at`과 다르다. 어제 쓴 걸 오늘 적는 게 정상 흐름이다.
+- **달 단위로 본다.** 범위가 없으면 합계가 영원히 커지기만 해서 숫자가 의미를 잃는다.
+  쿼리 캐시 키도 달 단위(`['ledger', orgId, month]`)다.
+- 합계는 **클라이언트에서 낸다.** 어차피 그 달 행을 전부 그리고 있어서 집계 쿼리를 따로
+  보내면 왕복만 늘고, 실시간으로 한 줄이 들어왔을 때 목록과 합계가 어긋날 여지가 생긴다.
+- **낙관적 반영을 하지 않는다.** 할 일 체크와 달리 연타하는 동작이 아니고, 합계가
+  잠깐이라도 틀린 값을 보여 주는 쪽이 200ms 기다리는 것보다 나쁘다.
+- 실시간은 행 병합 대신 조직 단위 invalidate다 — 들어온 행이 지금 보는 달인지 판정하는
+  분기를 캐시 병합에 넣으면 달을 넘길 때 어긋날 거리가 하나 는다. 한 달치는 몇십 줄이다.
+- 지우는 건 적은 사람·낸 사람 본인이나 방장만. 할 일과 같이 소프트 삭제다.
+- 쓸지 말지는 `profiles.show_ledger`에 있다. 끄면 헤더 버튼이 사라지고, 주소로 직접
+  열면 조용히 튕기지 않고 "설정으로 가기" 안내를 띄운다.
 
 ### RLS
 
@@ -218,14 +249,20 @@ org_events      id, org_id, title, color, start_date, end_date, created_by,
 ### 셸 구조 — 화면은 보드 하나
 
 ```
-헤더 (--header-h)   [←] [조직아이콘 이름] ...... [▣][▤][▦] [아바타●]
-툴바 (--board-toolbar-h)  멤버 칩 (보드 뷰에서만)
-본문                보드 · 대시보드 · 달력 중 하나
+헤더 (--header-h)   [←] [조직아이콘 이름] ...... [▣][▤][▦]|[₩] [아바타●]
+툴바 (--board-toolbar-h)  멤버 칩 (보드 뷰 · 멤버 3명 이상일 때만)
+본문                보드 · 대시보드 · 달력 · 가계부 중 하나
 ```
 
 **뷰 전환은 헤더에 있다.** 그래서 `boardMode`는 `BoardClient`가 아니라 `AppShell`이 들고
-컨텍스트로 내려 준다. `/board`가 아닌 화면에서는 버튼을 감춘다 — 고를 것이 없다.
-그 결과 보드 툴바에는 멤버 칩만 남는다.
+컨텍스트로 내려 준다. `/board`·`/ledger`가 아닌 화면에서는 감춘다 — 고를 것이 없다.
+가계부는 뷰가 아니라 별도 라우트라 세그먼트 안에서 구분선(`border-l`)으로 끊고,
+가계부에 있는 동안 보드 뷰를 고르면 `/board`로 돌려보낸다(모드만 바뀌면 버튼이 먹통처럼 보인다).
+
+**멤버 칩은 3명부터 뜬다.** 칩이 하는 일은 "여러 명 중 원하는 사람으로 바로 가기"인데
+둘뿐이면 옆으로 한 번 미는 것으로 끝나고, 이름과 남은 개수는 컬럼 헤더에 이미 있다.
+감출 때는 `--board-toolbar-h`를 인라인으로 `0px`로 덮어 `board-viewport`가 빼던 높이도
+같이 돌려준다 — 안 그러면 칩이 있던 자리가 빈 띠로 남는다.
 
 **하단 탭바는 두지 않는다.** 이 앱의 화면은 공유 투두 보드 하나뿐이다.
 
@@ -237,7 +274,10 @@ org_events      id, org_id, title, color, start_date, end_date, created_by,
 대기 중인 초대가 있으면 아바타에 **작은 빨간 점**만 띄운다(숫자 배지는 시끄럽다).
 수락하면 그 조직으로 바로 전환하고 시트를 닫는다.
 
-보드는 **뷰가 셋**이고 툴바 세그먼트로 오간다 — `board` · `dashboard` · `calendar`.
+보드는 **뷰가 셋**이고 헤더 세그먼트로 오간다 — `board` · `dashboard` · `calendar`.
+**대시보드는 PC 전용이다**(`hidden sm:grid`). 폰에서는 멤버가 늘수록 세로로 한없이 길어져
+"누가 무엇을 들고 있나"가 오히려 안 보이고, 그 일은 좌우로 미는 보드가 이미 한다.
+창을 줄여 넘어온 경우에도 `boardMode`를 보드로 떨어뜨린다(버튼이 없어 되돌아갈 길이 없으므로).
 달력(`CalendarView`)은 보드가 "누가 무엇을 들고 있나"라면 "언제 몰려 있나"를 보는 화면이다.
 월 격자에 날짜별 미완료 개수를 찍고, 날짜를 누르면 그 날 마감인 조직 전체 할 일이 담당자와
 함께 나온다. 마감 없는 할 일은 아래에 따로 모은다. 세 뷰 모두 **같은 쿼리 캐시**를 쓴다.
@@ -245,7 +285,7 @@ org_events      id, org_id, title, color, start_date, end_date, created_by,
 높이 상수는 `app/globals.css`의 `:root`에 `--header-h` · `--board-toolbar-h`로 두고
 미디어 쿼리에서 값만 바꾼다. `board-viewport`가 `100dvh`에서 이 둘과 세이프 에어리어를 빼기 때문에,
 보드는 **페이지가 늘어나지 않고** 컬럼 내부만 세로 스크롤한다.
-세로로 흐르는 페이지(팀/초대/내 설정/조직 생성)는 끝에 `pb-safe`를 붙인다.
+세로로 흐르는 페이지(팀/초대/내 설정/조직 생성/가계부)는 끝에 `pb-safe`를 붙인다.
 
 ### 로딩 표시
 
@@ -262,6 +302,10 @@ Tailwind v4 preflight는 버튼 커서를 `default`로 되돌린다. 터치에�
 
 - 포커스 링은 `globals.css`의 `:focus-visible` 하나로 잡는다. 요소마다 붙이면 새로 만든
   버튼에서 반드시 빠뜨린다. 마우스 클릭에는 뜨지 않는다(`:focus`가 아니라 `:focus-visible`).
+  - **거기에 `border-radius`를 박지 말 것.** 이 규칙은 레이어 밖이라 Tailwind의 `rounded-*`를
+    전부 이긴다 — 값을 하나 박아 두면 `rounded-xl` 입력창이 포커스되는 순간 각진 상자가 된다.
+  - 입력 요소는 `outline-offset: -2px`로 **안쪽에** 그린다. 카드 안에서 폭을 꽉 채우는 칸이
+    많아서, 밖으로 그리면 카드 패딩 위로 삐져나오고 `overflow-hidden`에 한쪽만 잘려 나간다.
 - `BottomSheet`는 `role="dialog"` + `aria-modal` + Tab 순환 트랩을 갖는다. 열 때 첫 항목에
   포커스를 주고, 닫을 때 열기 전 요소로 되돌린다.
 - `prefers-reduced-motion: reduce`에서 애니메이션·트랜지션·스무스 스크롤을 전역으로 끈다.
@@ -272,22 +316,41 @@ Tailwind v4 preflight는 버튼 커서를 `default`로 되돌린다. 터치에�
 이게 빠지면 `pb-safe` · `board-viewport`의 홈 인디케이터 회피가 통째로 무효가 된다.
 유틸리티는 `pb-safe` · `pt-safe` · `px-safe`.
 
-### 마감일 입력
+### 날짜 입력 — DuePicker
 
-`components/DuePicker.tsx` — 달력도 키보드도 띄우지 않는다. 오늘을 기준으로 날짜가 가로로
-늘어서 있고(뒤로 2주, 앞으로 석 달) 좌우로 밀어 고른다. 맨 앞은 "마감 없음".
-열릴 때 선택된 날짜가 화면 가운데 오도록 스크롤을 맞춘다 — 0에서 시작하면 2주 전부터 보인다.
+`components/DuePicker.tsx` — 달력도 키보드도 띄우지 않는다. 날짜가 가로로 늘어서 있고
+좌우로 밀어 고른다. 열릴 때 선택된 날짜가 화면 가운데 오도록 스크롤을 맞춘다.
 
 `<input type="date">`로 되돌리지 말 것 — 모바일에서 네이티브 피커가 화면 절반을 덮는다.
 하루씩 밀고 당기는 −/+ 버튼으로도 되돌리지 말 것 — "다음 주 화요일"까지 가는 데 손이 너무 많이 간다.
 
+**마감일과 가계부의 쓴 날이 같은 피커를 쓴다.** 화면마다 다른 피커를 만들면 한쪽에서 고친
+조작감이 다른 쪽에 안 따라온다 — 기준일·범위·"없음" 칸만 프롭으로 연다.
+
+| | `anchor` | 범위 | `allowNone` |
+|---|---|---|---|
+| 마감일 | 오늘(기본) | 뒤로 2주 · 앞으로 석 달 | 있음 |
+| 가계부 쓴 날 | 보고 있는 달 1일 | 그 달 전체 | 없음 |
+
+- 범위는 `anchor` 기준으로 세지만 **"오늘/어제/내일" 라벨은 늘 실제 오늘 기준**이다.
+- 가계부가 `anchor`를 쓰는 이유: 오늘 기준으로 늘어놓으면 7월을 보면서 적은 지출이 8월로
+  저장돼 목록에서 사라진다. 달을 넘기면 `key={month}`로 다시 마운트해 스크롤도 다시 잡는다.
+- 가운데 정렬은 `offsetLeft`가 아니라 **두 `getBoundingClientRect()`의 차이**로 잰다.
+  `offsetLeft`는 스크롤러가 아니라 가장 가까운 positioned 조상 기준이라, 스크롤러가
+  positioned가 아니면(대부분 그렇다) 선택 날짜가 화면 밖으로 밀린다.
+
 ### 할 일 쓰기 동작 — useTodoMutations
 
-보드의 모든 쓰기(체크·수정·삭제·되살리기·메모)는 `hooks/useTodoMutations.ts`를 거친다.
+보드의 모든 쓰기(추가·체크·수정·삭제·되살리기·메모)는 `hooks/useTodoMutations.ts`를 거친다.
 서버 액션을 컴포넌트에서 직접 부르지 말 것 — 낙관적 반영과 롤백이 흩어지면 금방 어긋난다.
 
-- **체크·삭제·수정은 낙관적으로 반영한다.** 모바일에서 서버 왕복(200~500ms)을 기다리면
+- **추가·체크·삭제·수정은 낙관적으로 반영한다.** 모바일에서 서버 왕복(200~500ms)을 기다리면
   탭이 씹힌 것처럼 느껴진다.
+- **추가는 행 id를 클라이언트가 정해서 보낸다**(`createTodo`의 `id`). 임시 id로 그렸다가
+  나중에 바꾸면 그 사이 도착한 실시간 INSERT가 다른 id로 보여 카드가 둘로 늘어난다.
+  같은 id면 실시간 병합이 그냥 같은 행 갱신이 된다.
+  (예전에는 `MemberColumn`이 `createTodo`를 직접 부르고 응답 뒤 목록을 통째로 다시 읽어서,
+  추가 한 번에 서버 왕복 두 번 ~700ms 동안 화면이 멈춰 있었다.)
 - `onMutate`는 **반드시 `cancelQueries`를 먼저 await한다.** `onSettled`마다 invalidate가
   돌기 때문에 이전 refetch가 날아다니는 상황이 흔한데, 그게 낙관적 패치보다 늦게 도착하면
   방금 바꾼 값을 옛날 값으로 덮어써서 체크가 저 혼자 풀린 것처럼 보인다.
@@ -317,6 +380,10 @@ Tailwind v4 preflight는 버튼 커서를 `default`로 되돌린다. 터치에�
 다른 뷰의 펼침은 무시한다(상태를 하나 더 두지 않고 같은 결과). 여러 개가 동시에 열려 있으면 컬럼이
 길어져 무엇이 남았는지 한눈에 안 들어온다. 다른 카드를 열거나, 뷰를 바꾸거나, 다른 멤버로
 이동하면 접힌다.
+
+펼친 내용의 순서는 **메모 목록 → 메모 입력 → 동작 버튼(수정 · 같이하기)**이다.
+자주 하는 일이 메모 한 줄이라 그게 먼저 와야 하고, 동작을 한곳에 모아야 내 할 일과 남의
+할 일에서 버튼이 있는 자리가 같다. "대신 처리"는 여기 없다 — 체크박스가 그 일을 한다.
 
 ### 할 일 카드 정렬
 
@@ -376,6 +443,26 @@ Tailwind v4 preflight는 버튼 커서를 `default`로 되돌린다. 터치에�
 기기를 옮겨도 같은 화면이어야 하는 취향이지, 화면마다 껐다 켜는 값이 아니다.
 기본은 보임 — 팀원이 뭘 끝냈는지가 곧 공유의 목적이다.
 
+### 달력 목록 패널 — 끌어서 크기 조절
+
+목록은 **늘 화면에 있다.** 날짜를 눌러야만 나타나면 목록이 있다는 것 자체를 모르는 사람이
+생긴다. 손잡이를 위아래로 끌면 목록이 커지고 그만큼 달력이 줄어든다(`useResizablePanel`).
+
+- 높이는 px가 아니라 **컨테이너 대비 비율**이다. 주소창이 접혔다 펴지며 dvh가 실시간으로
+  바뀌는데 px로 잡아 두면 그때마다 비율이 어긋난다.
+- 스냅은 3단(`0.24 / 0.5 / 0.76`). 놓으면 **시작한 칸의 바로 옆 칸**으로 붙지
+  "가장 가까운 칸"으로 붙지 않는다 — 가장 가까운 칸으로 붙이면 손가락을 조금 크게 움직였을 때
+  두 칸이 한 번에 뛰어서, 한 단계만 줄이려 했는데 최대까지 접혀 찌그러진 것처럼 보인다.
+- 손잡이는 끌 수도 있고 **누를 수도** 있다(다음 단계로). 작은 화면에서 몇 픽셀을 정확히
+  끄는 것보다 한 번 누르는 쪽이 빠를 때가 많다. `touch-none`이 없으면 브라우저가 이 세로
+  제스처를 페이지 스크롤로 먹는다.
+- 실제로 줄어들게 하려고 격자는 `flex-1 min-h-0` + `auto-rows-fr`이다(`sm:`은 예전대로
+  `aspect-[6/7]`). 칸에 `aspect`를 걸면 폭이 높이를 정해 버려 아무리 끌어도 잘리기만 한다.
+- **칸에 `overflow-hidden`을 걸지 말 것.** 일정 띠는 시작 칸의 자식인데 폭이
+  `calc(100% * n)`으로 여러 칸에 걸쳐 있어서, 칸에서 잘라 내면 띠가 시작한 하루만 남고
+  나머지 날은 빈칸이 된다(기간 일정이 중간중간 끊겨 보인다).
+- 칸이 납작해지면 띠 3줄(52px)이 안 들어가므로 **점 모드**로 바꾼다.
+
 ### 달력 넘기기
 
 좌우로 밀어 달을 옮긴다(`hooks/useHorizontalSwipe.ts`). 스크롤 컨테이너가 아니라 그냥 영역이라
@@ -384,6 +471,40 @@ Tailwind v4 preflight는 버튼 커서를 `default`로 되돌린다. 터치에�
 - **세로가 더 크면 손을 뗀다** — 페이지를 스크롤하려는 것이다. `touch-action: pan-y`로
   세로 스크롤은 브라우저에 남긴다.
 - 민 자리에 날짜 칸이 있으면 그게 눌린다 — 캐러셀과 같이 클릭 한 번을 capture에서 삼킨다.
+
+### 폼의 키보드 흐름 — lib/forms.ts
+
+`<form>` 안의 텍스트 입력에서 Enter는 브라우저가 **곧바로 폼을 제출한다**(implicit
+submission). 그래서 `enterKeyHint="next"`라고 적어 놓고 실제로는 넘어가지 않는 칸이
+여럿 있었다 — 절반만 채운 채 제출되거나, 제출 조건을 못 넘겨 아무 일도 안 일어난 것처럼 보였다.
+
+- 중간 칸: `enterKeyHint="next"` + `onKeyDown={e => focusNextOnEnter(e, nextRef.current)}`
+- 마지막 칸: `done`/`go`/`send`만 주고 브라우저의 기본 제출에 맡긴다
+- `<form>` 밖의 홀로 있는 칸(내 설정의 이름): `submitOnEnter(e, run)`
+- **`isComposing` 검사가 필수다.** 한글을 조합하는 중의 Enter는 글자를 확정하는 키다 —
+  안 거르면 "커피"를 치고 넘어가는 순간 마지막 글자가 끊긴다.
+- ref를 **엘리먼트로** 넘긴다(`focusNextOnEnter(e, ref.current)`). ref나 ref를 읽는 함수를
+  렌더 중에 넘기면 `react-hooks/refs`가 막고, 값은 키를 누르는 순간에 읽는 게 맞다.
+
+여러 줄 입력(`<Textarea>`, 대신 처리 메모)에는 붙이지 않는다 — 거기서 Enter는 줄바꿈이다.
+
+### 설정은 즉시 저장한다
+
+`/me`에는 저장 버튼이 없다. 테마와 언어는 고르는 순간 화면이 이미 바뀌고 사진은 고르는 즉시
+올라가는데, 그 상태에서 저장 버튼만 남겨 두면 "어떤 건 눌러야 남고 어떤 건 안 눌러도 남는지"를
+화면이 설명하지 못한다. 이름만 예외로 입력이 멎은 뒤(700ms) 보낸다.
+실패하면 토스트로 알리고 **값을 되돌린다** — 무엇을 어떤 값으로 되돌릴지는 호출한 쪽이 안다.
+
+고른 표시는 `border-accent bg-accent-soft`로 준다. `surface-alt`만으로는 어두운 테마에서
+카드 배경과 거의 같은 색이라 무엇을 골랐는지 보이지 않는다.
+
+### 스크롤 막대는 그리지 않는다
+
+`globals.css`가 전역으로 감춘다(`scrollbar-width: none` + `::-webkit-scrollbar`).
+이 앱은 스크롤 영역이 겹겹이다 — 멤버 컬럼 안, 가로 캐러셀, 시트 내용, 달력 목록, 날짜 피커.
+그때마다 회색 막대가 카드 위에 얹혀 테두리가 두 겹처럼 보이고, 가로 스크롤러에서는 막대가
+차지한 높이만큼 칸이 위로 밀린다. 스크롤과 키보드 이동은 그대로다 — 그리는 것만 끈다.
+컴포넌트마다 따로 붙이지 말 것.
 
 ### 그 밖의 iOS 대응
 
@@ -430,7 +551,9 @@ apple-icon만 PNG로 그린다.
 
 `Button`의 `danger`는 **꽉 채운 빨강**이고 되돌릴 수 없는 동작에만 쓴다.
 멤버 내보내기처럼 복구 수단이 없는 건 빨간 버튼 하나로 끝내지 않고
-`BottomSheet` 확인을 한 단계 더 둔다(`TeamClient`의 `pendingKick` 패턴).
+`BottomSheet` 확인을 한 단계 더 둔다(`TeamClient`의 멤버 관리 시트 안에서 `confirmKick`으로
+한 번 더 묻는 패턴). 멤버 목록 자체에는 버튼을 늘어놓지 않는다 — 멤버가 늘수록 목록이
+버튼밭이 되고, 되돌릴 수 없는 빨간 버튼이 늘 떠 있게 된다. 행을 누른 사람 것만 시트로 연다.
 반면 할 일 X는 소프트 삭제라 확인 없이 바로 지운다 — 복구 가능한 것과 아닌 것을 구분한다.
 
 ### 아바타
@@ -442,6 +565,10 @@ apple-icon만 PNG로 그린다.
 (색 키 문자열, 예: `sea`). **색은 고르게 하지 않는다** — 계정 id에서 결정적으로 배정하므로
 설정 화면을 늘리지 않으면서 팀원끼리 잘 겹치지 않는다. 팔레트는 12색이고 밝은·어두운 테마
 양쪽에서 읽히는 중간 밝기다.
+
+**"남의 사진 숨기기" 설정은 두지 않는다.** 아바타는 사람을 구분하려고 있는 것이고 사진을
+지우면 구분이 오히려 흐려진다. 그 설정 하나 때문에 `Avatar`가 앱 컨텍스트를 읽어야 했고,
+그래서 아바타 하나 그리는 데 클라이언트 컴포넌트가 필요했다.
 
 **사진 업로드**(`lib/image-upload.ts`)는 Supabase Storage를 쓴다.
 사람 아바타는 `avatars`, 조직 아이콘은 `org-images` 버킷이다.
@@ -518,5 +645,5 @@ bg-accent / text-accent-ink
 ## 향후 계획
 
 - 유료 테마 결제 연동 (현재 `THEMES`의 `free: false` 항목이 자리만 잡아 둔 상태)
-- 할 일 드래그 정렬 UI (`reorderTodo` 액션은 이미 있고 프론트만 없음)
+- 할 일 드래그 정렬 UI (`position`이 double이라 서버 액션만 새로 만들면 된다)
 - Swift iOS 앱 — 웹앱 안정화 후 검토. 서버 액션 대신 쓸 REST/Edge Function 레이어가 필요해진다.

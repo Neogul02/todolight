@@ -187,13 +187,27 @@ export default function BoardClient() {
     ? orderedMembers.find(m => m.user_id === handoff.owner_id)?.display_name ?? t('teammate')
     : '';
 
+  /* 칩은 여러 명일 때만 값을 한다 — 둘 이하면 옆으로 한 번 미는 게 전부다 */
+  const showChips = mode === 'board' && orderedMembers.length > 2;
+
   return (
-    <main className="mx-auto w-full max-w-[1400px]">
+    <main
+      className="mx-auto w-full max-w-[1400px]"
+      /*
+        칩 툴바를 감출 때는 board-viewport가 빼던 높이도 같이 돌려줘야 한다 —
+        안 그러면 칩이 있던 자리가 빈 띠로 남아 컬럼이 그만큼 짧아진다.
+      */
+      style={showChips ? undefined : ({ '--board-toolbar-h': '0px' } as React.CSSProperties)}
+    >
       {/*
         멤버 칩은 보드 전용이고 모바일 전용이다 — 다른 뷰에서 툴바를 남겨 두면
         빈 띠가 화면 위를 먹는다. (뷰 전환은 헤더로, 완료 보기는 설정으로 옮겼다)
+
+        둘 이하면 아예 감춘다. 칩이 하는 일은 "여러 명 중 원하는 사람으로 바로 가기"인데,
+        둘뿐이면 옆으로 한 번 미는 것으로 끝나고 이름과 남은 개수는 컬럼 헤더에 이미 있다.
+        폰에서 늘 보이는 44px 한 줄은 그 값을 하기에 비싸다.
       */}
-      {mode === 'board' && orderedMembers.length > 0 && (
+      {showChips && (
         <div className="flex h-[var(--board-toolbar-h)] items-center px-3 sm:hidden">
           <div className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-1">
             {orderedMembers.map((m, i) => (
