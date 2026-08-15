@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { showMsg } from '@/lib/toast';
 import { Button, Card, Input, Spinner } from '@/components/ui';
@@ -13,6 +14,9 @@ type Mode = 'signin' | 'signup';
 export default function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
+  const locale = useLocale();
+  const t = useTranslations('auth.login');
+  const tToast = useTranslations('toast');
   const nextPath = params.get('next') || '/board';
 
   const [mode, setMode] = useState<Mode>(params.get('mode') === 'signup' ? 'signup' : 'signin');
@@ -33,12 +37,17 @@ export default function LoginForm() {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { data: { display_name: displayName.trim() || email.split('@')[0] } },
+          // 브라우저 언어로 이미 negotiate된 이 페이지의 locale을 그대로 넘긴다 — 안 그러면
+          // handle_new_user 트리거가 기본값 'ko'로 만들고, 로그인 직후 AppShell의 쿠키 동기화가
+          // 그 'ko'를 다시 진실로 취급해 모처럼 맞은 언어를 되돌려 버린다.
+          options: {
+            data: { display_name: displayName.trim() || email.split('@')[0], locale },
+          },
         });
         if (error) throw error;
         // 이메일 확인이 켜져 있으면 session이 비어서 온다 — 이 경우 바로 들어갈 수 없다.
         if (!data.session) {
-          showMsg('확인 메일을 보냈어요. 메일함에서 인증을 마쳐 주세요.', 'info');
+          showMsg(tToast('confirmEmailSent'), 'info');
           setMode('signin');
           return;
         }
@@ -55,9 +64,7 @@ export default function LoginForm() {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       showMsg(
-        message.includes('Invalid login credentials')
-          ? '이메일이나 비밀번호가 맞지 않아요.'
-          : message,
+        message.includes('Invalid login credentials') ? tToast('invalidCredentials') : message,
         'error'
       );
     } finally {
@@ -84,7 +91,7 @@ export default function LoginForm() {
               mode === m ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted'
             )}
           >
-            {m === 'signin' ? '로그인' : '회원가입'}
+            {m === 'signin' ? t('signIn') : t('signUp')}
           </button>
         ))}
       </div>
@@ -92,11 +99,11 @@ export default function LoginForm() {
       <form onSubmit={submit} className="mt-4 flex flex-col gap-3">
         {mode === 'signup' && (
           <label className="flex flex-col gap-1.5">
-            <span className="text-caption font-medium text-ink-secondary">이름</span>
+            <span className="text-caption font-medium text-ink-secondary">{t('nameLabel')}</span>
             <Input
               value={displayName}
               onChange={e => setDisplayName(e.target.value)}
-              placeholder="팀원에게 보일 이름"
+              placeholder={t('namePlaceholder')}
               autoComplete="name"
               maxLength={30}
             />
@@ -104,7 +111,7 @@ export default function LoginForm() {
         )}
 
         <label className="flex flex-col gap-1.5">
-          <span className="text-caption font-medium text-ink-secondary">이메일</span>
+          <span className="text-caption font-medium text-ink-secondary">{t('emailLabel')}</span>
           {/* iOS는 기본으로 첫 글자를 대문자로 바꾸고 자동 교정을 건다 — 이메일에선 둘 다 방해다 */}
           <Input
             type="email"
@@ -122,12 +129,12 @@ export default function LoginForm() {
         </label>
 
         <label className="flex flex-col gap-1.5">
-          <span className="text-caption font-medium text-ink-secondary">비밀번호</span>
+          <span className="text-caption font-medium text-ink-secondary">{t('passwordLabel')}</span>
           <Input
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            placeholder="6자 이상"
+            placeholder={t('passwordPlaceholder')}
             autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
             enterKeyHint="go"
             minLength={6}
@@ -137,7 +144,7 @@ export default function LoginForm() {
 
         <Button type="submit" size="lg" className="mt-2" disabled={busy}>
           {busy ? <Spinner className="border-accent-ink/40 border-t-transparent" /> : null}
-          {mode === 'signup' ? '가입하기' : '로그인'}
+          {mode === 'signup' ? t('signUp') : t('signIn')}
         </Button>
       </form>
 
@@ -146,7 +153,7 @@ export default function LoginForm() {
           href="/reset"
           className="mt-4 block text-center text-caption text-ink-muted transition-colors sm:hover:text-ink"
         >
-          비밀번호를 잊으셨나요?
+          {t('forgotPassword')}
         </Link>
       )}
     </Card>

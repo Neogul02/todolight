@@ -1,16 +1,21 @@
 import type { Metadata, Viewport } from 'next';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getTranslations } from 'next-intl/server';
 import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
 import './globals.css';
 import Providers from './providers';
 
-export const metadata: Metadata = {
-  title: 'TodoLight',
-  description: '팀원끼리 서로의 할 일을 한 화면에서 보고, 대신 처리해 주는 공유 투두 보드',
-  manifest: '/manifest.json',
-  // 홈 화면에 추가했을 때 주소창 없이 앱처럼 열린다 (iOS 우선 타깃)
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'TodoLight' },
-  formatDetection: { telephone: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta');
+  return {
+    title: t('title'),
+    description: t('description'),
+    manifest: '/manifest.json',
+    // 홈 화면에 추가했을 때 주소창 없이 앱처럼 열린다 (iOS 우선 타깃)
+    appleWebApp: { capable: true, statusBarStyle: 'default', title: t('title') },
+    formatDetection: { telephone: false },
+  };
+}
 
 // viewportFit: cover — 이게 없으면 env(safe-area-inset-*)가 전부 0으로 계산돼
 // 홈 인디케이터 회피(pb-safe, board-viewport)가 무효화된다.
@@ -32,9 +37,13 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // 테마와 달리 로케일은 쿠키로 매 요청마다 서버에서 정해진다(app/../i18n/request.ts) —
+  // 텍스트는 SSR된 HTML에 바로 박히므로 클라이언트 스크립트로 사후 교정할 수 없다.
+  const locale = await getLocale();
+
   return (
-    <html lang="ko" data-theme="ink" suppressHydrationWarning>
+    <html lang={locale} data-theme="ink" suppressHydrationWarning>
       <head>
         {/*
           첫 페인트 전에 테마를 칠한다. React가 붙은 뒤에 칠하면 다크를 쓰는 사람에게
@@ -47,7 +56,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <Providers>{children}</Providers>
+        <NextIntlClientProvider>
+          <Providers>{children}</Providers>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

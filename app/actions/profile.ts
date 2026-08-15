@@ -5,21 +5,26 @@ import { revalidatePath } from 'next/cache';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth, wrap } from './_base';
 import { isValidTheme } from '@/lib/themes';
+import { isValidLocale } from '@/lib/locales';
+import { type ActionT, getActionT } from '@/lib/server-i18n';
 import type { ApiResponse } from '@/types/api';
 import type { Profile } from '@/types/db';
 
-const nameSchema = z.string().trim().min(1, '이름을 입력해 주세요.').max(30);
+const nameSchema = (t: ActionT) => z.string().trim().min(1, t('nameRequired')).max(30);
+
+const PROFILE_COLUMNS = 'id, email, display_name, avatar_color, avatar_url, theme, locale, show_done, created_at';
 
 export async function fetchMyProfile(): Promise<ApiResponse<Profile>> {
   return wrap(async () => {
     const user = await requireAuth();
+    const t = await getActionT();
     const { data, error } = await getSupabaseAdmin()
       .from('profiles')
-      .select('id, email, display_name, avatar_color, avatar_url, theme, show_done, created_at')
+      .select(PROFILE_COLUMNS)
       .eq('id', user.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!data) throw new Error('프로필을 찾을 수 없어요.');
+    if (!data) throw new Error(t('profileNotFound'));
     return data as Profile;
   });
 }
@@ -28,26 +33,32 @@ export async function updateMyProfile(patch: {
   displayName?: string;
   avatarUrl?: string | null;
   theme?: string;
+  locale?: string;
   showDone?: boolean;
 }): Promise<ApiResponse<Profile>> {
   return wrap(async () => {
     const user = await requireAuth();
+    const t = await getActionT();
 
     const update: Record<string, unknown> = {};
-    if (patch.displayName !== undefined) update.display_name = nameSchema.parse(patch.displayName);
+    if (patch.displayName !== undefined) update.display_name = nameSchema(t).parse(patch.displayName);
     if (patch.avatarUrl !== undefined) update.avatar_url = patch.avatarUrl || null;
     if (patch.showDone !== undefined) update.show_done = patch.showDone;
     if (patch.theme !== undefined) {
-      if (!isValidTheme(patch.theme)) throw new Error('없는 테마예요.');
+      if (!isValidTheme(patch.theme)) throw new Error(t('invalidTheme'));
       update.theme = patch.theme;
     }
-    if (Object.keys(update).length === 0) throw new Error('바꿀 내용이 없어요.');
+    if (patch.locale !== undefined) {
+      if (!isValidLocale(patch.locale)) throw new Error(t('invalidLocale'));
+      update.locale = patch.locale;
+    }
+    if (Object.keys(update).length === 0) throw new Error(t('nothingToUpdate'));
 
     const { data, error } = await getSupabaseAdmin()
       .from('profiles')
       .update(update)
       .eq('id', user.id)
-      .select('id, email, display_name, avatar_color, avatar_url, theme, show_done, created_at')
+      .select(PROFILE_COLUMNS)
       .single();
     if (error) throw new Error(error.message);
 

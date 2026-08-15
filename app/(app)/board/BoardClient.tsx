@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   boardKeys,
   useBoardRealtime,
@@ -14,8 +15,9 @@ import {
 import { useCarousel } from '@/hooks/useCarousel';
 import { useApp } from '../OrgContext';
 import { Avatar } from '@/components/Avatar';
-import { Button, Card } from '@/components/ui';
+import { Card } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import type { Locale } from '@/lib/locales';
 import type { MemberSummary, Todo } from '@/types/db';
 import { CalendarView } from './CalendarView';
 import MemberColumn from './MemberColumn';
@@ -34,6 +36,8 @@ export default function BoardClient() {
     boardMode: mode,
   } = useApp();
   const queryClient = useQueryClient();
+  const locale = useLocale() as Locale;
+  const t = useTranslations('board');
 
   const members = useOrgMembers(activeOrgId);
   const todos = useOrgTodos(activeOrgId);
@@ -71,16 +75,24 @@ export default function BoardClient() {
     return [...list].sort((a, b) => {
       if (a.user_id === userId) return -1;
       if (b.user_id === userId) return 1;
-      return a.display_name.localeCompare(b.display_name, 'ko');
+      return a.display_name.localeCompare(b.display_name, locale);
     });
-  }, [members.data, userId]);
+  }, [members.data, userId, locale]);
 
+  // 같이하기로 참여한 할 일은 주인 컬럼뿐 아니라 참여자 컬럼에도 똑같이 뜬다 —
+  // 같은 Todo 객체 참조를 여러 컬럼 목록에 넣어도 각 컬럼은 독립적으로 렌더링되니 문제없다.
   const todosByOwner = useMemo(() => {
     const map = new Map<string, Todo[]>();
-    (todos.data ?? []).forEach(t => {
-      const list = map.get(t.owner_id) ?? [];
+    const push = (uid: string, t: Todo) => {
+      const list = map.get(uid) ?? [];
       list.push(t);
-      map.set(t.owner_id, list);
+      map.set(uid, list);
+    };
+    (todos.data ?? []).forEach(t => {
+      push(t.owner_id, t);
+      (t.participant_ids ?? []).forEach(uid => {
+        if (uid !== t.owner_id) push(uid, t);
+      });
     });
     return map;
   }, [todos.data]);
@@ -121,23 +133,21 @@ export default function BoardClient() {
   if (orgs.length === 0) {
     return (
       <main className="mx-auto flex max-w-[520px] flex-col items-center px-6 py-16 pb-safe text-center">
-        <h1 className="text-heading-1 text-ink">아직 조직이 없어요</h1>
-        <p className="mt-2 text-body-sm text-ink-muted">
-          조직을 만들어 팀원을 초대하거나, 받은 초대를 수락해 주세요.
-        </p>
+        <h1 className="text-heading-1 text-ink">{t('noOrgTitle')}</h1>
+        <p className="mt-2 text-body-sm text-ink-muted">{t('noOrgDescription')}</p>
         <div className="mt-7 flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <Link
             href="/orgs/new"
             className="flex h-13 items-center justify-center rounded-2xl bg-accent px-6 text-[16px] font-medium text-accent-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]"
           >
-            조직 만들기
+            {t('createOrg')}
           </Link>
           <button
             type="button"
             onClick={openMenu}
             className="flex h-13 items-center justify-center gap-1.5 rounded-2xl border border-hairline-strong bg-surface px-6 text-[16px] font-medium text-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]"
           >
-            받은 초대 확인
+            {t('checkInvites')}
             {pendingInvites > 0 && <span className="size-2 rounded-full bg-danger" />}
           </button>
         </div>
@@ -150,7 +160,7 @@ export default function BoardClient() {
   // 공유 보드인데 혼자면 기능의 절반이 비어 있는 셈이다 — 다음 할 일을 알려 준다
   const soloMember = !loading && !error && orderedMembers.length === 1;
   const handoffOwner = handoff
-    ? orderedMembers.find(m => m.user_id === handoff.owner_id)?.display_name ?? '팀원'
+    ? orderedMembers.find(m => m.user_id === handoff.owner_id)?.display_name ?? t('teammate')
     : '';
 
   return (
@@ -182,7 +192,7 @@ export default function BoardClient() {
 
       {error && (
         <Card className="mx-3 p-5 text-[14px] text-danger sm:mx-4">
-          {error instanceof Error ? error.message : '보드를 불러오지 못했어요.'}
+          {error instanceof Error ? error.message : t('loadError')}
         </Card>
       )}
 
@@ -291,6 +301,7 @@ export default function BoardClient() {
 }
 
 function InviteColumn({ isManager, className }: { isManager: boolean; className?: string }) {
+  const t = useTranslations('board');
   return (
     <section
       className={cn(
@@ -298,21 +309,19 @@ function InviteColumn({ isManager, className }: { isManager: boolean; className?
         className
       )}
     >
-      <p className="text-title text-ink">아직 혼자예요</p>
+      <p className="text-title text-ink">{t('soloTitle')}</p>
       <p className="text-caption text-ink-muted">
-        {isManager
-          ? '팀원을 초대하면 서로의 할 일이 여기 나란히 놓여요.'
-          : '방장이 팀원을 초대하면 서로의 할 일이 여기 나란히 놓여요.'}
+        {isManager ? t('soloDescriptionManager') : t('soloDescriptionMember')}
       </p>
       {isManager ? (
         <Link
           href="/team"
           className="mt-2 flex h-11 items-center justify-center rounded-xl bg-accent px-5 text-[15px] font-medium text-accent-ink transition-transform active:scale-[0.98]"
         >
-          팀원 초대하기
+          {t('inviteMembers')}
         </Link>
       ) : (
-        <p className="mt-2 text-caption text-ink-faint">방장에게 초대를 요청해 주세요.</p>
+        <p className="mt-2 text-caption text-ink-faint">{t('askOwnerToInvite')}</p>
       )}
     </section>
   );
@@ -331,6 +340,7 @@ function MemberChip({
   remaining: number;
   onClick: () => void;
 }) {
+  const t = useTranslations('board');
   return (
     <button
       type="button"
@@ -350,7 +360,7 @@ function MemberChip({
         size="sm"
       />
       <span className="max-w-[80px] truncate text-[13px] font-medium">
-        {isMe ? '나' : member.display_name}
+        {isMe ? t('you') : member.display_name}
       </span>
       {remaining > 0 && (
         <span
@@ -365,6 +375,3 @@ function MemberChip({
     </button>
   );
 }
-
-
-

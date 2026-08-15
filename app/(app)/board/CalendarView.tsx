@@ -2,16 +2,17 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { useLocale, useTranslations } from 'next-intl';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/ui';
 import { getEventColor } from '@/lib/event-colors';
 import { useOrgEvents } from '@/hooks/useOrgEvents';
 import { addDays, cn, todayKST } from '@/lib/utils';
+import type { Locale } from '@/lib/locales';
 import type { MemberSummary, OrgEvent, Todo } from '@/types/db';
 import { EventSheet } from './EventSheet';
 
-const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 /** 한 칸에 띠를 무한히 쌓을 수는 없다. 넘치면 개수만 알린다 */
 const MAX_LANES = 3;
 /** 격자 칸 사이 가로 간격(gap-x-1). 여러 칸을 가로지르는 띠의 폭 계산에 쓴다 */
@@ -79,13 +80,10 @@ function shiftMonth(month: string, delta: number): string {
   return new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
 }
 
-/** 스크린리더가 읽을 하루 요약 — "8월 15일, 남은 할 일 2개, 일정 팝업 준비 기간" */
-function describeDay(date: string, remaining: number, events: OrgEvent[]): string {
-  const [, m, d] = date.split('-');
-  const parts = [`${Number(m)}월 ${Number(d)}일`];
-  if (remaining > 0) parts.push(`남은 할 일 ${remaining}개`);
-  if (events.length > 0) parts.push(`일정 ${events.map(e => e.title).join(', ')}`);
-  return parts.join(', ');
+function monthYearLabel(month: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long' }).format(
+    new Date(`${month}-01T00:00:00Z`)
+  );
 }
 
 function formatRange(event: OrgEvent): string {
@@ -120,6 +118,9 @@ export function CalendarView({
   currentUserId: string;
   isManager: boolean;
 }) {
+  const locale = useLocale() as Locale;
+  const t = useTranslations('calendar');
+  const tBoard = useTranslations('board');
   const today = todayKST();
   const [month, setMonth] = useState(() => today.slice(0, 7));
   /** 어느 쪽으로 넘겼는지 — 들어오고 나가는 방향을 맞춰야 넘긴 느낌이 난다 */
@@ -129,6 +130,27 @@ export function CalendarView({
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const events = useOrgEvents(orgId);
+
+  /** 일요일부터 시작하는 한 주의 요일 이름을 로케일에 맞게 뽑는다 (2023-01-01은 일요일) */
+  const weekdays = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+    return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(Date.UTC(2023, 0, 1 + i))));
+  }, [locale]);
+
+  /** 스크린리더가 읽을 하루 요약 — "8월 15일, 남은 할 일 2개, 일정 팝업 준비 기간" */
+  const describeDay = useCallback(
+    (date: string, remaining: number, dayEvents: OrgEvent[]): string => {
+      const dateLabel = new Intl.DateTimeFormat(locale, { month: 'long', day: 'numeric' }).format(
+        new Date(`${date}T00:00:00Z`)
+      );
+      const parts = [dateLabel];
+      if (remaining > 0) parts.push(t('remainingCount', { count: remaining }));
+      if (dayEvents.length > 0)
+        parts.push(t('eventsList', { list: dayEvents.map(e => e.title).join(', ') }));
+      return parts.join(', ');
+    },
+    [locale, t]
+  );
 
   /*
     달을 넘길 때 선택 날짜도 같이 옮긴다.
@@ -210,7 +232,7 @@ export function CalendarView({
   const selectedTodos = todosByDate.get(selected) ?? [];
   const selectedEvents = eventsByDate.get(selected) ?? [];
   const undated = visible.filter(t => !t.due_date);
-  const [year, monthNumber] = month.split('-');
+  const monthLabel = monthYearLabel(month, locale);
 
   function openNewEvent() {
     setEditing(null);
@@ -228,14 +250,14 @@ export function CalendarView({
         <button
           type="button"
           onClick={() => shift(-1)}
-          aria-label="이전 달"
+          aria-label={t('prevMonth')}
           className="grid size-10 place-items-center rounded-xl text-[18px] text-ink-muted active:bg-canvas-soft"
         >
           ‹
         </button>
         <span className="flex items-center gap-2">
           <p className="text-title tabular-nums text-ink" aria-live="polite">
-            {year}년 {Number(monthNumber)}월
+            {monthLabel}
           </p>
           {awayFromToday && (
             <button
@@ -243,14 +265,14 @@ export function CalendarView({
               onClick={goToday}
               className="h-7 rounded-lg border border-hairline px-2 text-[12px] font-medium text-ink-muted transition-colors active:bg-canvas-soft"
             >
-              오늘
+              {t('today')}
             </button>
           )}
         </span>
         <button
           type="button"
           onClick={() => shift(1)}
-          aria-label="다음 달"
+          aria-label={t('nextMonth')}
           className="grid size-10 place-items-center rounded-xl text-[18px] text-ink-muted active:bg-canvas-soft"
         >
           ›
@@ -258,7 +280,7 @@ export function CalendarView({
       </div>
 
       <div className="grid grid-cols-7" role="row">
-        {WEEKDAYS.map(w => (
+        {weekdays.map(w => (
           <span
             key={w}
             role="columnheader"
@@ -282,7 +304,7 @@ export function CalendarView({
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: direction * -32 }}
             transition={{ duration: reduceMotion ? 0 : 0.16, ease: [0.22, 0.61, 0.36, 1] }}
             role="grid"
-            aria-label={`${year}년 ${Number(monthNumber)}월 달력`}
+            aria-label={t('gridLabel', { month: monthLabel })}
             className="grid grid-cols-7 gap-x-1 gap-y-1.5"
           >
         {days.map((date, i) => {
@@ -419,10 +441,14 @@ export function CalendarView({
       <section className="mt-4 border-t border-hairline pt-3">
         <div className="flex items-center justify-between pb-2">
           <h2 className="text-caption font-semibold text-ink-secondary">
-            {selected} · 일정 {selectedEvents.length} · 할 일 {selectedTodos.length}
+            {t('selectedSummary', {
+              date: selected,
+              events: selectedEvents.length,
+              todos: selectedTodos.length,
+            })}
           </h2>
           <Button size="sm" variant="outline" onClick={openNewEvent}>
-            + 일정
+            {t('newEvent')}
           </Button>
         </div>
 
@@ -453,11 +479,11 @@ export function CalendarView({
         )}
 
         {selectedTodos.length === 0 && selectedEvents.length === 0 ? (
-          <p className="py-6 text-center text-caption text-ink-faint">이 날은 비어 있어요</p>
+          <p className="py-6 text-center text-caption text-ink-faint">{t('emptyDay')}</p>
         ) : (
           <ul className="flex flex-col gap-1.5">
             {selectedTodos.map(t => (
-              <TodoRow key={t.id} todo={t} owner={memberOf(t.owner_id)} />
+              <TodoRow key={t.id} todo={t} owner={memberOf(t.owner_id)} unknownLabel={tBoard('unknown')} />
             ))}
           </ul>
         )}
@@ -466,11 +492,11 @@ export function CalendarView({
       {undated.length > 0 && (
         <section className="mt-5 border-t border-hairline pt-3">
           <h2 className="pb-2 text-caption font-semibold text-ink-secondary">
-            마감 없음 · {undated.length}건
+            {t('noDueDate', { count: undated.length })}
           </h2>
           <ul className="flex flex-col gap-1.5">
             {undated.map(t => (
-              <TodoRow key={t.id} todo={t} owner={memberOf(t.owner_id)} />
+              <TodoRow key={t.id} todo={t} owner={memberOf(t.owner_id)} unknownLabel={tBoard('unknown')} />
             ))}
           </ul>
         </section>
@@ -488,7 +514,15 @@ export function CalendarView({
   );
 }
 
-function TodoRow({ todo, owner }: { todo: Todo; owner?: MemberSummary }) {
+function TodoRow({
+  todo,
+  owner,
+  unknownLabel,
+}: {
+  todo: Todo;
+  owner?: MemberSummary;
+  unknownLabel: string;
+}) {
   const done = todo.status === 'done';
   return (
     <li className="flex items-center gap-2.5 rounded-xl border border-hairline bg-surface px-3 py-2.5">
@@ -508,9 +542,7 @@ function TodoRow({ todo, owner }: { todo: Todo; owner?: MemberSummary }) {
         >
           {todo.title}
         </span>
-        <span className="block text-[11px] text-ink-faint">
-          {owner?.display_name ?? '알 수 없음'}
-        </span>
+        <span className="block text-[11px] text-ink-faint">{owner?.display_name ?? unknownLabel}</span>
       </span>
     </li>
   );

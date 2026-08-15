@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { BottomSheet } from '@/components/BottomSheet';
 import { DuePicker } from '@/components/DuePicker';
 import { Button, Input } from '@/components/ui';
@@ -28,11 +29,12 @@ export function EventSheet({
   defaultDate: string;
   canDelete: boolean;
 }) {
+  const t = useTranslations('event');
   return (
     <BottomSheet
       open={open}
       onClose={onClose}
-      title={event ? '일정 고치기' : '일정 추가'}
+      title={event ? t('editTitle') : t('newTitle')}
       className="sm:max-w-[520px]"
     >
       {orgId && (
@@ -63,6 +65,8 @@ function EventForm({
   canDelete: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations('event');
+  const tCommon = useTranslations('common');
   const { create, update, remove } = useEventMutations(orgId);
 
   const [title, setTitle] = useState(event?.title ?? '');
@@ -91,11 +95,11 @@ function EventForm({
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1.5">
-        <span className="text-caption font-medium text-ink-secondary">이름</span>
+        <span className="text-caption font-medium text-ink-secondary">{t('nameLabel')}</span>
         <Input
           value={title}
           onChange={e => setTitle(e.target.value)}
-          placeholder="예) 팝업 준비 기간"
+          placeholder={t('namePlaceholder')}
           maxLength={200}
           enterKeyHint="done"
           autoFocus
@@ -103,14 +107,14 @@ function EventForm({
       </label>
 
       <div>
-        <span className="text-caption font-medium text-ink-secondary">색</span>
+        <span className="text-caption font-medium text-ink-secondary">{t('colorLabel')}</span>
         <div className="mt-2 flex flex-wrap gap-2">
           {EVENT_COLORS.map(c => (
             <button
               key={c.key}
               type="button"
               onClick={() => setColor(c.key)}
-              aria-label={c.name}
+              aria-label={t(`colors.${c.key}`)}
               aria-pressed={color === c.key}
               className={cn(
                 'grid size-9 place-items-center rounded-full border-2 transition-transform active:scale-90',
@@ -124,7 +128,7 @@ function EventForm({
       </div>
 
       <div>
-        <span className="text-caption font-medium text-ink-secondary">시작</span>
+        <span className="text-caption font-medium text-ink-secondary">{t('startLabel')}</span>
         <DuePicker
           value={start}
           onChange={next => {
@@ -138,7 +142,7 @@ function EventForm({
       </div>
 
       <div>
-        <span className="text-caption font-medium text-ink-secondary">끝</span>
+        <span className="text-caption font-medium text-ink-secondary">{t('endLabel')}</span>
         <DuePicker
           value={end}
           onChange={next => setEnd(next ?? start)}
@@ -154,14 +158,14 @@ function EventForm({
             onClick={() => remove.mutate(event.id, { onSuccess: onClose })}
             disabled={busy}
           >
-            삭제
+            {t('delete')}
           </Button>
         )}
         <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-          취소
+          {tCommon('cancel')}
         </Button>
         <Button type="submit" className="flex-1" disabled={busy || !title.trim()}>
-          {event ? '저장' : '추가'}
+          {event ? tCommon('save') : t('add')}
         </Button>
       </div>
     </form>

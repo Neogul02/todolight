@@ -1,17 +1,19 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
-
-const POINTS = [
-  { title: '가볍게', body: '설치도 설정도 필요없어요, 초대로 바로 시작해요' },
-  { title: '간단하게', body: '간단하지만 강력하게, 우리 조직의 할 일을 파악해요' },
-  { title: '빠르게', body: '체크하는 순간 화면에 반영돼요.' },
-];
 
 export default async function LandingPage() {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.auth.getClaims();
   if (data?.claims) redirect('/board');
+
+  const t = await getTranslations('landing');
+  const POINTS = [
+    { title: t('pointLightTitle'), body: t('pointLightBody') },
+    { title: t('pointSimpleTitle'), body: t('pointSimpleBody') },
+    { title: t('pointFastTitle'), body: t('pointFastBody') },
+  ];
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-[880px] flex-col px-5 pt-6 pb-8 sm:px-6 sm:pt-14">
@@ -21,32 +23,30 @@ export default async function LandingPage() {
           href="/login"
           className="-mr-2 rounded-lg px-2 py-2 text-[15px] font-medium text-ink-muted transition-colors active:bg-canvas-soft sm:text-[14px] sm:hover:text-ink"
         >
-          로그인
+          {t('login')}
         </Link>
       </header>
 
       <section className="mt-14 max-w-[560px] sm:mt-20">
         <h1 className="text-[34px] font-bold leading-[1.15] tracking-[-0.035em] text-ink sm:text-display">
-          가볍게, 간단하게,
+          {t('headingLine1')}
           <br />
-          빠르게.
+          {t('headingLine2')}
         </h1>
-        <p className="mt-4 text-body-sm text-ink-muted sm:mt-5 sm:text-body-md">
-          팀의 할 일을 한 페이지에서 보는 TodoList
-        </p>
+        <p className="mt-4 text-body-sm text-ink-muted sm:mt-5 sm:text-body-md">{t('tagline')}</p>
 
         <div className="mt-7 flex flex-col gap-2 sm:mt-8 sm:flex-row sm:flex-wrap">
           <Link
             href="/login?mode=signup"
             className="inline-flex h-13 items-center justify-center rounded-2xl bg-accent px-8 text-[16px] font-medium text-accent-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]"
           >
-            회원가입
+            {t('signup')}
           </Link>
           <Link
             href="/login"
             className="inline-flex h-13 items-center justify-center rounded-2xl border border-hairline-strong bg-surface px-8 text-[16px] font-medium text-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]"
           >
-            로그인
+            {t('login')}
           </Link>
         </div>
       </section>

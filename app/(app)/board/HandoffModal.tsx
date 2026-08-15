@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { handleForMember } from '@/app/actions/todos';
 import { showMsg } from '@/lib/toast';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -22,6 +23,8 @@ export default function HandoffModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const t = useTranslations('handoff');
+  const tToast = useTranslations('toast');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -36,17 +39,15 @@ export default function HandoffModal({
       showMsg(res.error, 'error');
       return;
     }
-    showMsg('대신 처리했어요', 'success');
+    showMsg(tToast('handledForMember'), 'success');
     onDone();
     onClose();
   }
 
   return (
-    <BottomSheet open onClose={onClose} title="대신 처리">
+    <BottomSheet open onClose={onClose} title={t('title')}>
       <p className="text-body-sm text-ink">{todo.title}</p>
-      <p className="mt-1 text-caption text-ink-muted">
-        {ownerName}님의 할 일이에요. 어떻게 처리했는지 한 줄 남겨 주세요.
-      </p>
+      <p className="mt-1 text-caption text-ink-muted">{t('description', { owner: ownerName })}</p>
 
       <form onSubmit={submit} className="mt-4 flex flex-col gap-3">
         <Textarea
@@ -55,15 +56,15 @@ export default function HandoffModal({
           rows={3}
           maxLength={1000}
           autoFocus
-          placeholder="예) 거래처에 메일 보내뒀습니다. 회신 오면 공유할게요."
+          placeholder={t('placeholder')}
         />
         {/* 모바일에서는 세로로 쌓아 각 버튼을 넓게 — 한 손 조작 기준 */}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={onClose} className="sm:w-auto">
-            취소
+            {t('cancel')}
           </Button>
           <Button type="submit" disabled={busy || !note.trim()} className="sm:w-auto">
-            완료 처리
+            {t('submit')}
           </Button>
         </div>
       </form>

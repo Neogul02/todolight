@@ -1,13 +1,16 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import {
   addTodoNote,
   deleteTodo,
   restoreTodo,
   setTodoStatus,
   updateTodo,
+  updateTodoNote,
 } from '@/app/actions/todos';
+import { joinTodo, leaveTodo } from '@/app/actions/todo-participants';
 import { clearTodoPending, markTodoPending } from '@/lib/pending-todos';
 import { showMsg, showUndo } from '@/lib/toast';
 import { boardKeys } from './useOrgBoard';
@@ -21,6 +24,8 @@ import type { Todo, TodoStatus } from '@/types/db';
  */
 export function useTodoMutations(orgId: string | null) {
   const queryClient = useQueryClient();
+  const t = useTranslations('toast');
+  const tCommon = useTranslations('common');
   const key = boardKeys.todos(orgId ?? '');
 
   /**
@@ -108,7 +113,7 @@ export function useTodoMutations(orgId: string | null) {
     },
     onError: (error: Error, _todo, context) => rollback(context?.snapshot, error),
     // 확인 창 없이 지우는 대신 되돌릴 기회를 준다 (소프트 삭제라 행은 남아 있다)
-    onSuccess: todo => showUndo('일정을 지웠어요', () => restore.mutate(todo)),
+    onSuccess: todo => showUndo(t('todoDeleted'), tCommon('undo'), () => restore.mutate(todo)),
     onSettled: (_data, _error, todo) => settle(todo.id),
   });
 
@@ -143,5 +148,69 @@ export function useTodoMutations(orgId: string | null) {
     onSuccess: resync,
   });
 
-  return { toggleStatus, edit, remove, restore, addNote };
+  // 내용만 바뀌고 작성자·아바타는 그대로라 addNote와 달리 낙관적으로 반영할 수 있다.
+  const editNote = useMutation({
+    mutationFn: async (input: { todoId: string; noteId: string; content: string }) => {
+      const res = await updateTodoNote(input.noteId, input.content);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onMutate: async input => ({
+      snapshot: await patch(todos =>
+        todos.map(t =>
+          t.id === input.todoId
+            ? {
+                ...t,
+                notes: t.notes?.map(n =>
+                  n.id === input.noteId ? { ...n, content: input.content } : n
+                ),
+              }
+            : t
+        )
+      ),
+    }),
+    onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
+    onSettled: resync,
+  });
+
+  // 보드 캐시는 컬럼별이 아니라 조직 전체의 flat한 목록 하나다 — 여러 컬럼에 걸쳐
+  // 보이는 건 렌더할 때 파생되는 그룹핑일 뿐이라, participant_ids 하나만 patch하면
+  // 어느 컬럼에서 눌러도 즉시 반영된다.
+  const join = useMutation({
+    mutationFn: async (input: { todoId: string; userId: string }) => {
+      const res = await joinTodo(input.todoId);
+      if (!res.success) throw new Error(res.error);
+    },
+    onMutate: async input => ({
+      snapshot: await patch(todos =>
+        todos.map(t =>
+          t.id === input.todoId
+            ? { ...t, participant_ids: [...new Set([...(t.participant_ids ?? []), input.userId])] }
+            : t
+        )
+      ),
+    }),
+    onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
+    onSettled: resync,
+  });
+
+  const leave = useMutation({
+    mutationFn: async (input: { todoId: string; userId: string }) => {
+      const res = await leaveTodo(input.todoId);
+      if (!res.success) throw new Error(res.error);
+    },
+    onMutate: async input => ({
+      snapshot: await patch(todos =>
+        todos.map(t =>
+          t.id === input.todoId
+            ? { ...t, participant_ids: (t.participant_ids ?? []).filter(id => id !== input.userId) }
+            : t
+        )
+      ),
+    }),
+    onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
+    onSettled: resync,
+  });
+
+  return { toggleStatus, edit, remove, restore, addNote, editNote, join, leave };
 }

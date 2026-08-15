@@ -4,30 +4,13 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth, wrap } from './_base';
+import { requireManager, requireMembership } from '@/lib/guards';
+import { type ActionT, getActionT } from '@/lib/server-i18n';
 import type { ApiResponse } from '@/types/api';
 import type { MemberRole, MemberSummary, OrgInvite, Organization } from '@/types/db';
 
-const orgNameSchema = z.string().trim().min(1, '조직 이름을 입력해 주세요.').max(60);
-const emailSchema = z.string().trim().toLowerCase().email('이메일 형식이 맞지 않아요.');
-
-/** 호출자가 해당 조직의 멤버인지 확인하고 역할을 돌려준다. 아니면 throw. */
-async function requireMembership(orgId: string, userId: string): Promise<MemberRole> {
-  const { data, error } = await getSupabaseAdmin()
-    .from('org_members')
-    .select('role')
-    .eq('org_id', orgId)
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('이 조직의 멤버가 아니에요.');
-  return data.role as MemberRole;
-}
-
-async function requireManager(orgId: string, userId: string): Promise<MemberRole> {
-  const role = await requireMembership(orgId, userId);
-  if (role !== 'owner' && role !== 'admin') throw new Error('방장만 할 수 있어요.');
-  return role;
-}
+const orgNameSchema = (t: ActionT) => z.string().trim().min(1, t('orgNameRequired')).max(60);
+const emailSchema = (t: ActionT) => z.string().trim().toLowerCase().email(t('invalidEmail'));
 
 /** 내가 속한 조직 목록 */
 export async function fetchMyOrgs(): Promise<ApiResponse<(Organization & { role: MemberRole; member_count: number })[]>> {
@@ -64,7 +47,8 @@ export async function fetchMyOrgs(): Promise<ApiResponse<(Organization & { role:
 export async function createOrg(name: string): Promise<ApiResponse<Organization>> {
   return wrap(async () => {
     const user = await requireAuth();
-    const parsed = orgNameSchema.parse(name);
+    const t = await getActionT();
+    const parsed = orgNameSchema(t).parse(name);
 
     const { data: org, error } = await getSupabaseAdmin()
       .from('organizations')
@@ -125,9 +109,10 @@ export async function inviteMember(orgId: string, email: string): Promise<ApiRes
   return wrap(async () => {
     const user = await requireAuth();
     await requireManager(orgId, user.id);
-    const target = emailSchema.parse(email);
+    const t = await getActionT();
+    const target = emailSchema(t).parse(email);
 
-    if (target === user.email?.toLowerCase()) throw new Error('본인은 초대할 수 없어요.');
+    if (target === user.email?.toLowerCase()) throw new Error(t('cannotInviteSelf'));
 
     // 이미 멤버인 이메일인지 확인
     const { data: existingProfile } = await getSupabaseAdmin()
@@ -143,7 +128,7 @@ export async function inviteMember(orgId: string, email: string): Promise<ApiRes
         .eq('org_id', orgId)
         .eq('user_id', existingProfile.id)
         .maybeSingle();
-      if (already) throw new Error('이미 조직에 있는 멤버예요.');
+      if (already) throw new Error(t('alreadyMember'));
     }
 
     const { data, error } = await getSupabaseAdmin()
@@ -152,7 +137,7 @@ export async function inviteMember(orgId: string, email: string): Promise<ApiRes
       .select('id, org_id, email, invited_by, status, created_at, responded_at')
       .single();
     if (error) {
-      if (error.code === '23505') throw new Error('이미 초대장을 보냈어요.');
+      if (error.code === '23505') throw new Error(t('inviteAlreadySent'));
       throw new Error(error.message);
     }
 
@@ -215,7 +200,8 @@ export async function respondToInvite(
 ): Promise<ApiResponse<{ orgId: string | null }>> {
   return wrap(async () => {
     const user = await requireAuth();
-    if (!user.email) throw new Error('이메일 정보가 없어서 초대를 처리할 수 없어요.');
+    const t = await getActionT();
+    if (!user.email) throw new Error(t('noEmailForInvite'));
 
     const { data: invite, error } = await getSupabaseAdmin()
       .from('org_invites')
@@ -223,10 +209,10 @@ export async function respondToInvite(
       .eq('id', inviteId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!invite) throw new Error('초대장을 찾을 수 없어요.');
-    if (invite.status !== 'pending') throw new Error('이미 처리한 초대장이에요.');
+    if (!invite) throw new Error(t('inviteNotFound'));
+    if (invite.status !== 'pending') throw new Error(t('inviteAlreadyHandled'));
     if (invite.email.toLowerCase() !== user.email.toLowerCase())
-      throw new Error('본인에게 온 초대장이 아니에요.');
+      throw new Error(t('inviteNotYours'));
 
     if (!accept) {
       await getSupabaseAdmin()
@@ -256,12 +242,13 @@ export async function respondToInvite(
 export async function revokeInvite(inviteId: string): Promise<ApiResponse<null>> {
   return wrap(async () => {
     const user = await requireAuth();
+    const t = await getActionT();
     const { data: invite } = await getSupabaseAdmin()
       .from('org_invites')
       .select('org_id')
       .eq('id', inviteId)
       .maybeSingle();
-    if (!invite) throw new Error('초대장을 찾을 수 없어요.');
+    if (!invite) throw new Error(t('inviteNotFound'));
     await requireManager(invite.org_id, user.id);
 
     await getSupabaseAdmin()
@@ -276,11 +263,12 @@ export async function revokeInvite(inviteId: string): Promise<ApiResponse<null>>
 export async function removeMember(orgId: string, userId: string): Promise<ApiResponse<null>> {
   return wrap(async () => {
     const user = await requireAuth();
+    const t = await getActionT();
     const myRole = await requireMembership(orgId, user.id);
 
     const isSelf = userId === user.id;
     if (!isSelf && myRole !== 'owner' && myRole !== 'admin')
-      throw new Error('방장만 할 수 있어요.');
+      throw new Error(t('managerOnly'));
 
     const { data: target } = await getSupabaseAdmin()
       .from('org_members')
@@ -288,8 +276,8 @@ export async function removeMember(orgId: string, userId: string): Promise<ApiRe
       .eq('org_id', orgId)
       .eq('user_id', userId)
       .maybeSingle();
-    if (!target) throw new Error('멤버를 찾을 수 없어요.');
-    if (target.role === 'owner') throw new Error('방장은 조직에서 뺄 수 없어요.');
+    if (!target) throw new Error(t('memberNotFound'));
+    if (target.role === 'owner') throw new Error(t('cannotRemoveOwner'));
 
     const { error } = await getSupabaseAdmin()
       .from('org_members')
@@ -311,9 +299,10 @@ export async function updateMemberRole(
 ): Promise<ApiResponse<null>> {
   return wrap(async () => {
     const user = await requireAuth();
+    const t = await getActionT();
     const myRole = await requireMembership(orgId, user.id);
-    if (myRole !== 'owner') throw new Error('방장만 할 수 있어요.');
-    if (userId === user.id) throw new Error('본인 역할은 바꿀 수 없어요.');
+    if (myRole !== 'owner') throw new Error(t('managerOnly'));
+    if (userId === user.id) throw new Error(t('cannotChangeOwnRole'));
 
     const { error } = await getSupabaseAdmin()
       .from('org_members')
@@ -368,11 +357,12 @@ export async function updateOrgWebhook(
 ): Promise<ApiResponse<null>> {
   return wrap(async () => {
     const user = await requireAuth();
+    const t = await getActionT();
     await requireManager(orgId, user.id);
 
     const trimmed = webhookUrl.trim();
     if (trimmed && !/^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\//.test(trimmed))
-      throw new Error('Discord 웹훅 주소가 아니에요.');
+      throw new Error(t('invalidDiscordWebhook'));
 
     const { error } = await getSupabaseAdmin()
       .from('organizations')
@@ -387,8 +377,9 @@ export async function updateOrgWebhook(
 export async function renameOrg(orgId: string, name: string): Promise<ApiResponse<null>> {
   return wrap(async () => {
     const user = await requireAuth();
+    const t = await getActionT();
     await requireManager(orgId, user.id);
-    const parsed = orgNameSchema.parse(name);
+    const parsed = orgNameSchema(t).parse(name);
 
     const { error } = await getSupabaseAdmin()
       .from('organizations')

@@ -10,6 +10,8 @@ export interface Profile {
   /** 업로드한 프로필 사진. 없으면 색 아바타로 떨어진다 */
   avatar_url: string | null;
   theme: string;
+  /** 'ko' | 'en' — 기기를 옮겨도 같아야 해서 계정에 붙였다. 매 요청의 1차 출처는 쿠키(lib/locales.ts) */
+  locale: string;
   /** 보드에 완료한 할 일도 보일지 — 기기를 옮겨도 같아야 해서 계정에 붙였다 */
   show_done: boolean;
   created_at: string;
@@ -84,6 +86,12 @@ export interface Todo {
   /** 소프트 삭제 시각 — 값이 있으면 보드에서 감춘다 */
   deleted_at: string | null;
   notes?: TodoNote[];
+  /**
+   * 같이하기로 참여한 사람들의 id. notes처럼 todo_participants를 조인해서 채우는
+   * 필드라 실제 DB 컬럼은 아니다 — fetchOrgTodos가 채워 주고, 상태 변경류 액션은
+   * (notes와 마찬가지로) 굳이 다시 채우지 않는다. 읽을 때는 `?? []`로 방어한다.
+   */
+  participant_ids?: string[];
 }
 
 /**

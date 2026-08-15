@@ -2,9 +2,12 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { updateMyProfile } from '@/app/actions/profile';
 import { applyTheme } from '@/app/providers';
+import { applyLocale } from '@/lib/locale-client';
 import { THEMES } from '@/lib/themes';
+import { LOCALES, type Locale } from '@/lib/locales';
 import { removeAvatar, uploadAvatar } from '@/lib/image-upload';
 import { Avatar } from '@/components/Avatar';
 import { Badge, Button, Card, Input } from '@/components/ui';
@@ -14,10 +17,15 @@ import { useApp } from '../OrgContext';
 
 export default function MeClient() {
   const router = useRouter();
+  const t = useTranslations('me');
+  const tCommon = useTranslations('common');
+  const tToast = useTranslations('toast');
+  const tRole = useTranslations('appshell');
   const { profile, email, orgs, userId } = useApp();
 
   const [name, setName] = useState(profile?.display_name ?? '');
   const [theme, setTheme] = useState(profile?.theme ?? 'system');
+  const [locale, setLocale] = useState<Locale>((profile?.locale as Locale) ?? 'ko');
   const [showDone, setShowDone] = useState(profile?.show_done ?? true);
   const [photo, setPhoto] = useState<string | null>(profile?.avatar_url ?? null);
   const [busy, setBusy] = useState(false);
@@ -27,14 +35,15 @@ export default function MeClient() {
   async function save() {
     if (busy) return;
     setBusy(true);
-    const res = await updateMyProfile({ displayName: name, theme, showDone });
+    const res = await updateMyProfile({ displayName: name, theme, locale, showDone });
     setBusy(false);
     if (!res.success) {
       showMsg(res.error, 'error');
       return;
     }
     applyTheme(res.data.theme);
-    showMsg('저장했어요.', 'success');
+    applyLocale(res.data.locale);
+    showMsg(tCommon('saved'), 'success');
     router.refresh();
   }
 
@@ -51,7 +60,7 @@ export default function MeClient() {
       const res = await updateMyProfile({ avatarUrl: url });
       if (!res.success) throw new Error(res.error);
       setPhoto(url);
-      showMsg('사진을 바꿨어요.', 'success');
+      showMsg(tToast('photoChanged'), 'success');
       router.refresh();
     } catch (err) {
       showMsg(err instanceof Error ? err.message : String(err), 'error');
@@ -68,7 +77,7 @@ export default function MeClient() {
       const res = await updateMyProfile({ avatarUrl: null });
       if (!res.success) throw new Error(res.error);
       setPhoto(null);
-      showMsg('사진을 지웠어요.', 'success');
+      showMsg(tToast('photoRemoved'), 'success');
       router.refresh();
     } catch (err) {
       showMsg(err instanceof Error ? err.message : String(err), 'error');
@@ -77,14 +86,17 @@ export default function MeClient() {
     }
   }
 
+  const roleLabel = (role: (typeof orgs)[number]['role']) =>
+    role === 'owner' ? tRole('roleOwner') : role === 'admin' ? tRole('roleAdmin') : tRole('roleMember');
+
   return (
     <main className="mx-auto flex w-full max-w-[560px] flex-col gap-4 px-4 py-5 pb-safe sm:py-6">
-      <h1 className="text-heading-2 text-ink">내 설정</h1>
+      <h1 className="text-heading-2 text-ink">{t('title')}</h1>
 
       <Card className="p-5">
         <div className="flex items-center gap-3">
           <Avatar
-            name={name || '나'}
+            name={name || t('you')}
             color={profile?.avatar_color}
             imageUrl={photo}
             seed={userId}
@@ -92,7 +104,7 @@ export default function MeClient() {
             className="size-14 text-[20px]"
           />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-semibold text-ink">{name || '이름 없음'}</p>
+            <p className="truncate text-[15px] font-semibold text-ink">{name || t('noName')}</p>
             <p className="truncate text-caption text-ink-faint">{email}</p>
           </div>
         </div>
@@ -105,17 +117,17 @@ export default function MeClient() {
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
           >
-            {uploading ? '올리는 중…' : photo ? '사진 바꾸기' : '사진 올리기'}
+            {uploading ? t('uploading') : photo ? t('changePhoto') : t('uploadPhoto')}
           </Button>
           {photo && (
             <Button variant="ghost" onClick={clearPhoto} disabled={uploading}>
-              지우기
+              {tCommon('delete')}
             </Button>
           )}
         </div>
 
         <label className="mt-4 flex flex-col gap-1.5">
-          <span className="text-caption font-medium text-ink-secondary">이름</span>
+          <span className="text-caption font-medium text-ink-secondary">{t('nameLabel')}</span>
           <Input value={name} onChange={e => setName(e.target.value)} maxLength={30} />
         </label>
 
@@ -126,28 +138,28 @@ export default function MeClient() {
       </Card>
 
       <Card className="p-5">
-        <h2 className="text-title text-ink">테마</h2>
-        <p className="mt-1 text-caption text-ink-muted">누르면 바로 적용돼요.</p>
+        <h2 className="text-title text-ink">{t('theme.title')}</h2>
+        <p className="mt-1 text-caption text-ink-muted">{t('theme.description')}</p>
 
         <div className="mt-3 grid grid-cols-3 gap-2">
-          {THEMES.map(t => (
+          {THEMES.map(themeDef => (
             <button
-              key={t.key}
+              key={themeDef.key}
               type="button"
               onClick={() => {
-                setTheme(t.key);
-                applyTheme(t.key);
+                setTheme(themeDef.key);
+                applyTheme(themeDef.key);
               }}
-              aria-pressed={theme === t.key}
+              aria-pressed={theme === themeDef.key}
               className={cn(
                 'flex flex-col gap-2 rounded-xl border p-2.5 text-left transition-colors',
-                theme === t.key
+                theme === themeDef.key
                   ? 'border-hairline-strong bg-surface-alt'
                   : 'border-hairline active:bg-surface-alt'
               )}
             >
               <span className="flex gap-1">
-                {t.swatch.map(c => (
+                {themeDef.swatch.map(c => (
                   <span
                     key={c}
                     className="size-4 rounded-full border border-black/10"
@@ -155,14 +167,42 @@ export default function MeClient() {
                   />
                 ))}
               </span>
-              <span className="block truncate text-[13px] font-medium text-ink">{t.name}</span>
+              <span className="block truncate text-[13px] font-medium text-ink">{themeDef.name}</span>
             </button>
           ))}
         </div>
       </Card>
 
       <Card className="p-5">
-        <h2 className="text-title text-ink">보드</h2>
+        <h2 className="text-title text-ink">{t('language.title')}</h2>
+        <p className="mt-1 text-caption text-ink-muted">{t('language.description')}</p>
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {LOCALES.map(l => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => {
+                setLocale(l);
+                applyLocale(l);
+                router.refresh();
+              }}
+              aria-pressed={locale === l}
+              className={cn(
+                'rounded-xl border p-2.5 text-center text-[14px] font-medium text-ink transition-colors',
+                locale === l
+                  ? 'border-hairline-strong bg-surface-alt'
+                  : 'border-hairline active:bg-surface-alt'
+              )}
+            >
+              {t(`language.${l}`)}
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="p-5">
+        <h2 className="text-title text-ink">{t('board.title')}</h2>
         <label className="mt-3 flex cursor-pointer items-center gap-3">
           <button
             type="button"
@@ -189,25 +229,25 @@ export default function MeClient() {
             )}
           </button>
           <span className="min-w-0">
-            <span className="block text-[15px] text-ink">완료한 할 일도 보기</span>
-            <span className="block text-caption text-ink-muted">끄면 아직 남은 일만 보여요.</span>
+            <span className="block text-[15px] text-ink">{t('board.showDone')}</span>
+            <span className="block text-caption text-ink-muted">{t('board.showDoneHint')}</span>
           </span>
         </label>
       </Card>
 
       <Card className="p-5">
-        <h2 className="text-title text-ink">소속 조직</h2>
+        <h2 className="text-title text-ink">{t('orgs.title')}</h2>
         {orgs.length === 0 ? (
-          <p className="mt-2 text-caption text-ink-muted">아직 속한 조직이 없어요.</p>
+          <p className="mt-2 text-caption text-ink-muted">{t('orgs.empty')}</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-1">
             {orgs.map(o => (
               <li key={o.id} className="flex items-center gap-2 py-1.5">
                 <span className="min-w-0 flex-1 truncate text-[14px] text-ink">{o.name}</span>
-                <span className="text-[12px] text-ink-faint">{o.member_count}명</span>
-                <Badge tone={o.role === 'owner' ? 'accent' : 'neutral'}>
-                  {o.role === 'owner' ? '방장' : o.role === 'admin' ? '관리자' : '팀원'}
-                </Badge>
+                <span className="text-[12px] text-ink-faint">
+                  {t('orgs.memberCount', { count: o.member_count })}
+                </span>
+                <Badge tone={o.role === 'owner' ? 'accent' : 'neutral'}>{roleLabel(o.role)}</Badge>
               </li>
             ))}
           </ul>
@@ -216,7 +256,7 @@ export default function MeClient() {
 
       {/* 로그아웃은 아바타 메뉴에 있다 — 같은 동작을 두 군데 두지 않는다 */}
       <Button size="lg" onClick={save} disabled={busy || !name.trim()}>
-        저장
+        {tCommon('save')}
       </Button>
     </main>
   );

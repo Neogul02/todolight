@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   fetchOrgInvites,
   fetchOrgWebhook,
@@ -24,14 +25,24 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { Badge, Button, Card, EmptyState, Input } from '@/components/ui';
 import { showMsg } from '@/lib/toast';
 import { formatRelativeDay } from '@/lib/utils';
+import type { Locale } from '@/lib/locales';
 import type { MemberSummary } from '@/types/db';
-
-const ROLE_LABEL = { owner: '방장', admin: '관리자', member: '팀원' } as const;
 
 export default function TeamClient() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const locale = useLocale() as Locale;
+  const t = useTranslations('team');
+  const tToast = useTranslations('toast');
+  const tRole = useTranslations('appshell');
+  const tCommon = useTranslations('common');
   const { activeOrgId, activeOrg, userId, isManager } = useApp();
+
+  const ROLE_LABEL = {
+    owner: tRole('roleOwner'),
+    admin: tRole('roleAdmin'),
+    member: tRole('roleMember'),
+  } as const;
 
   const members = useOrgMembers(activeOrgId);
   const [email, setEmail] = useState('');
@@ -53,7 +64,7 @@ export default function TeamClient() {
       const url = await uploadOrgImage(activeOrgId, file);
       const res = await updateOrgImage(activeOrgId, url);
       if (!res.success) throw new Error(res.error);
-      showMsg('조직 이미지를 바꿨어요.', 'success');
+      showMsg(tToast('orgImageChanged'), 'success');
       router.refresh();
     } catch (err) {
       showMsg(err instanceof Error ? err.message : String(err), 'error');
@@ -69,7 +80,7 @@ export default function TeamClient() {
       await removeOrgImage(activeOrgId);
       const res = await updateOrgImage(activeOrgId, null);
       if (!res.success) throw new Error(res.error);
-      showMsg('조직 이미지를 지웠어요', 'success');
+      showMsg(tToast('orgImageRemoved'), 'success');
       router.refresh();
     } catch (err) {
       showMsg(err instanceof Error ? err.message : String(err), 'error');
@@ -96,7 +107,7 @@ export default function TeamClient() {
     },
     onSuccess: () => {
       setEmail('');
-      showMsg('초대장을 보냈어요.', 'success');
+      showMsg(tToast('inviteSent'), 'success');
       queryClient.invalidateQueries({ queryKey: ['org-invites', activeOrgId] });
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
@@ -118,7 +129,7 @@ export default function TeamClient() {
       return targetId;
     },
     onSuccess: targetId => {
-      showMsg(targetId === userId ? '조직에서 나왔어요.' : '멤버를 내보냈어요.', 'success');
+      showMsg(targetId === userId ? tToast('leftOrg') : tToast('memberRemoved'), 'success');
       setPendingKick(null);
       queryClient.invalidateQueries({ queryKey: ['members', activeOrgId] });
       router.refresh();
@@ -132,7 +143,7 @@ export default function TeamClient() {
       if (!res.success) throw new Error(res.error);
     },
     onSuccess: () => {
-      showMsg('역할을 바꿨어요.', 'success');
+      showMsg(tToast('roleChanged'), 'success');
       queryClient.invalidateQueries({ queryKey: ['members', activeOrgId] });
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
@@ -156,7 +167,7 @@ export default function TeamClient() {
       return value;
     },
     onSuccess: value => {
-      showMsg(value ? 'Discord 알림을 켰어요.' : 'Discord 알림을 껐어요.', 'success');
+      showMsg(value ? tToast('discordOn') : tToast('discordOff'), 'success');
       queryClient.invalidateQueries({ queryKey: ['org-webhook', activeOrgId] });
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
@@ -168,7 +179,7 @@ export default function TeamClient() {
       if (!res.success) throw new Error(res.error);
     },
     onSuccess: () => {
-      showMsg('조직 이름을 바꿨어요.', 'success');
+      showMsg(tToast('orgRenamed'), 'success');
       setOrgName('');
       router.refresh();
     },
@@ -178,9 +189,9 @@ export default function TeamClient() {
   if (!activeOrgId || !activeOrg) {
     return (
       <main className="mx-auto max-w-[560px] px-6 py-20 text-center">
-        <h1 className="text-heading-1 text-ink">조직이 없어요</h1>
+        <h1 className="text-heading-1 text-ink">{t('noOrgTitle')}</h1>
         <Link href="/orgs/new" className="mt-6 inline-block">
-          <Button size="lg">조직 만들기</Button>
+          <Button size="lg">{t('createOrg')}</Button>
         </Link>
       </main>
     );
@@ -198,17 +209,15 @@ export default function TeamClient() {
         <div className="min-w-0">
           <h1 className="truncate text-heading-2 text-ink">{activeOrg.name}</h1>
           <p className="mt-0.5 text-caption text-ink-muted">
-            멤버 {activeOrg.member_count}명
+            {t('memberCount', { count: activeOrg.member_count })}
           </p>
         </div>
       </div>
 
       {isManager && (
         <Card className="p-5">
-          <h2 className="text-title text-ink">팀원 초대</h2>
-          <p className="mt-1 text-caption text-ink-muted">
-            초대할 사람의 이메일을 넣으면, 그 계정으로 로그인했을 때 초대함에 떠요.
-          </p>
+          <h2 className="text-title text-ink">{t('inviteTitle')}</h2>
+          <p className="mt-1 text-caption text-ink-muted">{t('inviteDescription')}</p>
           <form
             onSubmit={e => {
               e.preventDefault();
@@ -229,7 +238,7 @@ export default function TeamClient() {
               required
             />
             <Button type="submit" disabled={invite.isPending}>
-              초대
+              {t('inviteButton')}
             </Button>
           </form>
 
@@ -251,7 +260,7 @@ export default function TeamClient() {
                     {inv.email}
                   </span>
                   <span className="text-[11px] text-ink-faint">
-                    {formatRelativeDay(inv.created_at)}
+                    {formatRelativeDay(inv.created_at, locale)}
                   </span>
                   <Button
                     size="sm"
@@ -259,7 +268,7 @@ export default function TeamClient() {
                     onClick={() => revoke.mutate(inv.id)}
                     disabled={revoke.isPending}
                   >
-                    취소
+                    {t('cancelInvite')}
                   </Button>
                 </li>
               ))}
@@ -269,12 +278,10 @@ export default function TeamClient() {
       )}
 
       <Card className="p-5">
-        <h2 className="text-title text-ink">멤버</h2>
+        <h2 className="text-title text-ink">{t('membersTitle')}</h2>
 
-        {members.isLoading && <MemberRowsSkeleton />}
-        {members.data && members.data.length === 0 && (
-          <EmptyState title="아직 멤버가 없어요." />
-        )}
+        {members.isLoading && <MemberRowsSkeleton loadingLabel={t('loadingMembers')} />}
+        {members.data && members.data.length === 0 && <EmptyState title={t('noMembers')} />}
 
         <ul className="mt-3 flex flex-col gap-1">
           {(members.data ?? []).map(m => {
@@ -298,7 +305,7 @@ export default function TeamClient() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15px] font-medium text-ink sm:text-[14px]">
                     {m.display_name}
-                    {isSelf && <span className="ml-1 text-[12px] text-ink-faint">(나)</span>}
+                    {isSelf && <span className="ml-1 text-[12px] text-ink-faint">{t('you')}</span>}
                   </p>
                   <p className="truncate text-[12px] text-ink-faint">{m.email}</p>
                 </div>
@@ -320,7 +327,7 @@ export default function TeamClient() {
                         }
                         disabled={changeRole.isPending}
                       >
-                        {m.role === 'admin' ? '관리자 해제' : '관리자로'}
+                        {m.role === 'admin' ? t('demoteAdmin') : t('promoteAdmin')}
                       </Button>
                     )}
 
@@ -332,7 +339,7 @@ export default function TeamClient() {
                         onClick={() => (isSelf ? kick.mutate(m.user_id) : setPendingKick(m))}
                         disabled={kick.isPending}
                       >
-                        {isSelf ? '나가기' : '내보내기'}
+                        {isSelf ? t('leave') : t('kick')}
                       </Button>
                     )}
                   </div>
@@ -345,11 +352,8 @@ export default function TeamClient() {
 
       {isManager && (
         <Card className="p-5">
-          <h2 className="text-title text-ink">Discord 알림</h2>
-          <p className="mt-1 text-caption text-ink-muted">
-            할 일이 추가되거나 누가 대신 처리하면 이 채널로 알림이 가요.
-            채널 설정 → 연동 → 웹후크에서 주소를 복사해 붙여 넣어 주세요. 비우면 알림을 꺼요.
-          </p>
+          <h2 className="text-title text-ink">{t('discordTitle')}</h2>
+          <p className="mt-1 text-caption text-ink-muted">{t('discordDescription')}</p>
           <form
             onSubmit={e => {
               e.preventDefault();
@@ -368,7 +372,7 @@ export default function TeamClient() {
               placeholder="https://discord.com/api/webhooks/..."
             />
             <Button type="submit" variant="outline" disabled={saveWebhook.isPending}>
-              저장
+              {tCommon('save')}
             </Button>
           </form>
         </Card>
@@ -376,10 +380,8 @@ export default function TeamClient() {
 
       {isManager && (
         <Card className="p-5">
-          <h2 className="text-title text-ink">조직 이미지</h2>
-          <p className="mt-1 text-caption text-ink-muted">
-            헤더와 조직 목록에 보여요. 없으면 이름 첫 글자로 그려요.
-          </p>
+          <h2 className="text-title text-ink">{t('orgImageTitle')}</h2>
+          <p className="mt-1 text-caption text-ink-muted">{t('orgImageDescription')}</p>
           <input
             ref={orgFileRef}
             type="file"
@@ -400,11 +402,11 @@ export default function TeamClient() {
               onClick={() => orgFileRef.current?.click()}
               disabled={uploading}
             >
-              {uploading ? '올리는 중…' : activeOrg.image_url ? '이미지 바꾸기' : '이미지 올리기'}
+              {uploading ? t('uploading') : activeOrg.image_url ? t('changeImage') : t('uploadImage')}
             </Button>
             {activeOrg.image_url && (
               <Button variant="ghost" onClick={clearOrgImage} disabled={uploading}>
-                지우기
+                {tCommon('delete')}
               </Button>
             )}
           </div>
@@ -413,7 +415,7 @@ export default function TeamClient() {
 
       {isManager && (
         <Card className="p-5">
-          <h2 className="text-title text-ink">조직 이름 바꾸기</h2>
+          <h2 className="text-title text-ink">{t('renameTitle')}</h2>
           <form
             onSubmit={e => {
               e.preventDefault();
@@ -428,7 +430,7 @@ export default function TeamClient() {
               maxLength={60}
             />
             <Button type="submit" variant="outline" disabled={rename.isPending || !orgName.trim()}>
-              저장
+              {tCommon('save')}
             </Button>
           </form>
         </Card>
@@ -436,27 +438,25 @@ export default function TeamClient() {
       <BottomSheet
         open={!!pendingKick}
         onClose={() => setPendingKick(null)}
-        title="멤버를 내보낼까요?"
+        title={t('kickSheetTitle')}
       >
         <p className="text-body-sm text-ink">
-          <span className="font-semibold">{pendingKick?.display_name}</span>님을 이 조직에서
-          내보내요.
+          {t('kickConfirmDescription', {
+            name: pendingKick?.display_name ?? '',
+          })}
         </p>
-        <p className="mt-1.5 text-caption text-ink-muted">
-          내보내면 이 조직의 보드를 더 이상 볼 수 없어요. 그동안 쌓인 할 일과 메모는 그대로
-          남아요. 다시 부르려면 초대를 새로 보내야 해요.
-        </p>
+        <p className="mt-1.5 text-caption text-ink-muted">{t('kickConfirmDetail')}</p>
 
         <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={() => setPendingKick(null)}>
-            취소
+            {t('cancelInvite')}
           </Button>
           <Button
             variant="danger"
             onClick={() => pendingKick && kick.mutate(pendingKick.user_id)}
             disabled={kick.isPending}
           >
-            내보내기
+            {t('kick')}
           </Button>
         </div>
       </BottomSheet>
@@ -469,9 +469,9 @@ export default function TeamClient() {
  * 스피너는 크기가 없어서 목록이 도착하는 순간 화면이 통째로 밀린다 —
  * 실제 행과 같은 높이를 미리 차지해야 자리가 흔들리지 않는다.
  */
-function MemberRowsSkeleton() {
+function MemberRowsSkeleton({ loadingLabel }: { loadingLabel: string }) {
   return (
-    <ul className="mt-3 flex flex-col gap-1" aria-busy="true" aria-label="멤버를 불러오는 중">
+    <ul className="mt-3 flex flex-col gap-1" aria-busy="true" aria-label={loadingLabel}>
       {[0, 1, 2].map(i => (
         <li key={i} className="flex items-center gap-2.5 px-1 py-3 sm:py-2">
           <span className="size-8 shrink-0 rounded-full bg-canvas-soft animate-pulse-soft" />

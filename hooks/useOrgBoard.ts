@@ -78,8 +78,12 @@ export function useBoardRealtime(orgId: string | null) {
             if (row.deleted_at) return prev.filter(t => t.id !== row.id);
 
             const existing = prev.find(t => t.id === row.id);
-            // 메모는 이 페이로드에 없다 — 기존 캐시의 notes를 유지한다.
-            const merged: Todo = { ...row, notes: existing?.notes ?? [] };
+            // 메모·참여자는 이 페이로드에 없다 — 기존 캐시 값을 유지한다.
+            const merged: Todo = {
+              ...row,
+              notes: existing?.notes ?? [],
+              participant_ids: existing?.participant_ids ?? [],
+            };
             const next = existing
               ? prev.map(t => (t.id === row.id ? merged : t))
               : [...prev, merged];
@@ -96,6 +100,15 @@ export function useBoardRealtime(orgId: string | null) {
         { event: '*', schema: 'public', table: 'todo_notes' },
         () => {
           // 메모는 작성자 이름 조인이 필요해서 서버에서 다시 읽는다.
+          queryClient.invalidateQueries({ queryKey: key });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'todo_participants', filter: `org_id=eq.${orgId}` },
+        () => {
+          // 참여자 이름·아바타는 members 목록에서 찾아 쓰지만, "누가 참여 중인지" 자체는
+          // todos 캐시(participant_ids)에 있어서 다시 읽어야 한다.
           queryClient.invalidateQueries({ queryKey: key });
         }
       )

@@ -2,6 +2,7 @@
 
 import { forwardRef, useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { createTodo } from '@/app/actions/todos';
 import { showMsg } from '@/lib/toast';
 import { cn, todayKST } from '@/lib/utils';
@@ -50,6 +51,9 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
   },
   ref
 ) {
+  const t = useTranslations('board.column');
+  const tRole = useTranslations('appshell');
+  const tToast = useTranslations('toast');
   const [title, setTitle] = useState('');
   const [showAllDone, setShowAllDone] = useState(false);
   // 마감은 오늘이 기본 — 대부분 오늘 할 일이고, 아니면 스테퍼로 하루씩 밀면 된다
@@ -110,7 +114,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     }
     setTitle('');
     setDue(todayKST());
-    if (!isMine) showMsg(`${member.display_name}님 목록에 추가했어요.`, 'success');
+    if (!isMine) showMsg(tToast('addedToMemberList', { name: member.display_name }), 'success');
     onCreated();
   }
 
@@ -136,20 +140,23 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-semibold text-ink sm:text-[14px]">
             {member.display_name}
-            {isMine && <span className="ml-1 text-[12px] font-normal text-ink-faint">(나)</span>}
+            {isMine && <span className="ml-1 text-[12px] font-normal text-ink-faint">{t('me')}</span>}
           </p>
           <p className="text-[12px] text-ink-faint">
-            남은 일 {open.length}개{done.length > 0 && ` · 완료 ${done.length}`}
+            {t('summaryOpen', { count: open.length })}
+            {done.length > 0 && t('summaryDone', { count: done.length })}
           </p>
         </div>
-        {member.role !== 'member' && <Badge>{member.role === 'owner' ? '방장' : '관리자'}</Badge>}
+        {member.role !== 'member' && (
+          <Badge>{member.role === 'owner' ? tRole('roleOwner') : tRole('roleAdmin')}</Badge>
+        )}
       </header>
 
       <form onSubmit={add} className="flex flex-col gap-1.5 px-3 pb-2.5">
         <Input
           value={title}
           onChange={e => setTitle(e.target.value)}
-          placeholder={isMine ? '할 일 추가' : `${member.display_name}님에게 부탁하기`}
+          placeholder={isMine ? t('addPlaceholderMine') : t('addPlaceholderOther', { name: member.display_name })}
           maxLength={500}
           enterKeyHint="done"
           className="h-11 sm:h-9"
@@ -159,7 +166,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
             {/* 컬럼 패딩까지 스크롤 영역을 넓혀 가장자리에서 잘린 것처럼 보이지 않게 한다 */}
             <DuePicker value={due} onChange={setDue} className="-mx-3 px-3" />
             <Button type="submit" className="h-11 sm:h-9" disabled={busy}>
-              추가
+              {t('addButton')}
             </Button>
           </>
         )}
@@ -176,7 +183,10 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
             <TodoCard
               key={todo.id}
               todo={todo}
-              isMine={isMine}
+              // 컬럼 소속(isMine)과 실제 소유권은 다르다 — 같이하기로 참여한 할 일은
+              // 내 컬럼에 뜨지만 주인은 따로 있다. 여길 컬럼 기준으로 두면 참여자가
+              // 남의 할 일을 수정·삭제할 수 있는 권한 버그가 생긴다.
+              isMine={todo.owner_id === currentUserId}
               members={members}
               currentUserId={currentUserId}
               isManager={isManager}
@@ -194,7 +204,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
               onClick={() => setShowAllDone(true)}
               className="w-full rounded-xl border border-dashed border-hairline py-2 text-caption text-ink-muted transition-colors active:bg-canvas-soft"
             >
-              완료 {hiddenDone}개 더 보기
+              {t('showMoreDone', { count: hiddenDone })}
             </button>
           </li>
         )}
@@ -206,14 +216,14 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
               onClick={() => setShowAllDone(false)}
               className="w-full rounded-xl border border-dashed border-hairline py-2 text-caption text-ink-muted transition-colors active:bg-canvas-soft"
             >
-              완료 접기
+              {t('collapseDone')}
             </button>
           </li>
         )}
 
         {visible.length === 0 && (
           <li className="rounded-xl border border-dashed border-hairline px-3 py-8 text-center text-caption text-ink-faint">
-            {isMine ? '할 일이 비어 있어요' : '남은 할 일이 없어요'}
+            {isMine ? t('emptyMine') : t('emptyOther')}
           </li>
         )}
       </ul>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import {
   createOrgEvent,
   deleteOrgEvent,
@@ -33,6 +34,7 @@ export function useOrgEvents(orgId: string | null) {
  */
 export function useEventMutations(orgId: string | null) {
   const queryClient = useQueryClient();
+  const t = useTranslations('toast');
   const key = eventKeys.all(orgId ?? '');
   const resync = () => queryClient.invalidateQueries({ queryKey: key });
 
@@ -48,7 +50,7 @@ export function useEventMutations(orgId: string | null) {
       return res.data;
     },
     onSuccess: () => {
-      showMsg('일정을 추가했어요.', 'success');
+      showMsg(t('eventCreated'), 'success');
       resync();
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
@@ -68,7 +70,7 @@ export function useEventMutations(orgId: string | null) {
       return res.data;
     },
     onSuccess: () => {
-      showMsg('일정을 고쳤어요', 'success');
+      showMsg(t('eventUpdated'), 'success');
       resync();
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
@@ -80,7 +82,7 @@ export function useEventMutations(orgId: string | null) {
       if (!res.success) throw new Error(res.error);
     },
     onSuccess: () => {
-      showMsg('일정을 지웠어요', 'success');
+      showMsg(t('eventDeleted'), 'success');
       resync();
     },
     onError: (e: Error) => showMsg(e.message, 'error'),

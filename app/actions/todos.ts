@@ -5,31 +5,24 @@ import { after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { notifyDiscord, truncate } from '@/lib/discord';
 import { requireAuth, wrap } from './_base';
+import { assertMember } from '@/lib/guards';
+import { type ActionT, getActionT } from '@/lib/server-i18n';
 import type { ApiResponse } from '@/types/api';
 import type { Todo, TodoNote, TodoStatus } from '@/types/db';
 
-const titleSchema = z.string().trim().min(1, '할 일 내용을 입력해 주세요.').max(500);
-const noteSchema = z.string().trim().min(1, '메모를 입력해 주세요.').max(1000);
+const titleSchema = (t: ActionT) => z.string().trim().min(1, t('todoTitleRequired')).max(500);
+const noteSchema = (t: ActionT) => z.string().trim().min(1, t('noteRequired')).max(1000);
 const statusSchema = z.enum(['todo', 'doing', 'done']);
-const dueSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식이 맞지 않아요.')
-  .nullable()
-  .optional();
-
-async function assertMember(orgId: string, userId: string): Promise<void> {
-  const { data, error } = await getSupabaseAdmin()
-    .from('org_members')
-    .select('id')
-    .eq('org_id', orgId)
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('이 조직의 멤버가 아니에요.');
-}
+const dueSchema = (t: ActionT) =>
+  z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, t('invalidDateFormat'))
+    .nullable()
+    .optional();
 
 /** todo id로 조직을 되짚어 멤버 여부를 확인하고 해당 todo를 돌려준다. */
 async function loadTodoForMember(todoId: string, userId: string): Promise<Todo> {
+  const t = await getActionT();
   const { data, error } = await getSupabaseAdmin()
     .from('todos')
     .select('*')
@@ -37,7 +30,7 @@ async function loadTodoForMember(todoId: string, userId: string): Promise<Todo> 
     .is('deleted_at', null)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  if (!data) throw new Error('할 일을 찾을 수 없어요.');
+  if (!data) throw new Error(t('todoNotFound'));
   await assertMember(data.org_id, userId);
   return data as Todo;
 }
@@ -100,7 +93,24 @@ export async function fetchOrgTodos(orgId: string): Promise<ApiResponse<Todo[]>>
       byTodo.set(n.todo_id, list);
     });
 
-    return todos.map(t => ({ ...t, notes: byTodo.get(t.id) ?? [] }));
+    const { data: participants, error: participantError } = await getSupabaseAdmin()
+      .from('todo_participants')
+      .select('todo_id, user_id')
+      .in('todo_id', todos.map(t => t.id));
+    if (participantError) throw new Error(participantError.message);
+
+    const participantsByTodo = new Map<string, string[]>();
+    (participants ?? []).forEach(p => {
+      const list = participantsByTodo.get(p.todo_id) ?? [];
+      list.push(p.user_id);
+      participantsByTodo.set(p.todo_id, list);
+    });
+
+    return todos.map(t => ({
+      ...t,
+      notes: byTodo.get(t.id) ?? [],
+      participant_ids: participantsByTodo.get(t.id) ?? [],
+    }));
   });
 }
 
@@ -117,9 +127,10 @@ export async function createTodo(input: {
   return wrap(async () => {
     const user = await requireAuth();
     await assertMember(input.orgId, user.id);
+    const t = await getActionT();
 
-    const title = titleSchema.parse(input.title);
-    const dueDate = dueSchema.parse(input.dueDate ?? null) ?? null;
+    const title = titleSchema(t).parse(input.title);
+    const dueDate = dueSchema(t).parse(input.dueDate ?? null) ?? null;
     const ownerId = input.ownerId ?? user.id;
     if (ownerId !== user.id) await assertMember(input.orgId, ownerId);
 
@@ -212,10 +223,11 @@ export async function updateTodo(
   return wrap(async () => {
     const user = await requireAuth();
     const todo = await loadTodoForMember(todoId, user.id);
+    const t = await getActionT();
 
     const update: Record<string, unknown> = {};
-    if (patch.title !== undefined) update.title = titleSchema.parse(patch.title);
-    if (patch.dueDate !== undefined) update.due_date = dueSchema.parse(patch.dueDate) ?? null;
+    if (patch.title !== undefined) update.title = titleSchema(t).parse(patch.title);
+    if (patch.dueDate !== undefined) update.due_date = dueSchema(t).parse(patch.dueDate) ?? null;
     if (patch.ownerId !== undefined && patch.ownerId !== todo.owner_id) {
       await assertMember(todo.org_id, patch.ownerId);
       update.owner_id = patch.ownerId;
@@ -243,8 +255,10 @@ async function assertCanRemove(todo: Todo, userId: string): Promise<void> {
     .eq('org_id', todo.org_id)
     .eq('user_id', userId)
     .maybeSingle();
-  if (!me || (me.role !== 'owner' && me.role !== 'admin'))
-    throw new Error('본인 할 일이거나 방장만 지울 수 있어요.');
+  if (!me || (me.role !== 'owner' && me.role !== 'admin')) {
+    const t = await getActionT();
+    throw new Error(t('cannotDeleteTodo'));
+  }
 }
 
 /**
@@ -273,6 +287,7 @@ export async function deleteTodo(todoId: string): Promise<ApiResponse<null>> {
 export async function restoreTodo(todoId: string): Promise<ApiResponse<null>> {
   return wrap(async () => {
     const user = await requireAuth();
+    const t = await getActionT();
 
     const { data, error } = await getSupabaseAdmin()
       .from('todos')
@@ -280,7 +295,7 @@ export async function restoreTodo(todoId: string): Promise<ApiResponse<null>> {
       .eq('id', todoId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!data) throw new Error('할 일을 찾을 수 없어요.');
+    if (!data) throw new Error(t('todoNotFound'));
 
     const todo = data as Todo;
     await assertMember(todo.org_id, user.id);
@@ -300,7 +315,8 @@ export async function addTodoNote(todoId: string, content: string): Promise<ApiR
   return wrap(async () => {
     const user = await requireAuth();
     const todo = await loadTodoForMember(todoId, user.id);
-    const parsed = noteSchema.parse(content);
+    const t = await getActionT();
+    const parsed = noteSchema(t).parse(content);
 
     const { data, error } = await getSupabaseAdmin()
       .from('todo_notes')
@@ -324,6 +340,32 @@ export async function addTodoNote(todoId: string, content: string): Promise<ApiR
   });
 }
 
+/** 메모 수정 — 작성자 본인만. 작성자·아바타는 안 바뀌므로 낙관적 반영이 가능하다 */
+export async function updateTodoNote(noteId: string, content: string): Promise<ApiResponse<TodoNote>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    const t = await getActionT();
+    const parsed = noteSchema(t).parse(content);
+
+    const { data: note } = await getSupabaseAdmin()
+      .from('todo_notes')
+      .select('id, author_id')
+      .eq('id', noteId)
+      .maybeSingle();
+    if (!note) throw new Error(t('noteNotFound'));
+    if (note.author_id !== user.id) throw new Error(t('cannotEditNote'));
+
+    const { data, error } = await getSupabaseAdmin()
+      .from('todo_notes')
+      .update({ content: parsed })
+      .eq('id', noteId)
+      .select('id, todo_id, author_id, content, created_at')
+      .single();
+    if (error) throw new Error(error.message);
+    return data as TodoNote;
+  });
+}
+
 /** 대신 처리 — 완료 표시 + 메모를 한 번에 (보드의 "대신 처리" 버튼) */
 export async function handleForMember(
   todoId: string,
@@ -332,7 +374,8 @@ export async function handleForMember(
   return wrap(async () => {
     const user = await requireAuth();
     const todo = await loadTodoForMember(todoId, user.id);
-    const parsedNote = noteSchema.parse(note);
+    const t = await getActionT();
+    const parsedNote = noteSchema(t).parse(note);
 
     const { data: updated, error } = await getSupabaseAdmin()
       .from('todos')
@@ -391,13 +434,14 @@ export async function handleForMember(
 export async function deleteTodoNote(noteId: string): Promise<ApiResponse<null>> {
   return wrap(async () => {
     const user = await requireAuth();
+    const t = await getActionT();
     const { data: note } = await getSupabaseAdmin()
       .from('todo_notes')
       .select('id, author_id')
       .eq('id', noteId)
       .maybeSingle();
-    if (!note) throw new Error('메모를 찾을 수 없어요.');
-    if (note.author_id !== user.id) throw new Error('본인이 쓴 메모만 지울 수 있어요.');
+    if (!note) throw new Error(t('noteNotFound'));
+    if (note.author_id !== user.id) throw new Error(t('cannotDeleteNote'));
 
     const { error } = await getSupabaseAdmin().from('todo_notes').delete().eq('id', noteId);
     if (error) throw new Error(error.message);

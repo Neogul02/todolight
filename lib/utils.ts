@@ -1,3 +1,5 @@
+import { DEFAULT_LOCALE, type Locale } from '@/lib/locales';
+
 export function cn(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ');
 }
@@ -16,20 +18,22 @@ export function todayKST(): string {
   return toKSTDateString(new Date());
 }
 
-/** "오늘" · "어제" · "3일 전" · "2026-08-01" */
-export function formatRelativeDay(iso: string): string {
+/**
+ * "오늘" · "어제" · "3일 전" · "2026-08-01" (로케일에 따라 "Today" · "3 days ago" 등)
+ * Intl.RelativeTimeFormat의 numeric:'auto'가 언어별 어순·문법을 알아서 맞춰 준다 —
+ * 한국어 전용으로 오늘/어제/내일을 따로 분기할 필요가 없다.
+ */
+export function formatRelativeDay(iso: string, locale: Locale = DEFAULT_LOCALE): string {
   const target = toKSTDateString(iso);
   const today = todayKST();
-  if (target === today) return '오늘';
 
   const diffDays = Math.round(
     (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${target}T00:00:00Z`)) / 86_400_000
   );
-  if (diffDays === 1) return '어제';
-  if (diffDays === -1) return '내일';
-  if (diffDays > 1 && diffDays <= 7) return `${diffDays}일 전`;
-  if (diffDays < -1 && diffDays >= -7) return `${-diffDays}일 뒤`;
-  return target;
+  if (Math.abs(diffDays) <= 7) {
+    return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(-diffDays, 'day');
+  }
+  return new Intl.DateTimeFormat(locale).format(new Date(`${target}T00:00:00Z`));
 }
 
 /** HH:MM (KST) */

@@ -2,11 +2,13 @@
 
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useLocale, useTranslations } from 'next-intl';
 import { useTodoMutations } from '@/hooks/useTodoMutations';
 import { cn, dueState, formatRelativeDay, subjectParticle } from '@/lib/utils';
 import { Avatar } from '@/components/Avatar';
 import { DuePicker } from '@/components/DuePicker';
 import { Badge, Button, Input } from '@/components/ui';
+import type { Locale } from '@/lib/locales';
 import type { MemberSummary, Todo } from '@/types/db';
 
 const DUE_TONE = {
@@ -36,14 +38,23 @@ export default function TodoCard({
   onToggleOpen: () => void;
   onHandoff: (todo: Todo) => void;
 }) {
+  const locale = useLocale() as Locale;
+  const t = useTranslations('board');
+  const tCommon = useTranslations('common');
   const [note, setNote] = useState('');
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(todo.title);
   const [draftDue, setDraftDue] = useState<string | null>(todo.due_date);
   // 편집을 시작한 순간의 값. "안 바뀜" 판정의 기준이 된다.
   const editBase = useRef({ title: todo.title, due: todo.due_date });
-  const { toggleStatus, edit, remove, addNote } = useTodoMutations(todo.org_id);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
+  const { toggleStatus, edit, remove, addNote, editNote, join, leave } = useTodoMutations(
+    todo.org_id
+  );
   const busy = toggleStatus.isPending || remove.isPending || addNote.isPending;
+  const participantIds = todo.participant_ids ?? [];
+  const isParticipant = participantIds.includes(currentUserId);
 
   const done = todo.status === 'done';
   const handler = todo.handled_by ? members.find(m => m.user_id === todo.handled_by) : null;
@@ -58,10 +69,17 @@ export default function TodoCard({
     ? members.find(m => m.user_id === todo.created_by)
     : undefined;
 
-  /** "최진형이" / "최진우가" — 받침에 따라 조사가 갈린다 */
-  const withParticle = (name: string) => `${name}${subjectParticle(name)}`;
-  const requesterName = requester?.display_name ?? '누군가';
-  const handlerName = handler?.display_name ?? '누군가';
+  /**
+   * "최진형이 부탁" / "Requested by Jinhyung" — 한국어는 받침에 따라 조사가 갈려서
+   * ICU 메시지 하나로 표현할 수 없다. 로케일에 따라 아예 다른 문장 구조를 쓴다.
+   */
+  const requestedByText = (name: string) =>
+    locale === 'ko' ? `${name}${subjectParticle(name)} 부탁` : t('card.requestedBy', { name });
+  const handledByText = (name: string) =>
+    locale === 'ko' ? `${name}${subjectParticle(name)} 대신 처리` : t('card.handledByOther', { name });
+
+  const requesterName = requester?.display_name ?? t('someone');
+  const handlerName = handler?.display_name ?? t('someone');
   const due = dueState(todo.due_date);
   const canRemove = isMine || todo.created_by === currentUserId || isManager;
 
@@ -104,6 +122,28 @@ export default function TodoCard({
     addNote.mutate({ todoId: todo.id, content });
   }
 
+  function startEditingNote(noteId: string, content: string) {
+    setEditingNoteId(noteId);
+    setNoteDraft(content);
+  }
+
+  function submitNoteEdit(e: React.FormEvent) {
+    e.preventDefault();
+    const content = noteDraft.trim();
+    if (!content || !editingNoteId) return;
+    editNote.mutate({ todoId: todo.id, noteId: editingNoteId, content });
+    setEditingNoteId(null);
+  }
+
+  /* 펼친 카드에서 제목을 누르면: 닫혀 있으면 열고, 열려 있으면(고칠 수 있을 때만) 바로 편집으로 들어간다 */
+  function handleTitleClick() {
+    if (!open) {
+      onToggleOpen();
+      return;
+    }
+    if (canRemove) startEditing();
+  }
+
   const noteCount = todo.notes?.length ?? 0;
 
   return (
@@ -128,7 +168,7 @@ export default function TodoCard({
           type="button"
           onClick={toggleDone}
           disabled={busy}
-          aria-label={done ? '완료 취소' : '완료로 표시'}
+          aria-label={done ? t('card.markUndone') : t('card.markDone')}
           className="shrink-0 py-2 pr-2.5 transition-transform active:scale-90"
         >
           <span
@@ -155,7 +195,7 @@ export default function TodoCard({
 
         <button
           type="button"
-          onClick={onToggleOpen}
+          onClick={handleTitleClick}
           aria-expanded={open}
           className="min-w-0 flex-1 py-2 text-left"
         >
@@ -168,26 +208,49 @@ export default function TodoCard({
             {todo.title}
           </p>
 
-          {(todo.due_date || askedByOther || handledByOther || noteCount > 0) && (
+          {(todo.due_date ||
+            askedByOther ||
+            handledByOther ||
+            noteCount > 0 ||
+            participantIds.length > 0) && (
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               {todo.due_date && (
                 <Badge tone={DUE_TONE[due]}>
-                  {formatRelativeDay(`${todo.due_date}T00:00:00Z`)}
+                  {formatRelativeDay(`${todo.due_date}T00:00:00Z`, locale)}
                 </Badge>
               )}
               {askedByOther && (
                 <Badge className="pl-0.5">
                   <PersonDot member={requester} fallbackId={todo.created_by} />
-                  {withParticle(requesterName)} 부탁
+                  {requestedByText(requesterName)}
                 </Badge>
               )}
               {handledByOther && (
                 <Badge tone="success" className="pl-0.5">
                   <PersonDot member={handler ?? undefined} fallbackId={todo.handled_by!} />
-                  {withParticle(handlerName)} 대신 처리
+                  {handledByText(handlerName)}
                 </Badge>
               )}
-              {noteCount > 0 && <Badge>메모 {noteCount}</Badge>}
+              {noteCount > 0 && <Badge>{t('card.notesCount', { count: noteCount })}</Badge>}
+              {/* 같이하는 사람들 — 주인 컬럼·참여자 컬럼 양쪽에서 다 보인다 */}
+              {participantIds.length > 0 && (
+                <span className="flex -space-x-1.5">
+                  {participantIds.map(uid => {
+                    const m = members.find(mm => mm.user_id === uid);
+                    return (
+                      <Avatar
+                        key={uid}
+                        name={m?.display_name ?? '?'}
+                        color={m?.avatar_color}
+                        imageUrl={m?.avatar_url}
+                        seed={uid}
+                        size="sm"
+                        className="size-4 border border-surface text-[8px]"
+                      />
+                    );
+                  })}
+                </span>
+              )}
             </div>
           )}
         </button>
@@ -198,7 +261,7 @@ export default function TodoCard({
             type="button"
             onClick={() => remove.mutate(todo)}
             disabled={busy}
-            aria-label="할 일 지우기"
+            aria-label={t('card.deleteAria')}
             className="shrink-0 py-2 pl-2.5 text-ink-faint transition-[color,transform] active:scale-90 sm:hover:text-danger"
           >
             <span className="grid size-5 place-items-center">
@@ -248,10 +311,10 @@ export default function TodoCard({
                       className="flex-1"
                       onClick={() => setEditing(false)}
                     >
-                      취소
+                      {tCommon('cancel')}
                     </Button>
                     <Button type="submit" className="flex-1" disabled={!draftTitle.trim()}>
-                      저장
+                      {tCommon('save')}
                     </Button>
                   </div>
                 </form>
@@ -259,22 +322,73 @@ export default function TodoCard({
                 <>
                   {noteCount > 0 && (
                     <ul className="mb-2.5 flex flex-col gap-2">
-                      {todo.notes!.map(n => (
-                        <li key={n.id} className="rounded-lg bg-canvas-soft px-2.5 py-2">
-                          <p className="text-caption break-words text-ink-secondary">{n.content}</p>
-                          <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-ink-faint">
-                            <Avatar
-                              name={n.author_name ?? '?'}
-                              color={n.author_color}
-                              imageUrl={n.author_avatar_url}
-                              seed={n.author_id}
-                              size="sm"
-                              className="size-4 text-[9px]"
-                            />
-                            {n.author_name ?? '알 수 없음'} · {formatRelativeDay(n.created_at)}
-                          </p>
-                        </li>
-                      ))}
+                      {todo.notes!.map(n => {
+                        const mine = n.author_id === currentUserId;
+                        if (editingNoteId === n.id) {
+                          return (
+                            <li key={n.id} className="rounded-lg bg-canvas-soft px-2.5 py-2">
+                              <form onSubmit={submitNoteEdit} className="flex flex-col gap-1.5">
+                                <Input
+                                  value={noteDraft}
+                                  onChange={e => setNoteDraft(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Escape') setEditingNoteId(null);
+                                  }}
+                                  maxLength={1000}
+                                  enterKeyHint="done"
+                                  autoFocus
+                                  className="h-9 text-caption"
+                                />
+                                <div className="flex gap-1.5">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="flex-1"
+                                    onClick={() => setEditingNoteId(null)}
+                                  >
+                                    {tCommon('cancel')}
+                                  </Button>
+                                  <Button
+                                    type="submit"
+                                    size="sm"
+                                    className="flex-1"
+                                    disabled={!noteDraft.trim()}
+                                  >
+                                    {tCommon('save')}
+                                  </Button>
+                                </div>
+                              </form>
+                            </li>
+                          );
+                        }
+                        return (
+                          <li key={n.id} className="rounded-lg bg-canvas-soft px-2.5 py-2">
+                            <button
+                              type="button"
+                              disabled={!mine}
+                              onClick={() => mine && startEditingNote(n.id, n.content)}
+                              className={cn(
+                                'block w-full text-left text-caption break-words text-ink-secondary',
+                                mine && 'sm:hover:text-ink'
+                              )}
+                            >
+                              {n.content}
+                            </button>
+                            <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-ink-faint">
+                              <Avatar
+                                name={n.author_name ?? '?'}
+                                color={n.author_color}
+                                imageUrl={n.author_avatar_url}
+                                seed={n.author_id}
+                                size="sm"
+                                className="size-4 text-[9px]"
+                              />
+                              {n.author_name ?? t('unknown')} · {formatRelativeDay(n.created_at, locale)}
+                            </p>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
 
@@ -286,14 +400,14 @@ export default function TodoCard({
                     <Input
                       value={note}
                       onChange={e => setNote(e.target.value)}
-                      placeholder="메모 남기기"
+                      placeholder={t('card.notePlaceholder')}
                       maxLength={1000}
                       enterKeyHint="send"
                       className="h-10 min-w-0 flex-1"
                     />
                     <button
                       type="submit"
-                      aria-label="메모 등록"
+                      aria-label={t('card.noteSubmitAria')}
                       disabled={addNote.isPending || !note.trim()}
                       className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-accent-ink transition-[opacity,transform] active:scale-90 disabled:opacity-30"
                     >
@@ -309,18 +423,23 @@ export default function TodoCard({
                     </button>
                   </form>
 
-                  {(canRemove || (!isMine && !done)) && (
+                  {!isMine && !done && (
                     <div className="mt-2.5 flex gap-1.5">
-                      {canRemove && (
-                        <Button size="sm" variant="outline" onClick={startEditing}>
-                          수정
-                        </Button>
-                      )}
-                      {!isMine && !done && (
-                        <Button size="sm" variant="outline" onClick={() => onHandoff(todo)}>
-                          대신 처리
-                        </Button>
-                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          isParticipant
+                            ? leave.mutate({ todoId: todo.id, userId: currentUserId })
+                            : join.mutate({ todoId: todo.id, userId: currentUserId })
+                        }
+                        disabled={join.isPending || leave.isPending}
+                      >
+                        {isParticipant ? t('card.leaveTogether') : t('card.joinTogether')}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => onHandoff(todo)}>
+                        {t('card.handleForMember')}
+                      </Button>
                     </div>
                   )}
                 </>

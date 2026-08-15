@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
 function Bar({ className }: { className?: string }) {
@@ -12,11 +15,12 @@ const TITLE_WIDTHS = ['w-[70%]', 'w-[55%]', 'w-[40%]'];
  * 실제 컬럼과 같은 폭·높이를 쓰기 때문에 데이터가 도착해도 레이아웃이 튀지 않는다.
  */
 export function BoardSkeleton() {
+  const t = useTranslations('board');
   return (
     <div
       className="board-viewport flex gap-3 overflow-hidden px-3 pb-3 sm:px-4"
       aria-busy="true"
-      aria-label="보드를 불러오는 중"
+      aria-label={t('loadingAria')}
     >
       {[0, 1, 2].map(column => (
         <section

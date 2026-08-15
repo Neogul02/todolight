@@ -4,39 +4,22 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocale, useTranslations } from 'next-intl';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { fetchMyInvites, respondToInvite } from '@/app/actions/orgs';
 import { useActiveOrg } from '@/hooks/useActiveOrg';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { applyTheme } from '@/app/providers';
+import { applyLocale, readLocaleCookie } from '@/lib/locale-client';
 import { Avatar } from '@/components/Avatar';
 import { OrgIcon } from '@/components/OrgIcon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { Button } from '@/components/ui';
 import { showMsg } from '@/lib/toast';
 import { cn, formatRelativeDay } from '@/lib/utils';
+import type { Locale } from '@/lib/locales';
 import type { Profile } from '@/types/db';
 import { AppContextProvider, type BoardMode, type OrgWithRole } from './OrgContext';
-
-/* 헤더 가운데에 놓는 뷰 전환. 셋뿐이라 아이콘 모양으로 구분된다 */
-const VIEW_MODES: {
-  key: BoardMode;
-  label: string;
-  Icon: (p: { className?: string }) => React.ReactElement;
-}[] = [
-  { key: 'board', label: '보드', Icon: BoardViewIcon },
-  { key: 'dashboard', label: '대시보드', Icon: DashboardIcon },
-  { key: 'calendar', label: '달력', Icon: CalendarIcon },
-];
-
-/**
- * 앱은 보드 한 화면이 전부다.
- * 팀 관리·설정은 자주 쓰는 기능이 아니라서 아바타 메뉴 안으로 넣고, 화면에는 공유 투두만 남긴다.
- * 받은 초대는 결국 "어느 조직을 볼지"의 문제라 별도 탭 없이 조직 시트 안에서 바로 처리한다.
- */
-const MENU = [
-  { href: '/team', label: '팀', hint: '멤버 초대·역할' },
-  { href: '/me', label: '설정', hint: '이름·아바타·테마' },
-];
 
 export default function AppShell({
   userId,
@@ -54,10 +37,40 @@ export default function AppShell({
   const router = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
+  const locale = useLocale() as Locale;
+  const t = useTranslations('appshell');
+  const tToast = useTranslations('toast');
   const orgIds = useMemo(() => orgs.map(o => o.id), [orgs]);
   const [activeOrgId, selectOrg] = useActiveOrg(orgIds);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [boardMode, setBoardMode] = useState<BoardMode>('board');
+  // PC에서는 보드 버튼 자체를 숨겼으니 기본값도 대시보드여야 고를 방법이 있다.
+  // 아직 직접 고른 적이 없으면(manualMode === null) 화면 폭으로 기본값을 정한다 —
+  // useSyncExternalStore 기반이라 SSR과 어긋나지 않는다(useIsDesktop.ts 참고).
+  const isDesktop = useIsDesktop();
+  const [manualMode, setManualMode] = useState<BoardMode | null>(null);
+  const boardMode = manualMode ?? (isDesktop ? 'dashboard' : 'board');
+  const setBoardMode = setManualMode;
+
+  /* 헤더 가운데에 놓는 뷰 전환. 셋뿐이라 아이콘 모양으로 구분된다 */
+  const VIEW_MODES: {
+    key: BoardMode;
+    label: string;
+    Icon: (p: { className?: string }) => React.ReactElement;
+  }[] = [
+    { key: 'board', label: t('viewBoard'), Icon: BoardViewIcon },
+    { key: 'dashboard', label: t('viewDashboard'), Icon: DashboardIcon },
+    { key: 'calendar', label: t('viewCalendar'), Icon: CalendarIcon },
+  ];
+
+  /**
+   * 앱은 보드 한 화면이 전부다.
+   * 팀 관리·설정은 자주 쓰는 기능이 아니라서 아바타 메뉴 안으로 넣고, 화면에는 공유 투두만 남긴다.
+   * 받은 초대는 결국 "어느 조직을 볼지"의 문제라 별도 탭 없이 조직 시트 안에서 바로 처리한다.
+   */
+  const MENU = [
+    { href: '/team', label: t('teamLabel'), hint: t('teamHint') },
+    { href: '/me', label: t('meLabel'), hint: t('meHint') },
+  ];
 
   const activeOrg = orgs.find(o => o.id === activeOrgId) ?? null;
   const onBoard = pathname === '/board';
@@ -65,6 +78,15 @@ export default function AppShell({
   useEffect(() => {
     if (profile?.theme) applyTheme(profile.theme);
   }, [profile?.theme]);
+
+  // 로그인 직후 등 쿠키가 아직 없거나(기본 'ko') 다른 기기에서 바꾼 값과 어긋날 때만 맞춘다 —
+  // 매번 새로고침하면 정상 케이스에서도 깜빡인다.
+  useEffect(() => {
+    if (!profile?.locale) return;
+    if (readLocaleCookie() === profile.locale) return;
+    applyLocale(profile.locale);
+    router.refresh();
+  }, [profile?.locale, router]);
 
   const invites = useQuery({
     queryKey: ['my-invites'],
@@ -84,7 +106,7 @@ export default function AppShell({
       return { ...res.data, accept: input.accept };
     },
     onSuccess: data => {
-      showMsg(data.accept ? '조직에 합류했어요.' : '초대를 거절했어요.', 'success');
+      showMsg(data.accept ? tToast('inviteAccepted') : tToast('inviteDeclined'), 'success');
       queryClient.invalidateQueries({ queryKey: ['my-invites'] });
       // 수락한 조직으로 바로 넘어간다 — 수락하고 또 고르게 하면 한 단계가 남는다
       if (data.accept && data.orgId) {
@@ -103,6 +125,9 @@ export default function AppShell({
     router.replace('/login');
     router.refresh();
   }
+
+  const roleLabel = (role: OrgWithRole['role']) =>
+    role === 'owner' ? t('roleOwner') : role === 'admin' ? t('roleAdmin') : t('roleMember');
 
   return (
     <AppContextProvider
@@ -128,7 +153,7 @@ export default function AppShell({
             {!onBoard && (
               <Link
                 href="/board"
-                aria-label="보드로"
+                aria-label={t('boardBack')}
                 className="grid size-10 shrink-0 place-items-center rounded-xl no-select active:bg-canvas-soft"
               >
                 <BackIcon className="size-5 text-ink-secondary" />
@@ -163,7 +188,10 @@ export default function AppShell({
                     title={label}
                     className={cn(
                       'grid w-10 place-items-center transition-colors',
-                      boardMode === key ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted'
+                      boardMode === key ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted',
+                      // 보드(가로 캐러셀)와 대시보드(격자)는 PC에서 둘 다 "여러 명 동시에
+                      // 보기"라 겹친다 — sm 이상에서는 대시보드·달력만 남긴다.
+                      key === 'board' && 'sm:hidden'
                     )}
                   >
                     <Icon className="size-[18px]" />
@@ -175,7 +203,7 @@ export default function AppShell({
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
-              aria-label="메뉴"
+              aria-label={t('menu')}
               className="relative ml-0.5 grid size-10 shrink-0 place-items-center rounded-full no-select active:bg-canvas-soft"
             >
               <Avatar
@@ -189,7 +217,7 @@ export default function AppShell({
               {pendingCount > 0 && (
                 <span
                   className="absolute right-0.5 top-0.5 size-2.5 rounded-full border-2 border-canvas bg-danger"
-                  aria-label={`받은 초대 ${pendingCount}건`}
+                  aria-label={t('pendingInvitesAria', { count: pendingCount })}
                 />
               )}
             </button>
@@ -200,21 +228,24 @@ export default function AppShell({
       </div>
 
       {/* 프로필 메뉴 : 받은 초대 · 조직 전환 · 관리 · 로그아웃을 한 시트에 모았다 */}
-      <BottomSheet open={menuOpen} onClose={() => setMenuOpen(false)} title="메뉴">
+      <BottomSheet open={menuOpen} onClose={() => setMenuOpen(false)} title={t('menuTitle')}>
         {pendingCount > 0 && (
           <section className="mb-4">
             <h3 className="flex items-center gap-1.5 px-1 pb-2 text-caption font-semibold text-ink-secondary">
               <span className="size-2 rounded-full bg-danger" />
-              받은 초대 {pendingCount}
+              {t('receivedInvites', { count: pendingCount })}
             </h3>
             <ul className="flex flex-col gap-2">
               {invites.data!.map(inv => (
                 <li key={inv.id} className="rounded-xl border border-hairline bg-canvas-soft p-3">
                   <p className="truncate text-[15px] font-semibold text-ink">
-                    {inv.org_name ?? '이름 없는 조직'}
+                    {inv.org_name ?? t('unnamedOrg')}
                   </p>
                   <p className="mt-0.5 text-caption text-ink-muted">
-                    {inv.inviter_name ?? '누군가'}님이 초대 · {formatRelativeDay(inv.created_at)}
+                    {t('inviterLine', {
+                      inviter: inv.inviter_name ?? t('someone'),
+                      when: formatRelativeDay(inv.created_at, locale),
+                    })}
                   </p>
                   <div className="mt-2.5 flex gap-2">
                     <Button
@@ -224,7 +255,7 @@ export default function AppShell({
                       onClick={() => respond.mutate({ id: inv.id, accept: false })}
                       disabled={respond.isPending}
                     >
-                      거절
+                      {t('decline')}
                     </Button>
                     <Button
                       size="sm"
@@ -232,7 +263,7 @@ export default function AppShell({
                       onClick={() => respond.mutate({ id: inv.id, accept: true })}
                       disabled={respond.isPending}
                     >
-                      수락
+                      {t('accept')}
                     </Button>
                   </div>
                 </li>
@@ -241,7 +272,7 @@ export default function AppShell({
           </section>
         )}
 
-        <h3 className="px-1 pb-2 text-caption font-semibold text-ink-secondary">조직</h3>
+        <h3 className="px-1 pb-2 text-caption font-semibold text-ink-secondary">{t('orgsTitle')}</h3>
         <ul className="flex flex-col gap-1">
           {orgs.map(o => (
             <li key={o.id}>
@@ -260,8 +291,7 @@ export default function AppShell({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[15px] font-medium text-ink">{o.name}</span>
                   <span className="block text-[12px] text-ink-faint">
-                    멤버 {o.member_count}명 ·{' '}
-                    {o.role === 'owner' ? '방장' : o.role === 'admin' ? '관리자' : '팀원'}
+                    {t('memberCountRole', { count: o.member_count, role: roleLabel(o.role) })}
                   </span>
                 </span>
                 {o.id === activeOrgId && <CheckIcon className="size-5 shrink-0 text-ink" />}
@@ -275,10 +305,12 @@ export default function AppShell({
           onClick={() => setMenuOpen(false)}
           className="mt-2 flex h-12 items-center justify-center rounded-xl border border-dashed border-hairline-strong text-[15px] font-medium text-ink-muted transition-colors active:bg-canvas-soft"
         >
-          + 새 조직 만들기
+          {t('newOrg')}
         </Link>
 
-        <h3 className="px-1 pt-5 pb-2 text-caption font-semibold text-ink-secondary">관리</h3>
+        <h3 className="px-1 pt-5 pb-2 text-caption font-semibold text-ink-secondary">
+          {t('manageTitle')}
+        </h3>
         <ul className="flex flex-col gap-1">
           {MENU.map(item => (
             <li key={item.href}>
@@ -301,7 +333,7 @@ export default function AppShell({
           onClick={signOut}
           className="mt-2 flex h-12 w-full items-center justify-center rounded-xl border border-hairline text-[15px] font-medium text-ink-muted transition-colors active:bg-canvas-soft"
         >
-          로그아웃
+          {t('signOut')}
         </button>
       </BottomSheet>
 

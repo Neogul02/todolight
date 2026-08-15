@@ -1,27 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { addDays, cn, daysFromToday, todayKST } from '@/lib/utils';
+import type { Locale } from '@/lib/locales';
 
 /** 오늘을 가운데 두고 뒤로 2주, 앞으로 석 달. 그보다 먼 마감은 나중에 카드에서 고치면 된다 */
 const PAST_DAYS = 14;
 const FUTURE_DAYS = 90;
-
-const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
-
-function weekdayOf(date: string): string {
-  return WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()];
-}
-
-function labelOf(date: string): { top: string; bottom: string } {
-  const diff = daysFromToday(date);
-  const [, m, d] = date.split('-');
-  const day = `${Number(m)}/${Number(d)}`;
-  if (diff === 0) return { top: day, bottom: '오늘' };
-  if (diff === 1) return { top: day, bottom: '내일' };
-  if (diff === -1) return { top: day, bottom: '어제' };
-  return { top: day, bottom: weekdayOf(date) };
-}
 
 /**
  * 마감일 선택 — 달력도 키보드도 띄우지 않는다.
@@ -37,9 +23,23 @@ export function DuePicker({
   onChange: (next: string | null) => void;
   className?: string;
 }) {
+  const locale = useLocale() as Locale;
+  const t = useTranslations('duePicker');
   const today = todayKST();
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const selectedRef = useRef<HTMLButtonElement | null>(null);
+
+  const weekdayFmt = useMemo(() => new Intl.DateTimeFormat(locale, { weekday: 'short' }), [locale]);
+
+  function labelOf(date: string): { top: string; bottom: string } {
+    const diff = daysFromToday(date);
+    const [, m, d] = date.split('-');
+    const day = `${Number(m)}/${Number(d)}`;
+    if (diff === 0) return { top: day, bottom: t('today') };
+    if (diff === 1) return { top: day, bottom: t('tomorrow') };
+    if (diff === -1) return { top: day, bottom: t('yesterday') };
+    return { top: day, bottom: weekdayFmt.format(new Date(`${date}T00:00:00Z`)) };
+  }
 
   const dates = useMemo(() => {
     const list: string[] = [];
@@ -77,7 +77,7 @@ export function DuePicker({
             : 'border-hairline bg-surface text-ink-faint'
         )}
       >
-        마감 없음
+        {t('noDue')}
       </button>
 
       {dates.map(date => {

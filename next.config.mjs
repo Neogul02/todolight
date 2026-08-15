@@ -1,4 +1,5 @@
 import { createRequire } from 'module';
+import createNextIntlPlugin from 'next-intl/plugin';
 
 const { version: appVersion } = createRequire(import.meta.url)('./package.json');
 
@@ -11,4 +12,6 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
+
+export default withNextIntl(nextConfig);

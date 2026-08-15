@@ -4,30 +4,21 @@ import { z } from 'zod';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { isValidEventColor } from '@/lib/event-colors';
 import { requireAuth, wrap } from './_base';
+import { assertMember } from '@/lib/guards';
+import { type ActionT, getActionT } from '@/lib/server-i18n';
 import type { ApiResponse } from '@/types/api';
 import type { OrgEvent } from '@/types/db';
 
-const titleSchema = z.string().trim().min(1, '일정 이름을 입력해 주세요.').max(200);
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식이 맞지 않아요.');
+const titleSchema = (t: ActionT) => z.string().trim().min(1, t('eventTitleRequired')).max(200);
+const dateSchema = (t: ActionT) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, t('invalidDateFormat'));
 
 const COLUMNS =
   'id, org_id, title, color, start_date, end_date, created_by, created_at, updated_at, deleted_at';
 
-async function assertMember(orgId: string, userId: string): Promise<void> {
-  const { data, error } = await getSupabaseAdmin()
-    .from('org_members')
-    .select('id')
-    .eq('org_id', orgId)
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('이 조직의 멤버가 아니에요.');
-}
-
 /** 시작·끝을 정리한다. 거꾸로 넣었으면 뒤집어 준다 — 막느니 고쳐 주는 쪽이 낫다 */
-function normalizeRange(start: string, end: string): { start: string; end: string } {
-  const s = dateSchema.parse(start);
-  const e = dateSchema.parse(end);
+function normalizeRange(t: ActionT, start: string, end: string): { start: string; end: string } {
+  const s = dateSchema(t).parse(start);
+  const e = dateSchema(t).parse(end);
   return s <= e ? { start: s, end: e } : { start: e, end: s };
 }
 
@@ -58,10 +49,11 @@ export async function createOrgEvent(input: {
   return wrap(async () => {
     const user = await requireAuth();
     await assertMember(input.orgId, user.id);
+    const t = await getActionT();
 
-    const title = titleSchema.parse(input.title);
-    if (!isValidEventColor(input.color)) throw new Error('없는 색이에요.');
-    const { start, end } = normalizeRange(input.startDate, input.endDate);
+    const title = titleSchema(t).parse(input.title);
+    if (!isValidEventColor(input.color)) throw new Error(t('invalidEventColor'));
+    const { start, end } = normalizeRange(t, input.startDate, input.endDate);
 
     const { data, error } = await getSupabaseAdmin()
       .from('org_events')
@@ -82,6 +74,7 @@ export async function createOrgEvent(input: {
 
 /** 일정 id로 조직을 되짚어 멤버 여부를 확인한다 */
 async function loadEventForMember(eventId: string, userId: string): Promise<OrgEvent> {
+  const t = await getActionT();
   const { data, error } = await getSupabaseAdmin()
     .from('org_events')
     .select(COLUMNS)
@@ -89,7 +82,7 @@ async function loadEventForMember(eventId: string, userId: string): Promise<OrgE
     .is('deleted_at', null)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  if (!data) throw new Error('일정을 찾을 수 없어요.');
+  if (!data) throw new Error(t('eventNotFound'));
   const event = data as OrgEvent;
   await assertMember(event.org_id, userId);
   return event;
@@ -102,15 +95,17 @@ export async function updateOrgEvent(
   return wrap(async () => {
     const user = await requireAuth();
     const event = await loadEventForMember(eventId, user.id);
+    const t = await getActionT();
 
     const update: Record<string, unknown> = {};
-    if (patch.title !== undefined) update.title = titleSchema.parse(patch.title);
+    if (patch.title !== undefined) update.title = titleSchema(t).parse(patch.title);
     if (patch.color !== undefined) {
-      if (!isValidEventColor(patch.color)) throw new Error('없는 색이에요.');
+      if (!isValidEventColor(patch.color)) throw new Error(t('invalidEventColor'));
       update.color = patch.color;
     }
     if (patch.startDate !== undefined || patch.endDate !== undefined) {
       const { start, end } = normalizeRange(
+        t,
         patch.startDate ?? event.start_date,
         patch.endDate ?? event.end_date
       );
@@ -135,6 +130,7 @@ export async function deleteOrgEvent(eventId: string): Promise<ApiResponse<null>
   return wrap(async () => {
     const user = await requireAuth();
     const event = await loadEventForMember(eventId, user.id);
+    const t = await getActionT();
 
     if (event.created_by !== user.id) {
       const { data: me } = await getSupabaseAdmin()
@@ -144,7 +140,7 @@ export async function deleteOrgEvent(eventId: string): Promise<ApiResponse<null>
         .eq('user_id', user.id)
         .maybeSingle();
       if (!me || (me.role !== 'owner' && me.role !== 'admin'))
-        throw new Error('일정을 만든 사람이나 방장만 지울 수 있어요.');
+        throw new Error(t('cannotDeleteEvent'));
     }
 
     const { error } = await getSupabaseAdmin()
