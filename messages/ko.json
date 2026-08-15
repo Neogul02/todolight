@@ -236,11 +236,11 @@
     "headingLine2": "빠르게.",
     "tagline": "팀의 할 일을 한 페이지에서 보는 TodoList",
     "pointLightTitle": "가볍게",
-    "pointLightBody": "설치도 설정도 필요없어요, 초대로 바로 시작해요",
+    "pointLightBody": "설치도 설정도 필요 없어요. 초대를 받으면 바로 시작해요",
     "pointSimpleTitle": "간단하게",
     "pointSimpleBody": "간단하지만 강력하게, 우리 조직의 할 일을 파악해요",
     "pointFastTitle": "빠르게",
-    "pointFastBody": "체크하는 순간 화면에 반영돼요."
+    "pointFastBody": "체크하는 순간 화면에 반영돼요"
   },
   "errorPage": {
     "title": "문제가 생겼어요",
