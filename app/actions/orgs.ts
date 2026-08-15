@@ -2,7 +2,9 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { notifyDiscord } from '@/lib/discord';
 import { requireAuth, wrap } from './_base';
 import { requireManager, requireMembership } from '@/lib/guards';
 import { type ActionT, getActionT } from '@/lib/server-i18n';
@@ -67,6 +69,28 @@ export async function createOrg(name: string): Promise<ApiResponse<Organization>
     }
 
     revalidatePath('/board');
+
+    // 알림은 응답 뒤에 보낸다 — 웹훅이 느려도 조직 생성 자체는 즉시 끝나야 한다.
+    // 가입/로그인과 마찬가지로 조직별 웹훅이 아니라 전역 웹훅으로 간다(조직이 막 생겨 아직
+    // discord_webhook_url을 설정할 수 없었으므로).
+    after(async () => {
+      const { data: profile } = await getSupabaseAdmin()
+        .from('profiles')
+        .select('display_name')
+        .eq('id', user.id)
+        .maybeSingle();
+      const creator = profile?.display_name ?? '알 수 없음';
+      await notifyDiscord(
+        null,
+        '새 조직',
+        `**${org.name}** 조직이 개설됐어요. (개설자: **${creator}**)`,
+        [
+          { name: '조직', value: org.name, inline: true },
+          { name: '개설자', value: creator, inline: true },
+        ]
+      );
+    });
+
     return org as Organization;
   });
 }

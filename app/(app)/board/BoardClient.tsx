@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
@@ -12,6 +12,8 @@ import {
   useOrgPresence,
   useOrgTodos,
 } from '@/hooks/useOrgBoard';
+import { useTypingPresence } from '@/hooks/useTypingPresence';
+import { useFocusPresence } from '@/hooks/useFocusPresence';
 import { useCarousel } from '@/hooks/useCarousel';
 import { useApp } from '../OrgContext';
 import { Avatar } from '@/components/Avatar';
@@ -43,6 +45,15 @@ export default function BoardClient() {
   const todos = useOrgTodos(activeOrgId);
   useBoardRealtime(activeOrgId);
   useOrgPresence(activeOrgId, userId);
+  const { typingByTodoId, broadcastTyping } = useTypingPresence(
+    activeOrgId,
+    userId,
+    profile?.display_name ?? null
+  );
+  const { focusByTodoId, broadcastFocus, broadcastUnfocus } = useFocusPresence(
+    activeOrgId,
+    userId
+  );
 
   // 완료 표시 여부는 설정(내 설정)에서 계정에 저장한다 — 기기를 옮겨도 같은 화면이어야 한다.
   // 기본은 보임: 팀원이 뭘 끝냈는지가 곧 공유의 목적이다.
@@ -63,6 +74,19 @@ export default function BoardClient() {
     setOpenTodo(current =>
       current?.id === todoId && current.mode === mode ? null : { mode, id: todoId }
     );
+
+  /*
+    펼쳐진 카드가 바뀔 때마다(열림·닫힘·다른 카드로 전환·뷰 전환으로 openTodoId가 null이
+    되는 경우 전부) 다른 멤버에게 포커스 방송을 한다. setOpenTodo를 부르는 자리마다
+    일일이 방송을 걸면(goToMember처럼 openTodo를 직접 건드리는 곳도 있어서) 빠뜨리기 쉽다 —
+    파생값인 openTodoId 하나만 감시하면 어떤 경로로 바뀌든 놓치지 않는다.
+    cleanup이 곧 "이전 카드 unfocus"라, 다음 값으로 바뀌기 직전에 자동으로 실행된다.
+  */
+  useEffect(() => {
+    if (!openTodoId) return;
+    broadcastFocus(openTodoId);
+    return () => broadcastUnfocus(openTodoId);
+  }, [openTodoId, broadcastFocus, broadcastUnfocus]);
 
   function goToMember(index: number) {
     goTo(index);
@@ -228,6 +252,9 @@ export default function BoardClient() {
                   onToggleOpen={toggleOpenTodo}
                   onCreated={refresh}
                   onHandoff={setHandoff}
+                  typingByTodoId={typingByTodoId}
+                  onTyping={broadcastTyping}
+                  focusByTodoId={focusByTodoId}
                   /*
                     모바일은 한 화면에 한 명만 보인다 — w-full은 스크롤 컨테이너의 콘텐츠 폭이라
                     좌우 패딩(px-3)과 정확히 맞아떨어져 옆 컬럼이 삐져나오지 않는다.
@@ -266,6 +293,9 @@ export default function BoardClient() {
                 onToggleOpen={toggleOpenTodo}
                 onCreated={refresh}
                 onHandoff={setHandoff}
+                typingByTodoId={typingByTodoId}
+                onTyping={broadcastTyping}
+                focusByTodoId={focusByTodoId}
               />
             ))}
 
@@ -283,6 +313,7 @@ export default function BoardClient() {
               showDone={showDone}
               currentUserId={userId}
               isManager={isManager}
+              onHandoff={setHandoff}
             />
           </motion.div>
         )}

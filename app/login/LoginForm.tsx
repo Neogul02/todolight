@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
+import { notifyLoggedIn, notifySignedUp } from '@/app/actions/auth-notify';
 import { showMsg } from '@/lib/toast';
 import { Button, Card, Input, Spinner } from '@/components/ui';
 import { cn } from '@/lib/utils';
@@ -45,6 +46,8 @@ export default function LoginForm() {
           },
         });
         if (error) throw error;
+        // 알림 실패가 가입 흐름을 막으면 안 되므로 fire-and-forget으로만 부른다.
+        notifySignedUp(email.trim()).catch(() => {});
         // 이메일 확인이 켜져 있으면 session이 비어서 온다 — 이 경우 바로 들어갈 수 없다.
         if (!data.session) {
           showMsg(tToast('confirmEmailSent'), 'info');
@@ -57,6 +60,8 @@ export default function LoginForm() {
           password,
         });
         if (error) throw error;
+        // 알림 실패가 로그인 흐름을 막으면 안 되므로 fire-and-forget으로만 부른다.
+        notifyLoggedIn().catch(() => {});
       }
 
       router.replace(nextPath);

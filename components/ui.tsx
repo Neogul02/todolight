@@ -49,7 +49,11 @@ export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTML
         className={cn(
           'h-12 w-full rounded-xl border border-hairline bg-surface px-3.5 text-[16px] text-ink sm:h-10 sm:px-3 sm:text-[14px]',
           'placeholder:text-ink-faint outline-none transition-colors',
-          'focus:border-hairline-strong focus:ring-2 focus:ring-accent/10',
+          /*
+            ring-inset — 안쪽으로 그린다. 바깥으로 그리면(기본값) 카드처럼 여백이 좁은
+            컨테이너 안에서 포커스 링이 부모 테두리 밖으로 삐져나와 화면이 넘치는 것처럼 보인다.
+          */
+          'focus:ring-2 focus:ring-inset focus:ring-accent/10 focus:border-hairline-strong',
           className
         )}
         {...props}
@@ -68,7 +72,7 @@ export const Textarea = forwardRef<
       className={cn(
         'w-full resize-none rounded-xl border border-hairline bg-surface px-3 py-2 text-[14px] text-ink',
         'placeholder:text-ink-faint outline-none transition-colors',
-        'focus:border-hairline-strong focus:ring-2 focus:ring-accent/10',
+        'focus:ring-2 focus:ring-inset focus:ring-accent/10 focus:border-hairline-strong',
         className
       )}
       {...props}

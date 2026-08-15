@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import {
   addTodoNote,
   deleteTodo,
+  deleteTodoNote,
   restoreTodo,
   setTodoStatus,
   updateTodo,
@@ -173,6 +174,26 @@ export function useTodoMutations(orgId: string | null) {
     onSettled: resync,
   });
 
+  // 하드 삭제라 되돌릴 수 없다 — 짧은 메모 한 줄이라 할 일 삭제와 달리 실행취소 토스트 없이 바로 지운다.
+  const deleteNote = useMutation({
+    mutationFn: async (input: { todoId: string; noteId: string }) => {
+      const res = await deleteTodoNote(input.noteId);
+      if (!res.success) throw new Error(res.error);
+      return input;
+    },
+    onMutate: async input => ({
+      snapshot: await patch(todos =>
+        todos.map(t =>
+          t.id === input.todoId
+            ? { ...t, notes: t.notes?.filter(n => n.id !== input.noteId) }
+            : t
+        )
+      ),
+    }),
+    onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
+    onSettled: (_data, _error, input) => settle(input.todoId),
+  });
+
   // 보드 캐시는 컬럼별이 아니라 조직 전체의 flat한 목록 하나다 — 여러 컬럼에 걸쳐
   // 보이는 건 렌더할 때 파생되는 그룹핑일 뿐이라, participant_ids 하나만 patch하면
   // 어느 컬럼에서 눌러도 즉시 반영된다.
@@ -212,5 +233,5 @@ export function useTodoMutations(orgId: string | null) {
     onSettled: resync,
   });
 
-  return { toggleStatus, edit, remove, restore, addNote, editNote, join, leave };
+  return { toggleStatus, edit, remove, restore, addNote, editNote, deleteNote, join, leave };
 }

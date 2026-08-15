@@ -102,7 +102,6 @@ function EventForm({
           placeholder={t('namePlaceholder')}
           maxLength={200}
           enterKeyHint="done"
-          autoFocus
         />
       </label>
 

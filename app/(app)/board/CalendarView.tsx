@@ -1,13 +1,16 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
 import { useHorizontalSwipe } from '@/hooks/useHorizontalSwipe';
+import { useOutsideClick } from '@/hooks/useOutsideClick';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/ui';
 import { getEventColor } from '@/lib/event-colors';
 import { useOrgEvents } from '@/hooks/useOrgEvents';
+import { useTodoMutations } from '@/hooks/useTodoMutations';
+import { vibrateTick } from '@/lib/haptics';
 import { addDays, cn, todayKST } from '@/lib/utils';
 import type { Locale } from '@/lib/locales';
 import type { MemberSummary, OrgEvent, Todo } from '@/types/db';
@@ -17,6 +20,8 @@ import { EventSheet } from './EventSheet';
 const MAX_LANES = 3;
 /** 격자 칸 사이 가로 간격(gap-x-1). 여러 칸을 가로지르는 띠의 폭 계산에 쓴다 */
 const CELL_GAP_PX = 4;
+/** 점 모드(칸이 좁을 때)에서 한 칸에 찍는 점의 최대 개수 — 넘치면 +N */
+const MAX_DOTS = 4;
 
 function weekdayOf(date: string): number {
   return new Date(`${date}T00:00:00Z`).getUTCDay();
@@ -110,6 +115,7 @@ export function CalendarView({
   showDone,
   currentUserId,
   isManager,
+  onHandoff,
 }: {
   orgId: string | null;
   todos: Todo[];
@@ -117,6 +123,8 @@ export function CalendarView({
   showDone: boolean;
   currentUserId: string;
   isManager: boolean;
+  /** 남의 할 일을 체크하면 "대신 처리" 메모를 받아야 한다 — 그 모달을 여는 콜백 */
+  onHandoff: (todo: Todo) => void;
 }) {
   const locale = useLocale() as Locale;
   const t = useTranslations('calendar');
@@ -126,10 +134,30 @@ export function CalendarView({
   /** 어느 쪽으로 넘겼는지 — 들어오고 나가는 방향을 맞춰야 넘긴 느낌이 난다 */
   const [direction, setDirection] = useState(0);
   const [selected, setSelected] = useState(today);
+  /** 날짜를 탭하기 전엔 목록 패널을 접어 두고 달력을 화면 전체로 쓴다 (모바일 전용 — sm:부턴 CSS가 무시한다) */
+  const [panelOpen, setPanelOpen] = useState(false);
+  /** 달력 전체(격자 + 패널) 바깥의 빈 화면을 누르면 패널을 닫는다. 격자 안의 다른 날짜를
+   *  누르는 것까지 "바깥 클릭"으로 잡으면, mousedown이 먼저 패널을 닫고 뒤이은 onClick의
+   *  selectDate가 그 시점의 panelOpen(=false)을 보고 토글을 오판해 다시 열려버린다 —
+   *  그래서 ref는 격자까지 포함한 컴포넌트 전체 루트에 건다. */
+  const rootRef = useRef<HTMLDivElement>(null);
+  useOutsideClick(rootRef, () => setPanelOpen(false), panelOpen);
   const [editing, setEditing] = useState<OrgEvent | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const events = useOrgEvents(orgId);
+  const { toggleStatus } = useTodoMutations(orgId);
+
+  // TodoCard와 같은 규칙 — 남의 할 일을 완료로 바꾸는 건 "대신 처리"라 메모를 반드시 받는다.
+  function toggleDone(todo: Todo) {
+    const done = todo.status === 'done';
+    if (!done && todo.owner_id !== currentUserId) {
+      onHandoff(todo);
+      return;
+    }
+    if (!done) vibrateTick();
+    toggleStatus.mutate({ todo, next: done ? 'todo' : 'done', actorId: currentUserId });
+  }
 
   /** 일요일부터 시작하는 한 주의 요일 이름을 로케일에 맞게 뽑는다 (2023-01-01은 일요일) */
   const weekdays = useMemo(() => {
@@ -229,7 +257,10 @@ export function CalendarView({
   const days = monthGrid(month);
   const monthFirst = `${month}-01`;
   const monthLast = lastDayOfMonth(month);
-  const selectedTodos = todosByDate.get(selected) ?? [];
+  // 안 끝난 일이 위, 완료한 일은 아래로 — 일정(selectedEvents)은 이 정렬과 무관하게 늘 맨 위에 고정된다
+  const selectedTodos = [...(todosByDate.get(selected) ?? [])].sort(
+    (a, b) => Number(a.status === 'done') - Number(b.status === 'done')
+  );
   const selectedEvents = eventsByDate.get(selected) ?? [];
   const undated = visible.filter(t => !t.due_date);
   const monthLabel = monthYearLabel(month, locale);
@@ -244,8 +275,21 @@ export function CalendarView({
     setSheetOpen(true);
   }
 
+  /** 날짜를 탭하면 목록 패널이 뜬다. 이미 열려 있는 그 날짜를 다시 탭하면 접힌다(토글) */
+  function selectDate(date: string) {
+    if (panelOpen && date === selected) {
+      setPanelOpen(false);
+      return;
+    }
+    setSelected(date);
+    setPanelOpen(true);
+  }
+
   return (
-    <div className="mx-auto w-full max-w-[720px] px-3 pt-2 pb-safe sm:px-4">
+    <div
+      ref={rootRef}
+      className="calendar-viewport mx-auto flex w-full max-w-[720px] flex-col px-3 pt-2 sm:h-auto sm:px-4 sm:pb-safe"
+    >
       <div className="flex items-center justify-between pb-2">
         <button
           type="button"
@@ -295,6 +339,12 @@ export function CalendarView({
         touch-action: pan-y — 가로 제스처는 우리가 쓰고 세로 스크롤은 브라우저에 남긴다.
         날짜 숫자를 드래그로 선택하게 두면 넘기는 동안 텍스트가 잡히므로 선택을 막는다.
       */}
+      {/*
+        칸 높이는 auto-rows-fr로 남은 화면을 억지로 채우지 않는다 — 그러면 달이 5주짜리든
+        6주짜리든 칸이 뷰포트 높이에 맞춰 늘어나서 정사각형을 한참 넘는 길쭉한 직사각형이 된다.
+        대신 아래 각 칸에 aspect-[6/7]을 줘서 폭 기준으로 스스로 높이를 정하게 한다 —
+        칸이 촘촘히 쌓여도 달력 전체 높이가 늘 비슷하게 나온다.
+      */}
       <div ref={swipeRef} className="touch-pan-y select-none overflow-hidden">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
@@ -320,7 +370,7 @@ export function CalendarView({
             <button
               key={date}
               type="button"
-              onClick={() => setSelected(date)}
+              onClick={() => selectDate(date)}
               role="gridcell"
               aria-selected={isSelected}
               aria-current={isToday ? 'date' : undefined}
@@ -330,8 +380,10 @@ export function CalendarView({
               */
               aria-label={describeDay(date, remaining, dayEvents)}
               className={cn(
-                'flex flex-col items-stretch gap-1 rounded-xl pt-1.5 pb-1 transition-colors',
-                isSelected ? 'bg-accent text-accent-ink' : 'text-ink active:bg-canvas-soft'
+                'flex aspect-[6/7] flex-col items-stretch gap-1 rounded-xl border pt-1.5 pb-1 transition-colors',
+                isSelected
+                  ? 'border-accent bg-accent-soft text-ink'
+                  : 'border-transparent text-ink active:bg-canvas-soft'
               )}
             >
               {/*
@@ -339,20 +391,11 @@ export function CalendarView({
                 숫자가 옆으로 밀려서 줄이 들쭉날쭉해진다 — 배지는 띄워서 옆에 붙인다.
               */}
               <span className="relative flex items-center justify-center px-1">
-                <span
-                  className={cn('text-[13px] tabular-nums', !isSelected && isToday && 'font-bold')}
-                >
+                <span className={cn('text-[13px] tabular-nums', isToday && 'font-bold')}>
                   {Number(date.slice(-2))}
                 </span>
                 {remaining > 0 && (
-                  <span
-                    className={cn(
-                      'absolute right-0 top-1/2 grid min-w-[14px] -translate-y-1/2 rounded-full px-1 text-[9px] leading-[14px] font-semibold',
-                      isSelected
-                        ? 'bg-accent-ink/25 text-accent-ink'
-                        : 'bg-canvas-soft text-ink-secondary'
-                    )}
-                  >
+                  <span className="absolute right-0 top-1/2 grid min-w-[14px] -translate-y-1/2 rounded-full bg-canvas-soft px-1 text-[9px] leading-[14px] font-semibold text-ink-secondary">
                     {remaining}
                   </span>
                 )}
@@ -374,16 +417,27 @@ export function CalendarView({
                 28일 위를 눌러도 그 세그먼트가 시작한 23일 칸이 선택된다 —
                 띠는 시작 칸 button의 자식이기 때문이다. 클릭은 칸이 받아야 한다.
               */}
-              <span className="pointer-events-none flex min-h-[45px] flex-col gap-[2px]">
+              {/*
+                calendar-viewport가 패널 때문에 줄어든 동안(panelOpen, 모바일에서만) 칸 높이가
+                띠 3줄(52px)보다 좁아질 수 있다 — 그대로 두면 일정 많은 날이 잘려 보인다.
+                그 상태에서는 띠 대신 점으로만 표시한다. 데스크톱은 패널이 실제로 안 줄어들어서
+                sm:부터 다시 띠로 되돌린다(compact 여부와 무관하게 항상 sm:flex).
+              */}
+              <span
+                className={cn(
+                  'pointer-events-none min-h-[52px] flex-col gap-[2px] sm:flex',
+                  panelOpen ? 'hidden' : 'flex'
+                )}
+              >
                 {Array.from({ length: MAX_LANES }, (_, lane) => {
                   const event = dayEvents.find(e => laneOf.get(e.id) === lane);
-                  if (!event) return <span key={lane} className="h-[13px]" />;
+                  if (!event) return <span key={lane} className="h-4" />;
 
                   // 세그먼트는 일정이 시작하거나, 주가 바뀌거나, 달이 바뀌는 칸에서 시작한다
                   const startsHere =
                     event.start_date === date || weekdayOf(date) === 0 || date === monthFirst;
                   // 그 밖의 칸은 이미 앞 세그먼트가 덮고 있다 — 줄 높이만 유지한다
-                  if (!startsHere) return <span key={lane} className="h-[13px]" />;
+                  if (!startsHere) return <span key={lane} className="h-4" />;
 
                   const segEnd = minDate(
                     event.end_date,
@@ -402,7 +456,7 @@ export function CalendarView({
                       key={lane}
                       title={event.title}
                       className={cn(
-                        'relative z-10 flex h-[13px] items-center overflow-hidden px-1.5',
+                        'relative z-10 flex h-4 items-center overflow-hidden px-1.5',
                         roundStart && 'rounded-l-full',
                         roundEnd && 'rounded-r-full'
                       )}
@@ -424,13 +478,44 @@ export function CalendarView({
                   <span
                     className={cn(
                       'text-[9px] leading-none',
-                      isSelected ? 'text-accent-ink/70' : 'text-ink-faint'
+                      'text-ink-faint'
                     )}
                   >
                     +{dayEvents.filter(e => (laneOf.get(e.id) ?? 0) >= MAX_LANES).length}
                   </span>
                 )}
               </span>
+
+              {/*
+                점 모드 — 위 띠 span과 자리를 맞바꾼다(panelOpen이면 모바일에서만 보임).
+                제목·기간 정보 없이 색만 찍어서, 일정이 몰린 날도 칸 높이가 줄어든 만큼만 차지한다.
+              */}
+              {dayEvents.length > 0 && (
+                <span
+                  className={cn(
+                    'pointer-events-none min-h-[10px] flex-wrap items-center justify-center gap-[3px] px-1 sm:hidden',
+                    panelOpen ? 'flex' : 'hidden'
+                  )}
+                >
+                  {dayEvents.slice(0, MAX_DOTS).map(e => (
+                    <span
+                      key={e.id}
+                      className="size-[5px] shrink-0 rounded-full"
+                      style={{ background: getEventColor(e.color).bar }}
+                    />
+                  ))}
+                  {dayEvents.length > MAX_DOTS && (
+                    <span
+                      className={cn(
+                        'text-[8px] leading-none',
+                        'text-ink-faint'
+                      )}
+                    >
+                      +{dayEvents.length - MAX_DOTS}
+                    </span>
+                  )}
+                </span>
+              )}
             </button>
           );
         })}
@@ -438,69 +523,107 @@ export function CalendarView({
         </AnimatePresence>
       </div>
 
-      <section className="mt-4 border-t border-hairline pt-3">
-        <div className="flex items-center justify-between pb-2">
-          <h2 className="text-caption font-semibold text-ink-secondary">
-            {t('selectedSummary', {
-              date: selected,
-              events: selectedEvents.length,
-              todos: selectedTodos.length,
-            })}
-          </h2>
-          <Button size="sm" variant="outline" onClick={openNewEvent}>
-            {t('newEvent')}
-          </Button>
+      {/*
+        날짜 목록 패널. 접혀 있으면(panelOpen=false) 높이 0으로 그냥 사라져서 위 달력이
+        calendar-viewport 전체를 차지한다 — 화면 절반 정도로 펴지는 건 h-[50dvh] 하나로 끝난다.
+        sm:부턴 h-auto로 되돌려 원래처럼 늘 펼쳐진 정적 섹션으로 되돌아간다(패널 개념 자체가 무의미).
+      */}
+      <div
+        className={cn(
+          'overflow-hidden transition-[height] duration-300 ease-out',
+          panelOpen ? 'h-[50dvh]' : 'h-0',
+          'sm:h-auto sm:overflow-visible sm:transition-none'
+        )}
+      >
+        <div className="mt-4 h-full overflow-y-auto border-t border-hairline pt-3 pb-safe sm:h-auto sm:overflow-visible">
+          <div className="flex items-center justify-between pb-2">
+            <h2 className="text-caption font-semibold text-ink-secondary">
+              {t('selectedSummary', {
+                date: selected,
+                events: selectedEvents.length,
+                todos: selectedTodos.length,
+              })}
+            </h2>
+            <div className="flex items-center gap-1.5">
+              <Button size="sm" variant="outline" onClick={openNewEvent}>
+                {t('newEvent')}
+              </Button>
+              {/* 데스크톱은 패널이 늘 펴져 있어 닫을 필요가 없다 */}
+              <button
+                type="button"
+                onClick={() => setPanelOpen(false)}
+                aria-label={t('closeDay')}
+                className="grid size-8 shrink-0 place-items-center rounded-lg text-[15px] text-ink-muted active:bg-canvas-soft sm:hidden"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {selectedEvents.length > 0 && (
+            <ul className="mb-2 flex flex-col gap-1.5">
+              {selectedEvents.map(e => {
+                const color = getEventColor(e.color);
+                return (
+                  <li key={e.id}>
+                    <button
+                      type="button"
+                      onClick={() => openEvent(e)}
+                      className="flex w-full items-center gap-2.5 rounded-xl border border-hairline bg-surface px-3 py-2.5 text-left transition-colors active:bg-canvas-soft"
+                    >
+                      <span
+                        className="h-8 w-1 shrink-0 rounded-full"
+                        style={{ background: color.bar }}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[14px] text-ink">{e.title}</span>
+                        <span className="block text-[11px] text-ink-faint">{formatRange(e)}</span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {selectedTodos.length === 0 && selectedEvents.length === 0 ? (
+            <p className="py-6 text-center text-caption text-ink-faint">{t('emptyDay')}</p>
+          ) : (
+            <ul className="flex flex-col gap-1.5">
+              {selectedTodos.map(t => (
+                <TodoRow
+                  key={t.id}
+                  todo={t}
+                  owner={memberOf(t.owner_id)}
+                  unknownLabel={tBoard('unknown')}
+                  onToggle={() => toggleDone(t)}
+                  busy={toggleStatus.isPending}
+                />
+              ))}
+            </ul>
+          )}
+
+          {undated.length > 0 && (
+            <div className="mt-5 border-t border-hairline pt-3">
+              <h2 className="pb-2 text-caption font-semibold text-ink-secondary">
+                {t('noDueDate', { count: undated.length })}
+              </h2>
+              <ul className="flex flex-col gap-1.5">
+                {undated.map(t => (
+                  <TodoRow
+                    key={t.id}
+                    todo={t}
+                    owner={memberOf(t.owner_id)}
+                    unknownLabel={tBoard('unknown')}
+                    onToggle={() => toggleDone(t)}
+                  busy={toggleStatus.isPending}
+                  />
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
-
-        {selectedEvents.length > 0 && (
-          <ul className="mb-2 flex flex-col gap-1.5">
-            {selectedEvents.map(e => {
-              const color = getEventColor(e.color);
-              return (
-                <li key={e.id}>
-                  <button
-                    type="button"
-                    onClick={() => openEvent(e)}
-                    className="flex w-full items-center gap-2.5 rounded-xl border border-hairline bg-surface px-3 py-2.5 text-left transition-colors active:bg-canvas-soft"
-                  >
-                    <span
-                      className="h-8 w-1 shrink-0 rounded-full"
-                      style={{ background: color.bar }}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] text-ink">{e.title}</span>
-                      <span className="block text-[11px] text-ink-faint">{formatRange(e)}</span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
-        {selectedTodos.length === 0 && selectedEvents.length === 0 ? (
-          <p className="py-6 text-center text-caption text-ink-faint">{t('emptyDay')}</p>
-        ) : (
-          <ul className="flex flex-col gap-1.5">
-            {selectedTodos.map(t => (
-              <TodoRow key={t.id} todo={t} owner={memberOf(t.owner_id)} unknownLabel={tBoard('unknown')} />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {undated.length > 0 && (
-        <section className="mt-5 border-t border-hairline pt-3">
-          <h2 className="pb-2 text-caption font-semibold text-ink-secondary">
-            {t('noDueDate', { count: undated.length })}
-          </h2>
-          <ul className="flex flex-col gap-1.5">
-            {undated.map(t => (
-              <TodoRow key={t.id} todo={t} owner={memberOf(t.owner_id)} unknownLabel={tBoard('unknown')} />
-            ))}
-          </ul>
-        </section>
-      )}
+      </div>
 
       <EventSheet
         open={sheetOpen}
@@ -518,14 +641,42 @@ function TodoRow({
   todo,
   owner,
   unknownLabel,
+  onToggle,
+  busy,
 }: {
   todo: Todo;
   owner?: MemberSummary;
   unknownLabel: string;
+  /** 체크하면 바로 완료 처리한다 — 남의 할 일이면 "대신 처리" 메모 모달로 이어진다 */
+  onToggle: () => void;
+  busy: boolean;
 }) {
+  const t = useTranslations('board');
   const done = todo.status === 'done';
   return (
     <li className="flex items-center gap-2.5 rounded-xl border border-hairline bg-surface px-3 py-2.5">
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={busy}
+        aria-label={done ? t('card.markUndone') : t('card.markDone')}
+        className="shrink-0 transition-transform active:scale-90"
+      >
+        <span
+          className={cn(
+            'grid size-5 place-items-center rounded-md border transition-colors',
+            done
+              ? 'border-accent bg-accent text-accent-ink'
+              : 'border-hairline-strong bg-surface sm:hover:border-ink-muted'
+          )}
+        >
+          {done && (
+            <svg viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M2.5 6.2 4.8 8.5 9.5 3.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </span>
+      </button>
       <Avatar
         name={owner?.display_name ?? '?'}
         color={owner?.avatar_color}
@@ -542,7 +693,9 @@ function TodoRow({
         >
           {todo.title}
         </span>
-        <span className="block text-[11px] text-ink-faint">{owner?.display_name ?? unknownLabel}</span>
+        <span className="block text-[11px] text-ink-faint">
+          {owner?.display_name ?? unknownLabel}
+        </span>
       </span>
     </li>
   );

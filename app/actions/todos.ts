@@ -6,6 +6,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { notifyDiscord, truncate } from '@/lib/discord';
 import { requireAuth, wrap } from './_base';
 import { assertMember } from '@/lib/guards';
+import { formatRelativeDay } from '@/lib/utils';
 import { type ActionT, getActionT } from '@/lib/server-i18n';
 import type { ApiResponse } from '@/types/api';
 import type { Todo, TodoNote, TodoStatus } from '@/types/db';
@@ -175,9 +176,10 @@ export async function createTodo(input: {
         [
           { name: '내용', value: truncate(title) },
           { name: '담당', value: owner, inline: true },
-          { name: '마감', value: dueDate ?? '없음', inline: true },
+          { name: '마감', value: dueDate ? formatRelativeDay(dueDate) : '없음', inline: true },
           { name: '조직', value: orgName, inline: true },
-        ]
+        ],
+        { url: `${process.env.NEXT_PUBLIC_SITE_URL}/board`, authorName: orgName }
       );
     });
 
@@ -414,8 +416,10 @@ export async function handleForMember(
         [
           { name: '내용', value: truncate(todo.title) },
           { name: '메모', value: truncate(parsedNote, 900) },
+          { name: '마감', value: todo.due_date ? formatRelativeDay(todo.due_date) : '없음', inline: true },
           { name: '조직', value: orgName, inline: true },
-        ]
+        ],
+        { url: `${process.env.NEXT_PUBLIC_SITE_URL}/board`, authorName: orgName }
       );
     });
 

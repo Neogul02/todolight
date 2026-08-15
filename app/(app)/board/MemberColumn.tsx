@@ -10,6 +10,8 @@ import { DuePicker } from '@/components/DuePicker';
 import { Avatar } from '@/components/Avatar';
 import { Badge, Button, Input } from '@/components/ui';
 import type { MemberSummary, Todo } from '@/types/db';
+import type { TypingUser } from '@/hooks/useTypingPresence';
+import type { FocusUser } from '@/hooks/useFocusPresence';
 import TodoCard from './TodoCard';
 
 interface Props {
@@ -27,6 +29,11 @@ interface Props {
   onToggleOpen: (todoId: string) => void;
   onCreated: () => void;
   onHandoff: (todo: Todo) => void;
+  /** 할 일 id별 입력 중인 다른 멤버 목록 */
+  typingByTodoId: Map<string, TypingUser[]>;
+  onTyping: (todoId: string, field: 'title' | 'note') => void;
+  /** 할 일 id별로 지금 카드를 펼쳐서 보고 있는 다른 멤버 목록 */
+  focusByTodoId: Map<string, FocusUser[]>;
   className?: string;
 }
 
@@ -47,6 +54,9 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     onToggleOpen,
     onCreated,
     onHandoff,
+    typingByTodoId,
+    onTyping,
+    focusByTodoId,
     className,
   },
   ref
@@ -193,6 +203,9 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
               open={openTodoId === todo.id}
               onToggleOpen={() => onToggleOpen(todo.id)}
               onHandoff={onHandoff}
+              typingUsers={typingByTodoId.get(todo.id)}
+              onTyping={onTyping}
+              focusUsers={focusByTodoId.get(todo.id)}
             />
           ))}
         </AnimatePresence>

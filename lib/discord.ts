@@ -18,7 +18,8 @@ export async function notifyDiscord(
   webhookUrl: string | null | undefined,
   title: string,
   description: string,
-  fields?: DiscordField[]
+  fields?: DiscordField[],
+  opts?: { url?: string; authorName?: string; authorIconUrl?: string }
 ): Promise<void> {
   const url = webhookUrl || process.env.DISCORD_WEBHOOK_URL;
   if (!url) return;
@@ -32,8 +33,12 @@ export async function notifyDiscord(
           {
             title,
             description,
+            url: opts?.url,
             color: EMBED_COLOR,
             fields: fields?.filter(f => f.value),
+            author: opts?.authorName
+              ? { name: opts.authorName, icon_url: opts?.authorIconUrl }
+              : undefined,
             timestamp: new Date().toISOString(),
           },
         ],

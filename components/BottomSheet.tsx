@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef } from 'react';
+import { useCallback, useEffect, useId, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -23,22 +23,28 @@ export function BottomSheet({
 }) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const titleId = useId();
+  // 슬라이드-업 애니메이션이 끝난 뒤 딱 한 번만 자동 포커스한다 — 아래 onAnimationComplete 참고
+  const focusedOnEnterRef = useRef(false);
+
+  const focusables = useCallback((): HTMLElement[] => {
+    const panel = panelRef.current;
+    if (!panel) return [];
+    return Array.from(
+      panel.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    );
+  }, []);
 
   useEffect(() => {
     if (!open) return;
+    // 새로 열릴 때마다 자동 포커스를 한 번 다시 허용한다(닫힐 때는 안 건드린다 —
+    // 그러면 닫히는 애니메이션이 끝나며 onAnimationComplete가 또 불려서 포커스를 도로 뺏어 간다)
+    focusedOnEnterRef.current = false;
 
     const panel = panelRef.current;
     // 시트를 열기 직전에 무엇이 포커스를 갖고 있었는지 기억해 뒀다가 닫을 때 돌려준다
     const restoreTo = document.activeElement as HTMLElement | null;
-
-    function focusables(): HTMLElement[] {
-      if (!panel) return [];
-      return Array.from(
-        panel.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        )
-      );
-    }
 
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
@@ -66,16 +72,13 @@ export function BottomSheet({
     // 시트가 떠 있는 동안 뒤 페이지가 같이 스크롤되면 위치를 잃는다
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', onKey);
-    // 열자마자 첫 항목에 포커스를 둬야 키보드 사용자가 시트 안에서 시작한다
-    const focusTimer = setTimeout(() => focusables()[0]?.focus(), 60);
 
     return () => {
       document.body.style.overflow = prevOverflow;
       window.removeEventListener('keydown', onKey);
-      clearTimeout(focusTimer);
       restoreTo?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open, onClose, focusables]);
 
   return (
     <AnimatePresence>
@@ -106,6 +109,18 @@ export function BottomSheet({
             dragElastic={{ top: 0, bottom: 0.4 }}
             onDragEnd={(_, info) => {
               if (info.offset.y > 110 || info.velocity.y > 700) onClose();
+            }}
+            /*
+              슬라이드-업이 끝나기 전에 포커스를 주면(예: 필드에 autoFocus) 포커스가 부른
+              키보드가 아직 올라오는 중인 시트와 동시에 움직여서 겹쳐 보인다 — 애니메이션이
+              다 끝난 뒤에야 포커스를 준다. 닫히는 애니메이션이 끝날 때도 이 콜백이 다시
+              불리므로 focusedOnEnterRef로 한 번만 걸리게 막는다(안 막으면 restoreTo?.focus()로
+              돌려놓은 포커스를 도로 뺏어 간다).
+            */
+            onAnimationComplete={() => {
+              if (focusedOnEnterRef.current) return;
+              focusedOnEnterRef.current = true;
+              focusables()[0]?.focus();
             }}
             className={cn(
               'w-full max-w-[480px] rounded-t-3xl border border-hairline bg-surface pb-safe shadow-level-2',

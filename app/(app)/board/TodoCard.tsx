@@ -1,15 +1,20 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
 import { useTodoMutations } from '@/hooks/useTodoMutations';
+import { useOutsideClick } from '@/hooks/useOutsideClick';
 import { cn, dueState, formatRelativeDay, subjectParticle } from '@/lib/utils';
+import { getAvatarColor } from '@/lib/avatar';
+import { vibrateTick } from '@/lib/haptics';
 import { Avatar } from '@/components/Avatar';
 import { DuePicker } from '@/components/DuePicker';
 import { Badge, Button, Input } from '@/components/ui';
 import type { Locale } from '@/lib/locales';
 import type { MemberSummary, Todo } from '@/types/db';
+import type { TypingUser } from '@/hooks/useTypingPresence';
+import type { FocusUser } from '@/hooks/useFocusPresence';
 
 const DUE_TONE = {
   overdue: 'danger',
@@ -27,6 +32,9 @@ export default function TodoCard({
   open,
   onToggleOpen,
   onHandoff,
+  typingUsers,
+  onTyping,
+  focusUsers,
 }: {
   todo: Todo;
   isMine: boolean;
@@ -37,24 +45,18 @@ export default function TodoCard({
   open: boolean;
   onToggleOpen: () => void;
   onHandoff: (todo: Todo) => void;
+  /** 지금 이 할 일의 제목/메모를 입력 중인 다른 멤버들 */
+  typingUsers?: TypingUser[];
+  onTyping: (todoId: string, field: 'title' | 'note') => void;
+  /** 지금 이 카드를 펼쳐서 보고 있는 다른 멤버들 */
+  focusUsers?: FocusUser[];
 }) {
   const locale = useLocale() as Locale;
   const t = useTranslations('board');
-  const tCommon = useTranslations('common');
-  const [note, setNote] = useState('');
-  const [editing, setEditing] = useState(false);
-  const [draftTitle, setDraftTitle] = useState(todo.title);
-  const [draftDue, setDraftDue] = useState<string | null>(todo.due_date);
-  // 편집을 시작한 순간의 값. "안 바뀜" 판정의 기준이 된다.
-  const editBase = useRef({ title: todo.title, due: todo.due_date });
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
-  const [noteDraft, setNoteDraft] = useState('');
-  const { toggleStatus, edit, remove, addNote, editNote, join, leave } = useTodoMutations(
-    todo.org_id
-  );
-  const busy = toggleStatus.isPending || remove.isPending || addNote.isPending;
+  const reduceMotion = useReducedMotion();
+  const { toggleStatus, remove } = useTodoMutations(todo.org_id);
+  const busy = toggleStatus.isPending || remove.isPending;
   const participantIds = todo.participant_ids ?? [];
-  const isParticipant = participantIds.includes(currentUserId);
 
   const done = todo.status === 'done';
   const handler = todo.handled_by ? members.find(m => m.user_id === todo.handled_by) : null;
@@ -89,75 +91,90 @@ export default function TodoCard({
       onHandoff(todo);
       return;
     }
+    if (!done) vibrateTick();
     toggleStatus.mutate({ todo, next: done ? 'todo' : 'done', actorId: currentUserId });
   }
 
-  function startEditing() {
-    // 편집을 시작할 때마다 지금 값으로 초안을 다시 채운다
-    setDraftTitle(todo.title);
-    setDraftDue(todo.due_date);
-    editBase.current = { title: todo.title, due: todo.due_date };
-    setEditing(true);
-  }
-
-  function submitEdit(e: React.FormEvent) {
-    e.preventDefault();
-    const title = draftTitle.trim();
-    if (!title) return;
-    setEditing(false);
-
-    // 기준은 편집을 시작한 순간의 값이다. 지금의 todo.title과 비교하면,
-    // 편집하는 동안 남이 고친 내용이 "내가 바꾼 것"으로 오인돼 그대로 덮어써진다.
-    const untouched = title === editBase.current.title && draftDue === editBase.current.due;
-    if (untouched) return;
-
-    edit.mutate({ todo, title, dueDate: draftDue });
-  }
-
-  function submitNote(e: React.FormEvent) {
-    e.preventDefault();
-    const content = note.trim();
-    if (!content) return;
-    setNote('');
-    addNote.mutate({ todoId: todo.id, content });
-  }
-
-  function startEditingNote(noteId: string, content: string) {
-    setEditingNoteId(noteId);
-    setNoteDraft(content);
-  }
-
-  function submitNoteEdit(e: React.FormEvent) {
-    e.preventDefault();
-    const content = noteDraft.trim();
-    if (!content || !editingNoteId) return;
-    editNote.mutate({ todoId: todo.id, noteId: editingNoteId, content });
-    setEditingNoteId(null);
-  }
-
-  /* 펼친 카드에서 제목을 누르면: 닫혀 있으면 열고, 열려 있으면(고칠 수 있을 때만) 바로 편집으로 들어간다 */
+  /*
+    제목은 늘 여닫기만 한다 — 예전엔 열린 상태에서 제목을 한 번 더 누르면 바로 편집 폼으로
+    덮어써서, 편집을 취소해도 카드가 펼쳐진 채로 남고 접을 방법이 마땅치 않았다(제목을 눌러도
+    또 편집으로 들어갈 뿐). 여닫기와 편집 진입을 분리해야 아코디언처럼 예측 가능해진다 —
+    편집은 펼친 내용 안의 연필 아이콘으로 따로 들어간다(TodoCardOpenContent).
+    편집 상태 자체도 그 컴포넌트 안에서만 산다 — 카드가 접히며 그 컴포넌트가 언마운트되면
+    자동으로 초기화되니, "접혀도 편집 중이었다는 걸 기억해서 다시 열면 또 편집 화면"이 될
+    여지가 아예 없다(effect로 상태를 되돌리는 것보다 이쪽이 React가 권장하는 방식이다).
+  */
   function handleTitleClick() {
-    if (!open) {
-      onToggleOpen();
-      return;
-    }
-    if (canRemove) startEditing();
+    onToggleOpen();
   }
 
   const noteCount = todo.notes?.length ?? 0;
 
+  // 펼쳐진 상태에서 카드 바깥을 클릭하면 접힌다. 닫혀 있을 땐 검사할 필요가 없다.
+  const cardRef = useRef<HTMLLIElement>(null);
+  useOutsideClick(cardRef, onToggleOpen, open);
+
+  const titleTypers = (typingUsers ?? []).filter(u => u.field === 'title');
+  const noteTypers = (typingUsers ?? []).filter(u => u.field === 'note');
+  const typingText = (users: TypingUser[]) =>
+    t('card.typingIndicator', { name: users.map(u => u.displayName).join(', ') });
+
+  /*
+    노션처럼 — 지금 이 카드를 펼쳐서 보고 있는 다른 멤버를 테두리 + 아바타로 보여준다.
+    본인 이벤트는 useFocusPresence가 이미 걸러 주므로 focusUsers는 항상 "남"이다.
+    여러 명이 몰리면 테두리 색은 먼저 들어온 한 명만 쓴다 — 색이 계속 바뀌며 깜빡이는 것보다
+    아바타를 겹쳐서 인원수를 보여주는 쪽이 덜 어지럽다.
+  */
+  const focusMembers = (focusUsers ?? [])
+    .map(f => members.find(m => m.user_id === f.userId))
+    .filter((m): m is MemberSummary => Boolean(m));
+  const focusColor = focusMembers[0] ? getAvatarColor(focusMembers[0].avatar_color, focusMembers[0].user_id).bg : null;
+
   return (
     <motion.li
+      ref={cardRef}
       layout
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ duration: 0.16 }}
       className={cn(
-        'rounded-xl border border-hairline bg-surface px-3 py-1.5 transition-colors',
+        'relative rounded-xl border border-hairline bg-surface px-3 py-1.5 transition-colors',
         done && 'bg-surface-alt'
       )}
     >
+      {focusColor && (
+        <motion.span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-xl border-2"
+          style={{ borderColor: focusColor }}
+          animate={reduceMotion ? { opacity: 1 } : { opacity: [1, 0.45, 1] }}
+          transition={
+            reduceMotion ? undefined : { duration: 1.6, repeat: Infinity, ease: 'easeInOut' }
+          }
+        />
+      )}
+      {focusMembers.length > 0 && (
+        <div
+          role="img"
+          aria-label={t('card.viewingBadge', {
+            names: focusMembers.map(m => m.display_name).join(', '),
+          })}
+          className="absolute -top-2 -right-2 flex -space-x-2"
+        >
+          {focusMembers.slice(0, 3).map(m => (
+            <Avatar
+              key={m.user_id}
+              name={m.display_name}
+              color={m.avatar_color}
+              imageUrl={m.avatar_url}
+              seed={m.user_id}
+              size="sm"
+              className="ring-2 ring-surface"
+            />
+          ))}
+        </div>
+      )}
       {/*
         체크 · 제목 · X 세 칸 모두 위쪽 패딩을 py-2로 맞춰서 첫 줄 기준선이 정확히 겹치게 한다.
         그 패딩이 곧 터치 영역이기도 하다 (아이콘 20px + 상하 8px = 36px).
@@ -212,8 +229,10 @@ export default function TodoCard({
             askedByOther ||
             handledByOther ||
             noteCount > 0 ||
-            participantIds.length > 0) && (
+            participantIds.length > 0 ||
+            titleTypers.length > 0) && (
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {titleTypers.length > 0 && <Badge>{typingText(titleTypers)}</Badge>}
               {todo.due_date && (
                 <Badge tone={DUE_TONE[due]}>
                   {formatRelativeDay(`${todo.due_date}T00:00:00Z`, locale)}
@@ -288,167 +307,339 @@ export default function TodoCard({
             transition={{ duration: 0.16 }}
             className="overflow-hidden"
           >
-            <div className="mt-3 border-t border-hairline pt-3">
-              {editing ? (
-                <form onSubmit={submitEdit} className="flex flex-col gap-2">
-                  <Input
-                    value={draftTitle}
-                    onChange={e => setDraftTitle(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Escape') setEditing(false);
-                    }}
-                    maxLength={500}
-                    enterKeyHint="done"
-                    autoFocus
-                    className="h-11 sm:h-10"
-                  />
-                  {/* 컬럼 패딩까지 스크롤 영역을 넓혀 가장자리에서 잘린 것처럼 보이지 않게 한다 */}
-                  <DuePicker value={draftDue} onChange={setDraftDue} className="-mx-3 px-3" />
-                  <div className="flex gap-1.5">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => setEditing(false)}
-                    >
-                      {tCommon('cancel')}
-                    </Button>
-                    <Button type="submit" className="flex-1" disabled={!draftTitle.trim()}>
-                      {tCommon('save')}
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <>
-                  {noteCount > 0 && (
-                    <ul className="mb-2.5 flex flex-col gap-2">
-                      {todo.notes!.map(n => {
-                        const mine = n.author_id === currentUserId;
-                        if (editingNoteId === n.id) {
-                          return (
-                            <li key={n.id} className="rounded-lg bg-canvas-soft px-2.5 py-2">
-                              <form onSubmit={submitNoteEdit} className="flex flex-col gap-1.5">
-                                <Input
-                                  value={noteDraft}
-                                  onChange={e => setNoteDraft(e.target.value)}
-                                  onKeyDown={e => {
-                                    if (e.key === 'Escape') setEditingNoteId(null);
-                                  }}
-                                  maxLength={1000}
-                                  enterKeyHint="done"
-                                  autoFocus
-                                  className="h-9 text-caption"
-                                />
-                                <div className="flex gap-1.5">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    className="flex-1"
-                                    onClick={() => setEditingNoteId(null)}
-                                  >
-                                    {tCommon('cancel')}
-                                  </Button>
-                                  <Button
-                                    type="submit"
-                                    size="sm"
-                                    className="flex-1"
-                                    disabled={!noteDraft.trim()}
-                                  >
-                                    {tCommon('save')}
-                                  </Button>
-                                </div>
-                              </form>
-                            </li>
-                          );
-                        }
-                        return (
-                          <li key={n.id} className="rounded-lg bg-canvas-soft px-2.5 py-2">
-                            <button
-                              type="button"
-                              disabled={!mine}
-                              onClick={() => mine && startEditingNote(n.id, n.content)}
-                              className={cn(
-                                'block w-full text-left text-caption break-words text-ink-secondary',
-                                mine && 'sm:hover:text-ink'
-                              )}
-                            >
-                              {n.content}
-                            </button>
-                            <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-ink-faint">
-                              <Avatar
-                                name={n.author_name ?? '?'}
-                                color={n.author_color}
-                                imageUrl={n.author_avatar_url}
-                                seed={n.author_id}
-                                size="sm"
-                                className="size-4 text-[9px]"
-                              />
-                              {n.author_name ?? t('unknown')} · {formatRelativeDay(n.created_at, locale)}
-                            </p>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-
-                  {/*
-                    Input은 w-full이라 min-w-0이 없으면 flex 안에서 줄어들지 못하고
-                    전송 버튼을 카드 밖으로 밀어낸다.
-                  */}
-                  <form onSubmit={submitNote} className="flex items-center gap-1.5">
-                    <Input
-                      value={note}
-                      onChange={e => setNote(e.target.value)}
-                      placeholder={t('card.notePlaceholder')}
-                      maxLength={1000}
-                      enterKeyHint="send"
-                      className="h-10 min-w-0 flex-1"
-                    />
-                    <button
-                      type="submit"
-                      aria-label={t('card.noteSubmitAria')}
-                      disabled={addNote.isPending || !note.trim()}
-                      className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-accent-ink transition-[opacity,transform] active:scale-90 disabled:opacity-30"
-                    >
-                      <svg
-                        viewBox="0 0 20 20"
-                        className="size-4"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M4 10h11M10.5 5 15.5 10l-5 5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  </form>
-
-                  {!isMine && !done && (
-                    <div className="mt-2.5 flex gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          isParticipant
-                            ? leave.mutate({ todoId: todo.id, userId: currentUserId })
-                            : join.mutate({ todoId: todo.id, userId: currentUserId })
-                        }
-                        disabled={join.isPending || leave.isPending}
-                      >
-                        {isParticipant ? t('card.leaveTogether') : t('card.joinTogether')}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => onHandoff(todo)}>
-                        {t('card.handleForMember')}
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+            {/*
+              편집/메모 상태(editing 등)는 여기 안에서만 산다 — open이 false가 되면 이
+              서브트리 자체가 통째로 언마운트되니 다음에 다시 펼칠 때 상태가 저절로
+              초기화된다. 부모에서 effect로 리셋하는 것보다 이 편이 더 단순하고 확실하다.
+            */}
+            <TodoCardOpenContent
+              todo={todo}
+              currentUserId={currentUserId}
+              canRemove={canRemove}
+              isMine={isMine}
+              done={done}
+              members={members}
+              locale={locale}
+              onTyping={onTyping}
+              noteTypers={noteTypers}
+              participantIds={participantIds}
+            />
           </motion.div>
         )}
       </AnimatePresence>
     </motion.li>
+  );
+}
+
+function TodoCardOpenContent({
+  todo,
+  currentUserId,
+  canRemove,
+  isMine,
+  done,
+  members,
+  locale,
+  onTyping,
+  noteTypers,
+  participantIds,
+}: {
+  todo: Todo;
+  currentUserId: string;
+  canRemove: boolean;
+  isMine: boolean;
+  done: boolean;
+  members: MemberSummary[];
+  locale: Locale;
+  onTyping: (todoId: string, field: 'title' | 'note') => void;
+  noteTypers: TypingUser[];
+  participantIds: string[];
+}) {
+  const t = useTranslations('board');
+  const tCommon = useTranslations('common');
+  const { edit, addNote, editNote, deleteNote, join, leave } = useTodoMutations(todo.org_id);
+  const isParticipant = participantIds.includes(currentUserId);
+
+  const [note, setNote] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(todo.title);
+  const [draftDue, setDraftDue] = useState<string | null>(todo.due_date);
+  // 편집을 시작한 순간의 값. "안 바뀜" 판정의 기준이 된다.
+  const editBase = useRef({ title: todo.title, due: todo.due_date });
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
+
+  const noteCount = todo.notes?.length ?? 0;
+  const typingText = (users: TypingUser[]) =>
+    t('card.typingIndicator', { name: users.map(u => u.displayName).join(', ') });
+
+  function startEditing() {
+    setDraftTitle(todo.title);
+    setDraftDue(todo.due_date);
+    editBase.current = { title: todo.title, due: todo.due_date };
+    setEditing(true);
+  }
+
+  function submitEdit(e: React.FormEvent) {
+    e.preventDefault();
+    const title = draftTitle.trim();
+    if (!title) return;
+    setEditing(false);
+
+    // 기준은 편집을 시작한 순간의 값이다. 지금의 todo.title과 비교하면,
+    // 편집하는 동안 남이 고친 내용이 "내가 바꾼 것"으로 오인돼 그대로 덮어써진다.
+    const untouched = title === editBase.current.title && draftDue === editBase.current.due;
+    if (untouched) return;
+
+    edit.mutate({ todo, title, dueDate: draftDue });
+  }
+
+  function submitNote(e: React.FormEvent) {
+    e.preventDefault();
+    const content = note.trim();
+    if (!content) return;
+    setNote('');
+    addNote.mutate({ todoId: todo.id, content });
+  }
+
+  function startEditingNote(noteId: string, content: string) {
+    setEditingNoteId(noteId);
+    setNoteDraft(content);
+  }
+
+  function submitNoteEdit(e: React.FormEvent) {
+    e.preventDefault();
+    const content = noteDraft.trim();
+    if (!content || !editingNoteId) return;
+    editNote.mutate({ todoId: todo.id, noteId: editingNoteId, content });
+    setEditingNoteId(null);
+  }
+
+  return (
+    /*
+      overflow-x-hidden — 안전망이다. Input의 포커스 링은 ring-inset으로 이미 안쪽으로
+      그리지만, DuePicker의 -mx-3 bleed처럼 폭을 계산해서 맞추는 요소가 하나라도 반 픽셀
+      어긋나면 카드/컬럼이 가로로 넘친다. 여기서 한 번 잘라 두면 그런 계산 오차가 있어도
+      바깥으로 새지 않는다.
+    */
+    <div className="mt-3 overflow-x-hidden border-t border-hairline pt-3">
+      {editing ? (
+        <form onSubmit={submitEdit} className="flex flex-col gap-2">
+          <Input
+            value={draftTitle}
+            onChange={e => {
+              setDraftTitle(e.target.value);
+              onTyping(todo.id, 'title');
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Escape') setEditing(false);
+            }}
+            maxLength={500}
+            enterKeyHint="done"
+            autoFocus
+            className="h-10 w-full sm:h-9"
+          />
+          {/* 컬럼 패딩까지 스크롤 영역을 넓혀 가장자리에서 잘린 것처럼 보이지 않게 한다 */}
+          <DuePicker value={draftDue} onChange={setDraftDue} className="-mx-3 px-3" />
+          <div className="flex gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setEditing(false)}
+            >
+              {tCommon('cancel')}
+            </Button>
+            <Button type="submit" className="flex-1" disabled={!draftTitle.trim()}>
+              {tCommon('save')}
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <>
+          {/*
+            제목은 여닫기 전용이라 편집은 여기 따로 둔다 — 펼친 내용 맨 위, 오른쪽 정렬.
+            이 카드에서 오른쪽은 이미 "손대는 동작"의 자리다(헤더의 삭제 X, 배지의 참여자
+            아바타 등) — 왼쪽에 두면 제목·본문이 흐르는 시작점과 겹쳐 뭘 누르는 건지 헷갈린다.
+          */}
+          {canRemove && (
+            <div className="mb-2.5 flex justify-end">
+              <button
+                type="button"
+                onClick={startEditing}
+                className="flex items-center gap-1 text-caption text-ink-faint transition-colors active:scale-95 sm:hover:text-ink"
+              >
+                <svg
+                  viewBox="0 0 16 16"
+                  className="size-3"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    d="M11.5 2.5a1.5 1.5 0 0 1 2 2L6 12l-3 1 1-3 7.5-7.5Z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {t('card.edit')}
+              </button>
+            </div>
+          )}
+
+          {noteCount > 0 && (
+            <ul className="mb-2.5 flex flex-col gap-2">
+              {todo.notes!.map(n => {
+                const mine = n.author_id === currentUserId;
+                if (editingNoteId === n.id) {
+                  return (
+                    <li key={n.id} className="rounded-lg bg-canvas-soft px-2.5 py-2">
+                      <form onSubmit={submitNoteEdit} className="flex flex-col gap-1.5">
+                        <Input
+                          value={noteDraft}
+                          onChange={e => setNoteDraft(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Escape') setEditingNoteId(null);
+                          }}
+                          maxLength={1000}
+                          enterKeyHint="done"
+                          autoFocus
+                          className="h-9 w-full text-caption"
+                        />
+                        <div className="flex gap-1.5">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => setEditingNoteId(null)}
+                          >
+                            {tCommon('cancel')}
+                          </Button>
+                          <Button
+                            type="submit"
+                            size="sm"
+                            className="flex-1"
+                            disabled={!noteDraft.trim()}
+                          >
+                            {tCommon('save')}
+                          </Button>
+                        </div>
+                      </form>
+                    </li>
+                  );
+                }
+                return (
+                  <li key={n.id} className="rounded-lg bg-canvas-soft px-2.5 py-2">
+                    <div className="flex items-start gap-1.5">
+                      <button
+                        type="button"
+                        disabled={!mine}
+                        onClick={() => mine && startEditingNote(n.id, n.content)}
+                        className={cn(
+                          'block min-w-0 flex-1 text-left text-caption break-words text-ink-secondary',
+                          mine && 'sm:hover:text-ink'
+                        )}
+                      >
+                        {n.content}
+                      </button>
+                      {mine && (
+                        <button
+                          type="button"
+                          onClick={() => deleteNote.mutate({ todoId: todo.id, noteId: n.id })}
+                          disabled={deleteNote.isPending}
+                          aria-label={t('card.deleteNoteAria')}
+                          className="shrink-0 text-ink-faint transition-colors active:scale-90 sm:hover:text-danger"
+                        >
+                          <svg
+                            viewBox="0 0 16 16"
+                            className="size-3"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <path d="m4 4 8 8M12 4l-8 8" strokeLinecap="round" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                    <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-ink-faint">
+                      <Avatar
+                        name={n.author_name ?? '?'}
+                        color={n.author_color}
+                        imageUrl={n.author_avatar_url}
+                        seed={n.author_id}
+                        size="sm"
+                        className="size-4 text-[9px]"
+                      />
+                      {n.author_name ?? t('unknown')} · {formatRelativeDay(n.created_at, locale)}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {noteTypers.length > 0 && (
+            <p className="mb-1.5 text-caption text-ink-faint">{typingText(noteTypers)}</p>
+          )}
+
+          {/*
+            Input은 w-full이라 min-w-0이 없으면 flex 안에서 줄어들지 못하고
+            전송 버튼을 카드 밖으로 밀어낸다.
+          */}
+          <form onSubmit={submitNote} className="flex items-center gap-1.5">
+            <Input
+              value={note}
+              onChange={e => {
+                setNote(e.target.value);
+                onTyping(todo.id, 'note');
+              }}
+              placeholder={t('card.notePlaceholder')}
+              maxLength={1000}
+              enterKeyHint="send"
+              className="h-10 min-w-0 flex-1"
+            />
+            <button
+              type="submit"
+              aria-label={t('card.noteSubmitAria')}
+              disabled={addNote.isPending || !note.trim()}
+              className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-accent-ink transition-[opacity,transform] active:scale-90 disabled:opacity-30"
+            >
+              <svg
+                viewBox="0 0 20 20"
+                className="size-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M4 10h11M10.5 5 15.5 10l-5 5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </form>
+
+          {/*
+            대신 처리는 별도 버튼 없이 체크박스로만 들어간다(toggleDone → 남의 할 일이면
+            자동으로 onHandoff) — 같은 동작을 두 군데 두지 않는다.
+          */}
+          {!isMine && !done && (
+            <div className="mt-2.5 flex gap-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  isParticipant
+                    ? leave.mutate({ todoId: todo.id, userId: currentUserId })
+                    : join.mutate({ todoId: todo.id, userId: currentUserId })
+                }
+                disabled={join.isPending || leave.isPending}
+              >
+                {isParticipant ? t('card.leaveTogether') : t('card.joinTogether')}
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 

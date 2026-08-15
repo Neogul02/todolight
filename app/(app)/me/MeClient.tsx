@@ -27,6 +27,7 @@ export default function MeClient() {
   const [theme, setTheme] = useState(profile?.theme ?? 'system');
   const [locale, setLocale] = useState<Locale>((profile?.locale as Locale) ?? 'ko');
   const [showDone, setShowDone] = useState(profile?.show_done ?? true);
+  const [showAvatars, setShowAvatars] = useState(profile?.show_avatars ?? true);
   const [photo, setPhoto] = useState<string | null>(profile?.avatar_url ?? null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -35,7 +36,7 @@ export default function MeClient() {
   async function save() {
     if (busy) return;
     setBusy(true);
-    const res = await updateMyProfile({ displayName: name, theme, locale, showDone });
+    const res = await updateMyProfile({ displayName: name, theme, locale, showDone, showAvatars });
     setBusy(false);
     if (!res.success) {
       showMsg(res.error, 'error');
@@ -102,6 +103,7 @@ export default function MeClient() {
             seed={userId}
             size="lg"
             className="size-14 text-[20px]"
+            ignorePreference
           />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-semibold text-ink">{name || t('noName')}</p>
@@ -139,7 +141,6 @@ export default function MeClient() {
 
       <Card className="p-5">
         <h2 className="text-title text-ink">{t('theme.title')}</h2>
-        <p className="mt-1 text-caption text-ink-muted">{t('theme.description')}</p>
 
         <div className="mt-3 grid grid-cols-3 gap-2">
           {THEMES.map(themeDef => (
@@ -167,7 +168,9 @@ export default function MeClient() {
                   />
                 ))}
               </span>
-              <span className="block truncate text-[13px] font-medium text-ink">{themeDef.name}</span>
+              <span className="block truncate text-[13px] font-medium text-ink">
+                {t(`theme.names.${themeDef.key}`)}
+              </span>
             </button>
           ))}
         </div>
@@ -175,7 +178,6 @@ export default function MeClient() {
 
       <Card className="p-5">
         <h2 className="text-title text-ink">{t('language.title')}</h2>
-        <p className="mt-1 text-caption text-ink-muted">{t('language.description')}</p>
 
         <div className="mt-3 grid grid-cols-2 gap-2">
           {LOCALES.map(l => (
@@ -203,36 +205,18 @@ export default function MeClient() {
 
       <Card className="p-5">
         <h2 className="text-title text-ink">{t('board.title')}</h2>
-        <label className="mt-3 flex cursor-pointer items-center gap-3">
-          <button
-            type="button"
-            role="checkbox"
-            aria-checked={showDone}
-            onClick={() => setShowDone(v => !v)}
-            className={cn(
-              'grid size-6 shrink-0 place-items-center rounded-md border transition-colors',
-              showDone
-                ? 'border-accent bg-accent text-accent-ink'
-                : 'border-hairline-strong bg-surface'
-            )}
-          >
-            {showDone && (
-              <svg
-                viewBox="0 0 12 12"
-                className="size-3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M2.5 6.2 4.8 8.5 9.5 3.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
-          </button>
-          <span className="min-w-0">
-            <span className="block text-[15px] text-ink">{t('board.showDone')}</span>
-            <span className="block text-caption text-ink-muted">{t('board.showDoneHint')}</span>
-          </span>
-        </label>
+        <div className="mt-3 flex flex-col gap-3">
+          <SettingCheckbox
+            checked={showDone}
+            onChange={() => setShowDone(v => !v)}
+            label={t('board.showDone')}
+          />
+          <SettingCheckbox
+            checked={showAvatars}
+            onChange={() => setShowAvatars(v => !v)}
+            label={t('board.showAvatars')}
+          />
+        </div>
       </Card>
 
       <Card className="p-5">
@@ -259,5 +243,37 @@ export default function MeClient() {
         {tCommon('save')}
       </Button>
     </main>
+  );
+}
+
+function SettingCheckbox({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  label: string;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-3">
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={checked}
+        onClick={onChange}
+        className={cn(
+          'grid size-6 shrink-0 place-items-center rounded-md border transition-colors',
+          checked ? 'border-accent bg-accent text-accent-ink' : 'border-hairline-strong bg-surface'
+        )}
+      >
+        {checked && (
+          <svg viewBox="0 0 12 12" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M2.5 6.2 4.8 8.5 9.5 3.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </button>
+      <span className="text-[15px] text-ink">{label}</span>
+    </label>
   );
 }

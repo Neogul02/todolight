@@ -92,10 +92,15 @@
 
 /* 잉크 블랙 — 화이트의 명암을 뒤집되 잉크의 따뜻한 기운은 유지한다 */
 :root[data-theme="ink-dark"] {
-  --canvas: #101010;
-  --canvas-soft: #191817;
-  --surface: #1c1b1a;
-  --surface-alt: #232221;
+  /*
+    Material Design 다크 테마 가이드 — 순검정은 피한다. 대비가 지나치게 세서 눈이 피로하고,
+    카드끼리 구분을 그림자로 못 준다(순검정 위에서는 그림자가 안 보인다).
+    권장 베이스인 #121212에서 시작해 단계별로 살짝씩 밝아지는 계단을 쌓는다.
+  */
+  --canvas: #121212;
+  --canvas-soft: #1a1a1a;
+  --surface: #1e1e1e;
+  --surface-alt: #242424;
 
   --ink: #f5f2ec;
   --ink-secondary: #ddd8ce;
@@ -296,6 +301,15 @@ textarea:focus-visible {
  */
 @utility board-viewport {
   height: calc(100dvh - var(--header-h) - var(--board-toolbar-h) - env(safe-area-inset-bottom));
+}
+
+/**
+ * 달력 탭 높이(모바일 전용).
+ * 달력 뷰에는 멤버 칩 툴바가 안 뜨므로 board-viewport와 달리 --board-toolbar-h를 빼지 않는다 —
+ * 그대로 쓰면 툴바가 없는데도 그 높이만큼 빈 칸이 아래에 남는다.
+ */
+@utility calendar-viewport {
+  height: calc(100dvh - var(--header-h) - env(safe-area-inset-bottom));
 }
 
 /* ── Elevation ── 실제 값은 테마 블록의 --shadow-1/2에 있다 */

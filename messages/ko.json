@@ -13,18 +13,24 @@
     "nameLabel": "이름",
     "language": {
       "title": "언어",
-      "description": "누르면 바로 적용돼요.",
       "ko": "한국어",
       "en": "English"
     },
     "theme": {
       "title": "테마",
-      "description": "누르면 바로 적용돼요."
+      "names": {
+        "system": "시스템",
+        "ink": "화이트",
+        "ink-dark": "다크",
+        "solarized": "Solarized",
+        "nord": "Nord",
+        "dracula": "Dracula"
+      }
     },
     "board": {
       "title": "보드",
       "showDone": "완료한 할 일도 보기",
-      "showDoneHint": "끄면 아직 남은 일만 보여요."
+      "showAvatars": "프로필 사진 보기"
     },
     "orgs": {
       "title": "소속 조직",
@@ -128,11 +134,15 @@
       "handledByOther": "{name} 대신 처리",
       "notesCount": "메모 {count}",
       "deleteAria": "할 일 지우기",
+      "edit": "수정",
+      "deleteNoteAria": "메모 지우기",
       "notePlaceholder": "메모 남기기",
       "noteSubmitAria": "메모 등록",
       "handleForMember": "대신 처리",
       "joinTogether": "같이하기",
-      "leaveTogether": "그만하기"
+      "leaveTogether": "그만하기",
+      "typingIndicator": "{name}님이 입력 중...",
+      "viewingBadge": "{names}님이 보는 중"
     },
     "column": {
       "me": "(나)",
@@ -157,7 +167,8 @@
     "newEvent": "+ 일정",
     "emptyDay": "이 날은 비어 있어요",
     "noDueDate": "마감 없음 · {count}건",
-    "selectedSummary": "{date} · 일정 {events} · 할 일 {todos}"
+    "selectedSummary": "{date} · 일정 {events} · 할 일 {todos}",
+    "closeDay": "날짜 목록 닫기"
   },
   "event": {
     "editTitle": "일정 고치기",

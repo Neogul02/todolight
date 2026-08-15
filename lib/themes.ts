@@ -1,6 +1,5 @@
 export interface ThemeDef {
   key: string;
-  name: string;
   /** 미리보기 스와치 (배경, 표면, 잉크) */
   swatch: [string, string, string];
 }
@@ -13,14 +12,15 @@ export type ResolvedTheme = (typeof RESOLVED_THEMES)[number];
  * 고를 수 있는 값.
  * 윗줄은 기본 3종(맡기기·밝게·어둡게), 아랫줄은 널리 쓰이는 팔레트 3종이다.
  * 3열 격자에 두 줄로 딱 맞는다.
+ * 이름은(로케일별) messages/*.json의 me.theme.names.{key}에 있다.
  */
 export const THEMES: ThemeDef[] = [
-  { key: 'system', name: '시스템', swatch: ['#ffffff', '#101010', '#8a8a8a'] },
-  { key: 'ink', name: '화이트', swatch: ['#ffffff', '#f4f2ee', '#14120f'] },
-  { key: 'ink-dark', name: '다크', swatch: ['#101010', '#232221', '#f5f2ec'] },
-  { key: 'solarized', name: 'Solarized', swatch: ['#fdf6e3', '#eee8d5', '#073642'] },
-  { key: 'nord', name: 'Nord', swatch: ['#2e3440', '#3b4252', '#88c0d0'] },
-  { key: 'dracula', name: 'Dracula', swatch: ['#282a36', '#44475a', '#bd93f9'] },
+  { key: 'system', swatch: ['#ffffff', '#101010', '#8a8a8a'] },
+  { key: 'ink', swatch: ['#ffffff', '#f4f2ee', '#14120f'] },
+  { key: 'ink-dark', swatch: ['#101010', '#232221', '#f5f2ec'] },
+  { key: 'solarized', swatch: ['#fdf6e3', '#eee8d5', '#073642'] },
+  { key: 'nord', swatch: ['#2e3440', '#3b4252', '#88c0d0'] },
+  { key: 'dracula', swatch: ['#282a36', '#44475a', '#bd93f9'] },
 ];
 
 export const DEFAULT_THEME = 'system';

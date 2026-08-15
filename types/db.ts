@@ -14,6 +14,8 @@ export interface Profile {
   locale: string;
   /** 보드에 완료한 할 일도 보일지 — 기기를 옮겨도 같아야 해서 계정에 붙였다 */
   show_done: boolean;
+  /** 업로드한 프로필 사진을 볼지 — 꺼도 색 아바타(이름 첫 글자)는 그대로 보인다 */
+  show_avatars: boolean;
   created_at: string;
 }
 

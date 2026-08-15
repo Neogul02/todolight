@@ -55,7 +55,6 @@ export default function HandoffModal({
           onChange={e => setNote(e.target.value)}
           rows={3}
           maxLength={1000}
-          autoFocus
           placeholder={t('placeholder')}
         />
         {/* 모바일에서는 세로로 쌓아 각 버튼을 넓게 — 한 손 조작 기준 */}

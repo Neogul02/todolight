@@ -13,18 +13,24 @@
     "nameLabel": "Name",
     "language": {
       "title": "Language",
-      "description": "Applies immediately when tapped.",
       "ko": "한국어",
       "en": "English"
     },
     "theme": {
       "title": "Theme",
-      "description": "Applies immediately when tapped."
+      "names": {
+        "system": "System",
+        "ink": "Light",
+        "ink-dark": "Dark",
+        "solarized": "Solarized",
+        "nord": "Nord",
+        "dracula": "Dracula"
+      }
     },
     "board": {
       "title": "Board",
       "showDone": "Show completed to-dos",
-      "showDoneHint": "Turn off to see only what's left."
+      "showAvatars": "Show profile photos"
     },
     "orgs": {
       "title": "Your orgs",
@@ -128,11 +134,15 @@
       "handledByOther": "Handled by {name}",
       "notesCount": "{count} notes",
       "deleteAria": "Delete to-do",
+      "edit": "Edit",
+      "deleteNoteAria": "Delete note",
       "notePlaceholder": "Leave a note",
       "noteSubmitAria": "Add note",
       "handleForMember": "Handle for them",
       "joinTogether": "Join in",
-      "leaveTogether": "Leave"
+      "leaveTogether": "Leave",
+      "typingIndicator": "{name} is typing...",
+      "viewingBadge": "{names} viewing"
     },
     "column": {
       "me": "(You)",
@@ -157,7 +167,8 @@
     "newEvent": "+ Event",
     "emptyDay": "Nothing on this day",
     "noDueDate": "No due date · {count}",
-    "selectedSummary": "{date} · {events} events · {todos} to-dos"
+    "selectedSummary": "{date} · {events} events · {todos} to-dos",
+    "closeDay": "Close day list"
   },
   "event": {
     "editTitle": "Edit event",
