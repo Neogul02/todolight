@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
@@ -56,6 +57,25 @@ export default function AppShell({
   */
   const boardMode: BoardMode = !isDesktop && picked === 'dashboard' ? 'board' : picked;
   const setBoardMode = setManualMode;
+
+  /*
+    보드↔달력↔가계부는 예전엔 한 페이지 안의 모드 전환이라 애니메이션이 공짜였는데,
+    /calendar를 별도 라우트로 뺀 뒤로는 화면이 뚝 끊겨 바뀌었다 — 라우트가 바뀌어도
+    레이아웃(AppShell)은 그대로 남고 children만 바뀌므로, 그 children을 pathname으로
+    키를 준 AnimatePresence로 감싸면 라우트 전환에도 보드 안 뷰 전환과 같은 느낌을 줄 수
+    있다. mode="wait"인 이유는 BoardClient의 뷰 전환과 같다 — 두 페이지가 겹쳐 있으면
+    높이가 서로 달라 화면이 출렁인다. initial={false}는 앱을 처음 열 때도 켠다 — 안 그러면
+    첫 진입 때도 페이드인이 걸려서, 흰 화면을 없애려고 들인 공(스켈레톤)이 무색해진다.
+  */
+  const reduceMotion = useReducedMotion();
+  const routeMotion = reduceMotion
+    ? {}
+    : {
+        initial: { opacity: 0, y: 8 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: -8 },
+        transition: { duration: 0.2, ease: [0.22, 0.61, 0.36, 1] as const },
+      };
 
   /* 헤더 가운데에 놓는 뷰 전환. 아이콘 모양으로 구분된다 */
   const VIEW_MODES: {
@@ -292,7 +312,11 @@ export default function AppShell({
           </div>
         </header>
 
-        <div className="flex-1">{children}</div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div key={pathname} {...routeMotion} className="flex-1">
+            {children}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* 프로필 메뉴 : 받은 초대 · 조직 전환 · 관리 · 로그아웃을 한 시트에 모았다 */}
