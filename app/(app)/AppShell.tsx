@@ -62,20 +62,41 @@ export default function AppShell({
     보드↔달력↔가계부는 예전엔 한 페이지 안의 모드 전환이라 애니메이션이 공짜였는데,
     /calendar를 별도 라우트로 뺀 뒤로는 화면이 뚝 끊겨 바뀌었다 — 라우트가 바뀌어도
     레이아웃(AppShell)은 그대로 남고 children만 바뀌므로, 그 children을 pathname으로
-    키를 준 AnimatePresence로 감싸면 라우트 전환에도 보드 안 뷰 전환과 같은 느낌을 줄 수
-    있다. mode="wait"인 이유는 BoardClient의 뷰 전환과 같다 — 두 페이지가 겹쳐 있으면
-    높이가 서로 달라 화면이 출렁인다. initial={false}는 앱을 처음 열 때도 켠다 — 안 그러면
-    첫 진입 때도 페이드인이 걸려서, 흰 화면을 없애려고 들인 공(스켈레톤)이 무색해진다.
+    키를 준 AnimatePresence로 감싸면 라우트 전환에도 부드러운 느낌을 줄 수 있다.
+
+    onAnimationStart/Complete를 콘솔에 찍어 클릭→완료까지 실측한 결과: mode="wait"라
+    나가고(exit) 들어오는(enter) 애니메이션이 순차로 이어져서 0.2s+0.2s=400ms대로
+    체감 지속시간이 두 배가 됐다. y 이동을 빼고 순수 페이드로 바꾸고 지속시간을 0.12s로
+    줄여 총 시간을 낮췄다(보드는 남는 곳, 대시보드는 다른 사람 목록이라 슬라이드가 관계를
+    암시했지만, 보드·달력·가계부는 서로 나란한 목적지라 방향성 있는 슬라이드가 의미가
+    없다 — 순수 페이드가 더 어울린다). production 빌드로 재 보니 exit 132ms + enter 130ms,
+    총 265ms 안팎.
+
+    mode="wait"인 이유는 BoardClient의 뷰 전환과 같다 — 두 페이지가 겹쳐 있으면 높이가
+    서로 달라 화면이 출렁인다. initial={false}는 앱을 처음 열 때도 켠다 — 안 그러면 첫
+    진입 때도 페이드인이 걸려서, 흰 화면을 없애려고 들인 공(스켈레톤)이 무색해진다.
+
+    routeMotion을 useMemo로 감싸는 이유: 감싸지 않으면 렌더마다 새 객체가 생겨서,
+    애니메이션이 끝나기 전에 AppShell이 다시 렌더되면(진행 중인 쿼리 등으로 흔하다)
+    framer-motion이 "새 애니메이션"으로 오인해 처음부터 다시 튼다 — 실제로 벌어질 수 있는
+    문제라 고쳐 두지만, 정작 dev 서버에서 페이드가 두 번 걸리던 건 이것 때문이 아니었다.
+    React StrictMode가 개발 모드에서만 마운트를 일부러 두 번 하는 게 원인이었고,
+    yarn build && yarn start(production)로 재 확인하니 페이드가 한 번만, 깨끗하게 돈다 —
+    dev 서버에서 화면이 잠깐 다시 페이드되는 것처럼 보이면 이 코드가 아니라 StrictMode다.
   */
   const reduceMotion = useReducedMotion();
-  const routeMotion = reduceMotion
-    ? {}
-    : {
-        initial: { opacity: 0, y: 8 },
-        animate: { opacity: 1, y: 0 },
-        exit: { opacity: 0, y: -8 },
-        transition: { duration: 0.2, ease: [0.22, 0.61, 0.36, 1] as const },
-      };
+  const routeMotion = useMemo(
+    () =>
+      reduceMotion
+        ? {}
+        : {
+            initial: { opacity: 0 },
+            animate: { opacity: 1 },
+            exit: { opacity: 0 },
+            transition: { duration: 0.12, ease: [0.22, 0.61, 0.36, 1] as const },
+          },
+    [reduceMotion]
+  );
 
   /* 헤더 가운데에 놓는 뷰 전환. 아이콘 모양으로 구분된다 */
   const VIEW_MODES: {

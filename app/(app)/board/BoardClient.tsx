@@ -138,16 +138,24 @@ export default function BoardClient() {
     뷰 전환 모션.
     transform은 바깥 래퍼에만 건다 — 스크롤 스냅 컨테이너 자체에 걸면 스냅 위치가 어긋난다.
     모션을 끈 사용자에게는 없앤다 (framer-motion은 CSS 미디어 쿼리를 따르지 않는다).
+    useMemo로 감싸는 이유: 감싸지 않으면 렌더마다 새 객체가 생겨서, 애니메이션이 끝나기
+    전에 이 컴포넌트가 다시 렌더되면(진행 중인 쿼리·실시간 갱신 등으로 흔하다) framer-motion이
+    "새 애니메이션"으로 오인해 처음부터 다시 튼다 — 화면이 한 번 보였다가 다시 페이드인되는
+    것처럼 보인다.
   */
   const reduceMotion = useReducedMotion();
-  const viewMotion = reduceMotion
-    ? {}
-    : {
-        initial: { opacity: 0, y: 8 },
-        animate: { opacity: 1, y: 0 },
-        exit: { opacity: 0, y: -8 },
-        transition: { duration: 0.2, ease: [0.22, 0.61, 0.36, 1] as const },
-      };
+  const viewMotion = useMemo(
+    () =>
+      reduceMotion
+        ? {}
+        : {
+            initial: { opacity: 0, y: 8 },
+            animate: { opacity: 1, y: 0 },
+            exit: { opacity: 0, y: -8 },
+            transition: { duration: 0.2, ease: [0.22, 0.61, 0.36, 1] as const },
+          },
+    [reduceMotion]
+  );
 
   function refresh() {
     if (activeOrgId) queryClient.invalidateQueries({ queryKey: boardKeys.todos(activeOrgId) });
