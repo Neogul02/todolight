@@ -221,6 +221,12 @@
   /* 레이아웃 상수 — board-viewport 계산이 이 값을 공유한다 */
   --header-h: 52px;
   --board-toolbar-h: 56px;
+
+  /*
+    랜딩 헤드라인·조직 이름처럼 유틸리티 스케일 밖에서 직접 자간을 주는 곳에 쓴다.
+    아래 :lang(ko) 블록에서 로케일에 맞게 재정의된다.
+  */
+  --tracking-headline: -0.035em;
 }
 
 /* sm 이상에서는 멤버 칩을 감춘다(컬럼이 모두 보인다) — 툴바 높이도 함께 사라진다 */
@@ -388,6 +394,24 @@ select:focus-visible {
   font-size: 13px;
   font-weight: 400;
   line-height: 1.45;
+}
+
+/*
+  위 네 스케일의 마이너스 자간은 영문 헤드라인 관례를 기준으로 잡은 값이다. 한글은
+  음절 단위 사각 그리드라 자간을 좁히면 글자끼리 붙어 보인다 — 폰트(Pretendard
+  Variable)는 하나로 통일돼 있는데도 한국어 제목만 유독 답답해 보였던 진짜 원인이 이거였다.
+  html[lang]이 next-intl 로케일에 맞춰 이미 세팅돼 있으므로(app/layout.tsx) :lang(ko)로
+  분기한다. "todolight" 워드마크처럼 로케일과 무관하게 항상 영문인 텍스트는 그 요소에
+  lang="en"을 직접 달아 이 규칙에서 빠진다 — :lang()은 가장 가까운 lang 속성을 따른다.
+*/
+:root:lang(ko) {
+  --tracking-headline: normal;
+}
+:lang(ko) .text-display,
+:lang(ko) .text-heading-1,
+:lang(ko) .text-heading-2,
+:lang(ko) .text-title {
+  letter-spacing: normal;
 }
 /* 가로 스크롤 보드에서 각 컬럼이 스냅되도록 */
 @utility snap-board {

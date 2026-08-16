@@ -18,7 +18,9 @@ export default async function LandingPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-[880px] flex-col px-5 pt-6 pb-8 sm:px-6 sm:pt-14">
       <header className="flex items-center justify-between">
-        <span className="text-title tracking-tight">todolight</span>
+        <span lang="en" className="text-title tracking-tight">
+          todolight
+        </span>
         <Link
           href="/login"
           className="-mr-2 rounded-lg px-2 py-2 text-[15px] font-medium text-ink-muted transition-colors active:bg-canvas-soft sm:text-[14px] sm:hover:text-ink"
@@ -28,7 +30,7 @@ export default async function LandingPage() {
       </header>
 
       <section className="mt-14 max-w-[560px] sm:mt-20">
-        <h1 className="text-[34px] font-bold leading-[1.15] tracking-[-0.035em] text-ink sm:text-display">
+        <h1 className="text-[34px] font-bold leading-[1.15] tracking-[var(--tracking-headline)] text-ink sm:text-display">
           {t('headingLine1')}
           <br />
           {t('headingLine2')}

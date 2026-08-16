@@ -204,7 +204,7 @@ export default function AppShell({
                   size="sm"
                 />
               )}
-              <span className="truncate text-[16px] font-semibold tracking-tight text-ink sm:text-[15px]">
+              <span className="truncate text-[16px] font-semibold tracking-[var(--tracking-headline)] text-ink sm:text-[15px]">
                 {activeOrg?.name ?? 'todolight'}
               </span>
             </Link>

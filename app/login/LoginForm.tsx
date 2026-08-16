@@ -83,7 +83,7 @@ export default function LoginForm() {
 
   return (
     <Card className="w-full max-w-[400px] p-6 sm:p-7">
-      <Link href="/" className="text-title tracking-tight text-ink">
+      <Link href="/" lang="en" className="text-title tracking-tight text-ink">
         todolight
       </Link>
 
