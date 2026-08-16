@@ -59,6 +59,13 @@ export default function LedgerClient() {
   const rows = useMemo(() => entries.data ?? [], [entries.data]);
   const total = useMemo(() => rows.reduce((sum, e) => sum + e.amount, 0), [rows]);
 
+  /*
+    entries와 members는 서로 다른 쿼리라 따로 끝난다 — 따로 반영하면 총액이 먼저 뜨고
+    낸 사람 아바타·이름이 한 박자 뒤에 팝업하는 것처럼 보인다. 화면(카드·폼)은 먼저 그리되
+    데이터가 걸린 부분(총액·낸 사람별 합계·목록)은 둘 다 끝난 뒤 한 번에 보여준다.
+  */
+  const loading = entries.isLoading || members.isLoading;
+
   /* 낸 사람별 합계 — 공유 가계부라 "누가 얼마 냈나"가 총액만큼 자주 궁금하다 */
   const byPayer = useMemo(() => {
     const map = new Map<string, number>();
@@ -177,36 +184,40 @@ export default function LedgerClient() {
 
       <Card className="p-5">
         <p className="text-caption text-ink-muted">{t('totalLabel')}</p>
-        <p className="mt-1 text-heading-1 text-ink tabular-nums">{formatMoney(total, locale)}</p>
-        <p className="mt-0.5 text-caption text-ink-faint">{t('entryCount', { count: rows.length })}</p>
+        {loading ? (
+          <p className="mt-1 text-heading-1 text-ink-faint">{tCommon('loading')}</p>
+        ) : (
+          <>
+            <p className="mt-1 text-heading-1 text-ink tabular-nums">{formatMoney(total, locale)}</p>
+            <p className="mt-0.5 text-caption text-ink-faint">
+              {t('entryCount', { count: rows.length })}
+            </p>
 
-        {/*
-          낸 사람이 한 명뿐이면 그 줄은 총액과 같은 값을 한 번 더 쓰는 것이라 지운다 —
-          이 목록은 "누가 얼마 냈나"를 가르는 데 쓰는 것이고, 가를 것이 없으면 값이 없다.
-        */}
-        {byPayer.length > 1 && (
-          <ul className="mt-4 flex flex-col gap-2 border-t border-hairline pt-3">
-            {byPayer.map(([payerId, sum]) => {
-              const m = memberOf(payerId);
-              return (
-                <li key={payerId} className="flex items-center gap-2">
-                  <Avatar
-                    name={m?.display_name ?? '?'}
-                    color={m?.avatar_color}
-                    imageUrl={m?.avatar_url}
-                    seed={payerId}
-                    size="sm"
-                  />
-                  <span className="min-w-0 flex-1 truncate text-[14px] text-ink">
-                    {m?.display_name ?? t('unknownMember')}
-                  </span>
-                  <span className="text-[14px] text-ink-secondary tabular-nums">
-                    {formatMoney(sum, locale)}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+            {byPayer.length > 0 && (
+              <ul className="mt-4 flex flex-col gap-2 border-t border-hairline pt-3">
+                {byPayer.map(([payerId, sum]) => {
+                  const m = memberOf(payerId);
+                  return (
+                    <li key={payerId} className="flex items-center gap-2">
+                      <Avatar
+                        name={m?.display_name ?? '?'}
+                        color={m?.avatar_color}
+                        imageUrl={m?.avatar_url}
+                        seed={payerId}
+                        size="sm"
+                      />
+                      <span className="min-w-0 flex-1 truncate text-[14px] text-ink">
+                        {m?.display_name ?? t('unknownMember')}
+                      </span>
+                      <span className="text-[14px] text-ink-secondary tabular-nums">
+                        {formatMoney(sum, locale)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </>
         )}
       </Card>
 
@@ -272,7 +283,7 @@ export default function LedgerClient() {
         </form>
       </Card>
 
-      {entries.isLoading ? (
+      {loading ? (
         <p className="py-8 text-center text-caption text-ink-faint">{tCommon('loading')}</p>
       ) : entries.error ? (
         <p className="py-8 text-center text-caption text-danger">{String(entries.error.message)}</p>
@@ -288,8 +299,6 @@ export default function LedgerClient() {
               payerName={memberOf(entry.payer_id)?.display_name ?? t('unknownMember')}
               payerColor={memberOf(entry.payer_id)?.avatar_color ?? null}
               payerAvatar={memberOf(entry.payer_id)?.avatar_url ?? null}
-              /* 낸 사람이 한 명뿐이면 매 행에 같은 얼굴과 이름이 반복될 뿐이다 */
-              showPayer={byPayer.length > 1}
               canRemove={entry.created_by === userId || entry.payer_id === userId}
               onRemove={() => remove.mutate(entry.id)}
               removing={remove.isPending}
@@ -308,7 +317,6 @@ function EntryRow({
   payerName,
   payerColor,
   payerAvatar,
-  showPayer,
   canRemove,
   onRemove,
   removing,
@@ -319,7 +327,6 @@ function EntryRow({
   payerName: string;
   payerColor: string | null;
   payerAvatar: string | null;
-  showPayer: boolean;
   canRemove: boolean;
   onRemove: () => void;
   removing: boolean;
@@ -327,21 +334,18 @@ function EntryRow({
 }) {
   return (
     <li className="flex items-start gap-2.5 rounded-xl border border-hairline bg-surface px-3 py-2.5">
-      {showPayer && (
-        <Avatar
-          name={payerName}
-          color={payerColor}
-          imageUrl={payerAvatar}
-          seed={entry.payer_id}
-          size="sm"
-          className="mt-0.5"
-        />
-      )}
+      <Avatar
+        name={payerName}
+        color={payerColor}
+        imageUrl={payerAvatar}
+        seed={entry.payer_id}
+        size="sm"
+        className="mt-0.5"
+      />
       <div className="min-w-0 flex-1">
         <p className="text-body-sm break-words text-ink">{entry.title}</p>
         <p className="mt-0.5 text-caption text-ink-faint">
-          {showPayer && `${payerName} · `}
-          {formatRelativeDay(`${entry.spent_on}T00:00:00Z`, locale)}
+          {payerName} · {formatRelativeDay(`${entry.spent_on}T00:00:00Z`, locale)}
         </p>
       </div>
       <p className="shrink-0 pt-0.5 text-body-sm font-medium text-ink tabular-nums">

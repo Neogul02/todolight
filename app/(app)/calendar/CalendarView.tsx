@@ -306,7 +306,13 @@ export function CalendarView({
   return (
     <div
       ref={rootRef}
-      className="calendar-viewport mx-auto flex w-full max-w-[720px] flex-col px-3 pt-2 sm:h-auto sm:px-4 sm:pb-safe"
+      /*
+        overflow-hidden — 고정 높이(calendar-viewport)를 넘치는 내용이 생기면 페이지(body)가
+        그만큼 늘어나 자체적으로 스크롤되기 시작한다. 그 상태에서 손잡이를 마우스로 끌면
+        캡처된 포인터로 패널은 리사이즈되는데 화면은 그와 별개로 페이지 스크롤을 따라 같이
+        움직인다 — 여기서 미리 잘라내 그 여지 자체를 없앤다.
+      */
+      className="calendar-viewport mx-auto flex w-full max-w-[720px] flex-col overflow-hidden px-3 pt-2 sm:h-auto sm:overflow-visible sm:px-4 sm:pb-safe"
     >
       <div className="flex items-center justify-between pb-2">
         <button

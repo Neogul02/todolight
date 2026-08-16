@@ -53,7 +53,7 @@
     "roleMember": "팀원",
     "newOrg": "+ 새 조직 만들기",
     "manageTitle": "관리",
-    "teamLabel": "팀",
+    "teamLabel": "조직",
     "teamHint": "멤버·조직 설정",
     "meLabel": "설정",
     "meHint": "이름·테마·언어",
@@ -180,7 +180,8 @@
     "emptyDay": "이 날은 비어 있어요",
     "noDueDate": "마감 없음 · {count}건",
     "selectedSummary": "{date} · 일정 {events} · 할 일 {todos}",
-    "resizePanel": "목록 크기 조절"
+    "resizePanel": "목록 크기 조절",
+    "loadingAria": "달력을 불러오는 중"
   },
   "event": {
     "editTitle": "일정 고치기",

@@ -53,7 +53,7 @@
     "roleMember": "Member",
     "newOrg": "+ New org",
     "manageTitle": "Manage",
-    "teamLabel": "Team",
+    "teamLabel": "Org",
     "teamHint": "Members and org settings",
     "meLabel": "Settings",
     "meHint": "Name, theme, language",
@@ -180,7 +180,8 @@
     "emptyDay": "Nothing on this day",
     "noDueDate": "No due date · {count}",
     "selectedSummary": "{date} · {events} events · {todos} to-dos",
-    "resizePanel": "Resize the list"
+    "resizePanel": "Resize the list",
+    "loadingAria": "Loading the calendar"
   },
   "event": {
     "editTitle": "Edit event",

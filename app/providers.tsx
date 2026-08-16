@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Toaster } from 'sonner';
-import { DEFAULT_THEME, isValidTheme, resolveTheme } from '@/lib/themes';
+import { DEFAULT_THEME, isDarkTheme, isValidTheme, resolveTheme } from '@/lib/themes';
 
 export const THEME_STORAGE_KEY = 'todolight_theme';
 const DARK_QUERY = '(prefers-color-scheme: dark)';
@@ -24,7 +24,16 @@ function unsubscribe() {
 
 function paint(preference: string) {
   const prefersDark = window.matchMedia(DARK_QUERY).matches;
-  document.documentElement.dataset.theme = resolveTheme(preference, prefersDark);
+  const resolved = resolveTheme(preference, prefersDark);
+  document.documentElement.dataset.theme = resolved;
+
+  /*
+    상태 바 색은 layout.tsx의 인라인 스크립트가 첫 페인트 전에 한 번 맞춰 두지만, 그건
+    새로고침 시점 값이다 — 여기서 테마를 바꾸거나(설정 화면) "시스템"을 쓰는 중 기기 설정이
+    바뀌면 메타 태그도 같이 따라가야 다음에 앱을 열었을 때도 어긋나지 않는다.
+  */
+  const meta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+  if (meta) meta.setAttribute('content', isDarkTheme(resolved) ? 'black' : 'default');
 }
 
 export function applyTheme(theme: string) {

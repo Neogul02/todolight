@@ -6,9 +6,11 @@ import type { MemberRole, Organization, Profile } from '@/types/db';
 /**
  * board     = 멤버별 가로 캐러셀 (기본)
  * dashboard = 세로로 전부 쌓아 한 번에 훑기
- * calendar  = 마감일·일정 기준으로 언제 몰려 있나 보기
+ *
+ * 달력은 예전엔 여기 세 번째 값이었지만, /ledger처럼 별도 라우트(/calendar)로 분리했다 —
+ * 가계부와 나란한 목적지이지 보드의 뷰 중 하나가 아니다.
  */
-export type BoardMode = 'board' | 'dashboard' | 'calendar';
+export type BoardMode = 'board' | 'dashboard';
 
 export type OrgWithRole = Organization & { role: MemberRole; member_count: number };
 

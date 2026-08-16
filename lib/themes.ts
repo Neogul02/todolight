@@ -25,6 +25,19 @@ export const THEMES: ThemeDef[] = [
 
 export const DEFAULT_THEME = 'system';
 
+/*
+  어두운 배경을 쓰는 테마 — globals.css에서 color-scheme: dark를 공유하는 것과 같은 묶음이다.
+  iOS standalone 앱의 상태 바 색(apple-mobile-web-app-status-bar-style)은 테마별
+  theme-color 미디어쿼리를 안 따르고 메타 태그 값 하나로만 정해져서, 테마가 바뀔 때마다
+  이 묶음을 기준으로 그 메타 태그도 직접 맞춰 줘야 한다(app/layout.tsx의 인라인 스크립트,
+  app/providers.tsx의 paint 참고).
+*/
+const DARK_THEMES: readonly ResolvedTheme[] = ['ink-dark', 'nord', 'dracula'];
+
+export function isDarkTheme(theme: ResolvedTheme): boolean {
+  return DARK_THEMES.includes(theme);
+}
+
 export function isValidTheme(key: string | null | undefined): boolean {
   return THEMES.some(t => t.key === key);
 }

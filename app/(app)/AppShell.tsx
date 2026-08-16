@@ -65,7 +65,6 @@ export default function AppShell({
   }[] = [
     { key: 'board', label: t('viewBoard'), Icon: BoardViewIcon },
     { key: 'dashboard', label: t('viewDashboard'), Icon: DashboardIcon },
-    { key: 'calendar', label: t('viewCalendar'), Icon: CalendarIcon },
   ];
 
   /**
@@ -80,13 +79,15 @@ export default function AppShell({
 
   const activeOrg = orgs.find(o => o.id === activeOrgId) ?? null;
   const onBoard = pathname === '/board';
+  const onCalendar = pathname === '/calendar';
   const onLedger = pathname === '/ledger';
   /*
-    보드의 세 뷰와 가계부는 "매일 들여다보는 화면"이라 같은 세그먼트에 둔다.
-    가계부만 별도 라우트라서, 가계부에 있는 동안 보드 뷰를 고르면 /board로 돌려보낸다 —
-    안 그러면 모드만 바뀌고 화면은 그대로라 버튼이 먹통처럼 보인다.
+    보드의 두 뷰, 달력, 가계부는 전부 "매일 들여다보는 화면"이라 같은 세그먼트에 묶어 둔다 —
+    달력·가계부는 보드 안의 뷰가 아니라 나란한 별도 라우트라서, 그 화면에 있는 동안 보드
+    뷰(보드·대시보드)를 고르면 /board로 돌려보낸다. 안 그러면 모드만 바뀌고 화면은 그대로라
+    버튼이 먹통처럼 보인다.
   */
-  const showViewSwitch = onBoard || onLedger;
+  const showViewSwitch = onBoard || onCalendar || onLedger;
   // 설정에서 끄면 버튼 자체를 감춘다. 다만 이미 /ledger에 있다면 남겨 둔다 —
   // 켜 놓고 들어왔다가 다른 기기에서 끄면 나갈 길이 사라진다.
   const showLedgerButton = (profile?.show_ledger ?? true) || onLedger;
@@ -172,9 +173,9 @@ export default function AppShell({
           <div className="mx-auto flex h-[var(--header-h)] w-full max-w-[1400px] items-center gap-1 px-2 sm:px-3">
             {/*
               보드가 아닌 화면에서는 되돌아갈 길을 남긴다.
-              가계부는 예외 — 뷰 세그먼트가 그대로 떠 있어서 거기서 바로 보드로 갈 수 있다.
+              달력·가계부는 예외 — 뷰 세그먼트가 그대로 떠 있어서 거기서 바로 보드로 갈 수 있다.
             */}
-            {!onBoard && !onLedger && (
+            {!onBoard && !onCalendar && !onLedger && (
               <Link
                 href="/board"
                 aria-label={t('boardBack')}
@@ -184,8 +185,17 @@ export default function AppShell({
               </Link>
             )}
 
-            {/* 조직 전환은 프로필 메뉴로 옮겼다 — 여기는 지금 어느 조직인지 알려 주기만 한다 */}
-            <div className="mr-1 flex min-w-0 flex-1 items-center gap-1.5 px-2 no-select">
+            {/*
+              조직 전환은 프로필 메뉴로 옮겼다 — 여기를 눌러도 조직은 안 바뀐다.
+              대신 로고를 누르면 홈으로 가는 흔한 관례대로 기본 보드로 보낸다 —
+              대시보드·달력·팀·설정 어디에 있든 내 할 일 목록으로 돌아오는 가장 짧은 길이다.
+              뒤로가기 화살표와 목적지가 같아서 별도 아이콘 없이 이 영역 전체가 그 역할을 겸한다.
+            */}
+            <Link
+              href="/board"
+              aria-label={t('boardBack')}
+              className="mr-1 flex min-w-0 flex-1 items-center gap-1.5 rounded-xl px-2 py-1.5 no-select transition-colors active:bg-canvas-soft"
+            >
               {activeOrg && (
                 <OrgIcon
                   name={activeOrg.name}
@@ -197,9 +207,9 @@ export default function AppShell({
               <span className="truncate text-[16px] font-semibold tracking-tight text-ink sm:text-[15px]">
                 {activeOrg?.name ?? 'todolight'}
               </span>
-            </div>
+            </Link>
 
-            {/* 보드·가계부에서만 뜬다 — 팀·설정 화면에서는 고를 것이 없다 */}
+            {/* 보드·달력·가계부에서만 뜬다 — 팀·설정 화면에서는 고를 것이 없다 */}
             {showViewSwitch && (
               <div className="flex h-9 shrink-0 overflow-hidden rounded-lg border border-hairline no-select">
                 {VIEW_MODES.map(({ key, label, Icon }) => {
@@ -226,9 +236,21 @@ export default function AppShell({
                   );
                 })}
                 {/*
-                  가계부는 같은 보드를 다르게 보는 뷰가 아니라 다른 페이지다 —
-                  구분선을 하나 넣어 앞의 세 칸과 성격이 다르다는 걸 드러낸다.
+                  달력·가계부는 보드 안의 뷰가 아니라 나란한 별도 페이지다 —
+                  구분선을 하나 넣어 앞의 보드·대시보드 칸과 성격이 다르다는 걸 드러낸다.
                 */}
+                <Link
+                  href="/calendar"
+                  aria-label={t('viewCalendar')}
+                  title={t('viewCalendar')}
+                  aria-current={onCalendar ? 'page' : undefined}
+                  className={cn(
+                    'grid w-10 place-items-center border-l border-hairline transition-colors',
+                    onCalendar ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted'
+                  )}
+                >
+                  <CalendarIcon className="size-[18px]" />
+                </Link>
                 {showLedgerButton && (
                   <Link
                     href="/ledger"

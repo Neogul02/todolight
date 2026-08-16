@@ -21,7 +21,6 @@ import { Card } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import type { Locale } from '@/lib/locales';
 import type { MemberSummary, Todo } from '@/types/db';
-import { CalendarView } from './CalendarView';
 import MemberColumn from './MemberColumn';
 import HandoffModal from './HandoffModal';
 import { BoardSkeleton } from './BoardSkeleton';
@@ -313,21 +312,6 @@ export default function BoardClient() {
             ))}
 
             {soloMember && <InviteColumn isManager={isManager} className="w-full" />}
-          </motion.div>
-        )}
-
-        {/* ── 달력 : 마감일 기준으로 조직 전체를 훑는다 ── */}
-        {!loading && !error && mode === 'calendar' && (
-          <motion.div key="calendar" {...viewMotion}>
-            <CalendarView
-              orgId={activeOrgId}
-              todos={todos.data ?? []}
-              members={orderedMembers}
-              showDone={showDone}
-              currentUserId={userId}
-              isManager={isManager}
-              onHandoff={setHandoff}
-            />
           </motion.div>
         )}
       </AnimatePresence>

@@ -74,11 +74,20 @@ export function useResizablePanel({
     start.current = { y: e.clientY, ratio, height, moved: false };
     setDragging(true);
     e.currentTarget.setPointerCapture(e.pointerId);
+    /*
+      touch-none(touch-action: none)은 터치·펜에만 적용돼서 손가락 드래그가 페이지 스크롤로
+      새는 건 이미 막혀 있다. 마우스는 touch-action의 영향을 아예 안 받는다 — 마우스로 이
+      손잡이를 눌러 끌면 캡처된 포인터로 리사이즈는 되지만, 그와 별개로 브라우저가 같은
+      드래그를 "텍스트 선택 후 화면 끝에서 자동 스크롤"로도 해석해서 페이지 전체가 같이
+      움직인다. preventDefault로 그 기본 동작 자체를 막는다.
+    */
+    e.preventDefault();
   }
 
   function onPointerMove(e: ReactPointerEvent) {
     const s = start.current;
     if (!s) return;
+    e.preventDefault();
     const delta = s.y - e.clientY;
     if (!s.moved && Math.abs(delta) < DRAG_SLOP_PX) return;
     s.moved = true;

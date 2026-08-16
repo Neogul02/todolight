@@ -11,7 +11,13 @@ export async function generateMetadata(): Promise<Metadata> {
     title: t('title'),
     description: t('description'),
     manifest: '/manifest.json',
-    // 홈 화면에 추가했을 때 주소창 없이 앱처럼 열린다 (iOS 우선 타깃)
+    /*
+      홈 화면에 추가했을 때 주소창 없이 앱처럼 열린다 (iOS 우선 타깃).
+      standalone 상태 바 색은 이 메타 태그 하나로만 정해지고 theme-color 미디어쿼리를
+      안 따른다 — 'default'로 고정해 두면 어두운 테마를 쓸 때 상태 바만 흰 띠로 남는다.
+      여기 값은 로그인 전 등 아직 테마를 모를 때 쓰는 초기값일 뿐이고, 실제 값은
+      아래 <head>의 인라인 스크립트가 저장된 테마를 읽어 첫 페인트 전에 맞춰 덮어쓴다.
+    */
     appleWebApp: { capable: true, statusBarStyle: 'default', title: t('title') },
     formatDetection: { telephone: false },
   };
@@ -48,10 +54,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {/*
           첫 페인트 전에 테마를 칠한다. React가 붙은 뒤에 칠하면 다크를 쓰는 사람에게
           흰 화면이 한 번 번쩍인다. 그래서 렌더를 막는 인라인 스크립트로 둔다.
+
+          홈 화면에 추가된 standalone 앱의 상태 바 색도 같이 맞춘다 — iOS는 상태 바 색을
+          apple-mobile-web-app-status-bar-style 메타 태그 하나로만 정하고 theme-color
+          미디어쿼리를 안 따른다. 이 메타 태그는 정적이라 서버에서는 로그인한 사용자가
+          어떤 테마를 저장해 뒀는지 알 수 없으니, 여기서 테마를 정하는 김에 같이 덮어써서
+          어두운 테마인데 상태 바만 흰 띠로 남는 걸 막는다.
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var T=['ink','ink-dark','solarized','nord','dracula'];var p=localStorage.getItem('todolight_theme')||'system';var t=T.indexOf(p)>=0?p:(matchMedia('(prefers-color-scheme: dark)').matches?'ink-dark':'ink');document.documentElement.dataset.theme=t}catch(e){}})()`,
+            __html: `(function(){try{var T=['ink','ink-dark','solarized','nord','dracula'];var DARK=['ink-dark','nord','dracula'];var p=localStorage.getItem('todolight_theme')||'system';var t=T.indexOf(p)>=0?p:(matchMedia('(prefers-color-scheme: dark)').matches?'ink-dark':'ink');document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');if(m)m.content=DARK.indexOf(t)>=0?'black':'default'}catch(e){}})()`,
           }}
         />
       </head>
