@@ -506,7 +506,7 @@ function TodoCardOpenContent({
                         disabled={!mine}
                         onClick={() => mine && startEditingNote(n.id, n.content)}
                         className={cn(
-                          'block min-w-0 flex-1 text-left text-caption break-words text-ink-secondary',
+                          '-my-1 block min-w-0 flex-1 py-1 text-left text-caption break-words text-ink-secondary',
                           mine && 'sm:hover:text-ink'
                         )}
                       >
@@ -518,7 +518,7 @@ function TodoCardOpenContent({
                           onClick={() => deleteNote.mutate({ todoId: todo.id, noteId: n.id })}
                           disabled={deleteNote.isPending}
                           aria-label={t('card.deleteNoteAria')}
-                          className="shrink-0 text-ink-faint transition-colors active:scale-90 sm:hover:text-danger"
+                          className="-my-1 shrink-0 p-2 text-ink-faint transition-colors active:scale-90 sm:hover:text-danger"
                         >
                           <svg
                             viewBox="0 0 16 16"

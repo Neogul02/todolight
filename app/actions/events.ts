@@ -125,29 +125,64 @@ export async function updateOrgEvent(
   });
 }
 
+/** 지우거나 되살릴 수 있는 사람: 일정을 만든 사람 · 방장/관리자 */
+async function assertCanRemoveEvent(event: OrgEvent, userId: string): Promise<void> {
+  if (event.created_by === userId) return;
+
+  const { data: me } = await getSupabaseAdmin()
+    .from('org_members')
+    .select('role')
+    .eq('org_id', event.org_id)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (!me || (me.role !== 'owner' && me.role !== 'admin')) {
+    const t = await getActionT();
+    throw new Error(t('cannotDeleteEvent'));
+  }
+}
+
 /** 할 일과 같이 소프트 삭제한다 — 잘못 지워도 되돌릴 수 있어야 한다 */
 export async function deleteOrgEvent(eventId: string): Promise<ApiResponse<null>> {
   return wrap(async () => {
     const user = await requireAuth();
     const event = await loadEventForMember(eventId, user.id);
-    const t = await getActionT();
-
-    if (event.created_by !== user.id) {
-      const { data: me } = await getSupabaseAdmin()
-        .from('org_members')
-        .select('role')
-        .eq('org_id', event.org_id)
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (!me || (me.role !== 'owner' && me.role !== 'admin'))
-        throw new Error(t('cannotDeleteEvent'));
-    }
+    await assertCanRemoveEvent(event, user.id);
 
     const { error } = await getSupabaseAdmin()
       .from('org_events')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', event.id);
     if (error) throw new Error(error.message);
+    return null;
+  });
+}
+
+/**
+ * 삭제 취소. 지운 직후 토스트의 "실행취소"가 부른다.
+ * 이미 지워진 행을 다뤄야 해서 loadEventForMember(살아 있는 행만 조회)를 쓸 수 없다.
+ */
+export async function restoreOrgEvent(eventId: string): Promise<ApiResponse<null>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    const t = await getActionT();
+
+    const { data, error } = await getSupabaseAdmin()
+      .from('org_events')
+      .select(COLUMNS)
+      .eq('id', eventId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error(t('eventNotFound'));
+
+    const event = data as OrgEvent;
+    await assertMember(event.org_id, user.id);
+    await assertCanRemoveEvent(event, user.id);
+
+    const { error: restoreError } = await getSupabaseAdmin()
+      .from('org_events')
+      .update({ deleted_at: null })
+      .eq('id', event.id);
+    if (restoreError) throw new Error(restoreError.message);
     return null;
   });
 }

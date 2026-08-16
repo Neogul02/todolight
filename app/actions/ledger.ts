@@ -93,6 +93,20 @@ export async function createLedgerEntry(input: {
   });
 }
 
+/** 지우거나 되살릴 수 있는 사람: 적은 사람·낸 사람 본인이나 방장 */
+async function assertCanRemoveEntry(
+  entry: { org_id: string; payer_id: string; created_by: string },
+  userId: string
+): Promise<void> {
+  const role = await requireMembership(entry.org_id, userId);
+  const mine = entry.created_by === userId || entry.payer_id === userId;
+  const manager = role === 'owner' || role === 'admin';
+  if (!mine && !manager) {
+    const t = await getActionT();
+    throw new Error(t('cannotDeleteLedgerEntry'));
+  }
+}
+
 /** 소프트 삭제. 적은 사람·낸 사람 본인이나 방장만 */
 export async function deleteLedgerEntry(id: string): Promise<ApiResponse<{ id: string }>> {
   return wrap(async () => {
@@ -108,10 +122,7 @@ export async function deleteLedgerEntry(id: string): Promise<ApiResponse<{ id: s
     if (loadError) throw new Error(loadError.message);
     if (!entry) throw new Error(t('ledgerEntryNotFound'));
 
-    const role = await requireMembership(entry.org_id, user.id);
-    const mine = entry.created_by === user.id || entry.payer_id === user.id;
-    const manager = role === 'owner' || role === 'admin';
-    if (!mine && !manager) throw new Error(t('cannotDeleteLedgerEntry'));
+    await assertCanRemoveEntry(entry, user.id);
 
     const { error } = await getSupabaseAdmin()
       .from('ledger_entries')
@@ -120,5 +131,36 @@ export async function deleteLedgerEntry(id: string): Promise<ApiResponse<{ id: s
     if (error) throw new Error(error.message);
 
     return { id };
+  });
+}
+
+/**
+ * 삭제 취소. 지운 직후 토스트의 "실행취소"가 부른다.
+ * 이미 지워진 행을 다뤄야 해서 위의 조회(살아 있는 행만)를 쓸 수 없다.
+ */
+export async function restoreLedgerEntry(id: string): Promise<ApiResponse<LedgerEntry>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    const t = await getActionT();
+
+    const { data: entry, error: loadError } = await getSupabaseAdmin()
+      .from('ledger_entries')
+      .select(LEDGER_COLUMNS)
+      .eq('id', id)
+      .maybeSingle();
+    if (loadError) throw new Error(loadError.message);
+    if (!entry) throw new Error(t('ledgerEntryNotFound'));
+
+    await assertCanRemoveEntry(entry, user.id);
+
+    const { data, error } = await getSupabaseAdmin()
+      .from('ledger_entries')
+      .update({ deleted_at: null })
+      .eq('id', id)
+      .select(LEDGER_COLUMNS)
+      .single();
+    if (error) throw new Error(error.message);
+
+    return data as LedgerEntry;
   });
 }

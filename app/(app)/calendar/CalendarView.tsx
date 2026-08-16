@@ -575,12 +575,17 @@ export function CalendarView({
           끌어서 크기를 바꾸는 손잡이. 누르기만 해도 다음 단계로 넘어간다 —
           작은 화면에서 몇 픽셀을 정확히 끄는 것보다 한 번 누르는 쪽이 빠를 때가 많다.
           touch-none이 없으면 브라우저가 이 세로 제스처를 페이지 스크롤로 먹어 버린다.
+
+          버튼 높이는 44px(h-11)로 잡는다 — 시각적 막대(h-1)는 얇게 유지하고 나머지는
+          터치 영역이다. 음수 마진으로 시각적 높이만 줄이는 방법은 여기선 쓰지 않는다 —
+          바로 아래가 목록이라, 겹친 만큼의 보이지 않는 히트 영역이 목록 위쪽 항목을
+          삼켜서 목록을 누른다는 게 손잡이를 끄는 걸로 오작동할 수 있다.
         */}
         <button
           type="button"
           aria-label={t('resizePanel')}
           {...panel.handleProps}
-          className="grid h-6 shrink-0 touch-none place-items-center no-select sm:hidden"
+          className="grid h-11 shrink-0 touch-none place-items-center no-select sm:hidden"
         >
           <span className="h-1 w-10 rounded-full bg-hairline-strong" />
         </button>

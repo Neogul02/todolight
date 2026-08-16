@@ -22,6 +22,7 @@ import {
 import type { Locale } from '@/lib/locales';
 import type { LedgerEntry } from '@/types/db';
 import { useApp } from '../OrgContext';
+import { LedgerEntriesSkeleton, LedgerSummarySkeleton } from './LedgerSkeleton';
 
 /** 금액은 13자리(조 단위)까지만 — 그 위는 서버 검증에서 어차피 막힌다 */
 const MAX_AMOUNT_DIGITS = 13;
@@ -185,7 +186,7 @@ export default function LedgerClient() {
       <Card className="p-5">
         <p className="text-caption text-ink-muted">{t('totalLabel')}</p>
         {loading ? (
-          <p className="mt-1 text-heading-1 text-ink-faint">{tCommon('loading')}</p>
+          <LedgerSummarySkeleton />
         ) : (
           <>
             <p className="mt-1 text-heading-1 text-ink tabular-nums">{formatMoney(total, locale)}</p>
@@ -284,7 +285,7 @@ export default function LedgerClient() {
       </Card>
 
       {loading ? (
-        <p className="py-8 text-center text-caption text-ink-faint">{tCommon('loading')}</p>
+        <LedgerEntriesSkeleton />
       ) : entries.error ? (
         <p className="py-8 text-center text-caption text-danger">{String(entries.error.message)}</p>
       ) : rows.length === 0 ? (

@@ -2,13 +2,15 @@
 
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { getRealtimeClient } from '@/lib/supabase-realtime';
 import {
   createLedgerEntry,
   deleteLedgerEntry,
   fetchLedgerEntries,
+  restoreLedgerEntry,
 } from '@/app/actions/ledger';
-import { showMsg } from '@/lib/toast';
+import { showMsg, showUndo } from '@/lib/toast';
 import type { LedgerEntry } from '@/types/db';
 
 export const ledgerKeys = {
@@ -63,6 +65,8 @@ export function useLedgerRealtime(orgId: string | null) {
  */
 export function useLedgerMutations(orgId: string | null, month: string) {
   const queryClient = useQueryClient();
+  const t = useTranslations('toast');
+  const tCommon = useTranslations('common');
 
   const invalidateMonth = () => {
     if (orgId) queryClient.invalidateQueries({ queryKey: ledgerKeys.month(orgId, month) });
@@ -70,6 +74,16 @@ export function useLedgerMutations(orgId: string | null, month: string) {
   const invalidateOrg = () => {
     if (orgId) queryClient.invalidateQueries({ queryKey: ledgerKeys.org(orgId) });
   };
+
+  const restore = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await restoreLedgerEntry(id);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onError: (e: Error) => showMsg(e.message, 'error'),
+    onSettled: invalidateOrg,
+  });
 
   const add = useMutation({
     mutationFn: async (input: { amount: number; title: string; spentOn: string; payerId?: string }) => {
@@ -89,7 +103,11 @@ export function useLedgerMutations(orgId: string | null, month: string) {
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
-    onSuccess: invalidateMonth,
+    // 확인 창 없이 지우는 대신 되돌릴 기회를 준다 (소프트 삭제라 행은 남아 있다)
+    onSuccess: entry => {
+      showUndo(t('ledgerEntryDeleted'), tCommon('undo'), () => restore.mutate(entry.id));
+      invalidateMonth();
+    },
     onError: (e: Error) => showMsg(e.message, 'error'),
   });
 

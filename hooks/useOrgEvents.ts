@@ -6,9 +6,10 @@ import {
   createOrgEvent,
   deleteOrgEvent,
   fetchOrgEvents,
+  restoreOrgEvent,
   updateOrgEvent,
 } from '@/app/actions/events';
-import { showMsg } from '@/lib/toast';
+import { showMsg, showUndo } from '@/lib/toast';
 import type { OrgEvent } from '@/types/db';
 
 export const eventKeys = {
@@ -35,8 +36,18 @@ export function useOrgEvents(orgId: string | null) {
 export function useEventMutations(orgId: string | null) {
   const queryClient = useQueryClient();
   const t = useTranslations('toast');
+  const tCommon = useTranslations('common');
   const key = eventKeys.all(orgId ?? '');
   const resync = () => queryClient.invalidateQueries({ queryKey: key });
+
+  const restore = useMutation({
+    mutationFn: async (eventId: string) => {
+      const res = await restoreOrgEvent(eventId);
+      if (!res.success) throw new Error(res.error);
+    },
+    onError: (e: Error) => showMsg(e.message, 'error'),
+    onSettled: resync,
+  });
 
   const create = useMutation({
     mutationFn: async (input: {
@@ -80,9 +91,11 @@ export function useEventMutations(orgId: string | null) {
     mutationFn: async (eventId: string) => {
       const res = await deleteOrgEvent(eventId);
       if (!res.success) throw new Error(res.error);
+      return eventId;
     },
-    onSuccess: () => {
-      showMsg(t('eventDeleted'), 'success');
+    // 확인 창 없이 지우는 대신 되돌릴 기회를 준다 (소프트 삭제라 행은 남아 있다)
+    onSuccess: eventId => {
+      showUndo(t('eventDeleted'), tCommon('undo'), () => restore.mutate(eventId));
       resync();
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
