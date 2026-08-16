@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { AppIconMark } from '@/lib/app-icon';
 
 /**
  * PWA·브라우저 탭 아이콘.
@@ -9,25 +10,5 @@ export const size = { width: 512, height: 512 };
 export const contentType = 'image/png';
 
 export default function Icon() {
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#f3eee5',
-          color: '#14120f',
-          fontSize: 168,
-          fontWeight: 700,
-          lineHeight: 1,
-        }}
-      >
-        Todo
-      </div>
-    ),
-    size
-  );
+  return new ImageResponse(<AppIconMark size={size.width} />, size);
 }
