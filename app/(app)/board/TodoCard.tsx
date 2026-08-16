@@ -10,6 +10,7 @@ import { getAvatarColor } from '@/lib/avatar';
 import { vibrateTick } from '@/lib/haptics';
 import { Avatar } from '@/components/Avatar';
 import { DuePicker } from '@/components/DuePicker';
+import { Linkify } from '@/components/Linkify';
 import { Badge, Button, Input } from '@/components/ui';
 import type { Locale } from '@/lib/locales';
 import type { MemberSummary, Todo } from '@/types/db';
@@ -501,17 +502,29 @@ function TodoCardOpenContent({
                 return (
                   <li key={n.id} className="rounded-lg bg-canvas-soft px-2.5 py-2">
                     <div className="flex items-start gap-1.5">
-                      <button
-                        type="button"
-                        disabled={!mine}
+                      {/*
+                        메모 안의 URL·전화번호를 누르면 바로 열리게 하는데(Linkify), <a>는
+                        <button> 안에 넣을 수 없는 요소다(중첩 인터랙티브 콘텐츠) — div에
+                        role="button"을 얹어 같은 탭-편집 동작을 유지하면서 실제 링크를
+                        올바르게 중첩한다. mine이 아니면 편집 진입 자체가 없으니 역할을 안 준다.
+                      */}
+                      <div
+                        role={mine ? 'button' : undefined}
+                        tabIndex={mine ? 0 : undefined}
                         onClick={() => mine && startEditingNote(n.id, n.content)}
+                        onKeyDown={e => {
+                          if (mine && (e.key === 'Enter' || e.key === ' ')) {
+                            e.preventDefault();
+                            startEditingNote(n.id, n.content);
+                          }
+                        }}
                         className={cn(
                           '-my-1 block min-w-0 flex-1 py-1 text-left text-caption break-words text-ink-secondary',
                           mine && 'sm:hover:text-ink'
                         )}
                       >
-                        {n.content}
-                      </button>
+                        <Linkify text={n.content} />
+                      </div>
                       {mine && (
                         <button
                           type="button"
