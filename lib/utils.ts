@@ -4,6 +4,16 @@ export function cn(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ');
 }
 
+/**
+ * 로그인 후·메일 링크 복귀 후 돌아갈 곳을 정한다. 둘 다 쿼리스트링(next)을 그대로 받는데,
+ * 검증 없이 쓰면 로그인 직후 임의 외부 사이트로 보내는 오픈 리다이렉트가 된다 —
+ * "//evil.com"도 절대경로처럼 보이지만 브라우저는 프로토콜 상대 URL로 해석해 외부로 나간다.
+ * 내부 경로("/"로 시작하되 "//"는 아님)만 허용한다.
+ */
+export function safeNextPath(raw: string | null | undefined, fallback = '/board'): string {
+  return raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : fallback;
+}
+
 const KST_OFFSET_MINUTES = 9 * 60;
 
 /** UTC ISO 문자열 → KST 기준 YYYY-MM-DD */

@@ -9,7 +9,7 @@ import { notifyLoggedIn, notifySignedUp } from '@/app/actions/auth-notify';
 import { showMsg } from '@/lib/toast';
 import { Button, Card, Input, Spinner } from '@/components/ui';
 import { focusNextOnEnter } from '@/lib/forms';
-import { cn } from '@/lib/utils';
+import { cn, safeNextPath } from '@/lib/utils';
 
 type Mode = 'signin' | 'signup';
 
@@ -22,7 +22,7 @@ export default function LoginForm() {
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const tToast = useTranslations('toast');
-  const nextPath = params.get('next') || '/board';
+  const nextPath = safeNextPath(params.get('next'));
 
   const [mode, setMode] = useState<Mode>(params.get('mode') === 'signup' ? 'signup' : 'signin');
   const [email, setEmail] = useState('');

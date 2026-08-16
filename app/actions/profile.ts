@@ -6,6 +6,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { requireAuth, wrap } from './_base';
 import { isValidTheme } from '@/lib/themes';
 import { isValidLocale } from '@/lib/locales';
+import { isOwnStorageUrl } from '@/lib/storage-url';
 import { type ActionT, getActionT } from '@/lib/server-i18n';
 import type { ApiResponse } from '@/types/api';
 import type { Profile } from '@/types/db';
@@ -44,7 +45,12 @@ export async function updateMyProfile(patch: {
 
     const update: Record<string, unknown> = {};
     if (patch.displayName !== undefined) update.display_name = nameSchema(t).parse(patch.displayName);
-    if (patch.avatarUrl !== undefined) update.avatar_url = patch.avatarUrl || null;
+    if (patch.avatarUrl !== undefined) {
+      if (patch.avatarUrl && !isOwnStorageUrl(patch.avatarUrl, 'avatars', `${user.id}/`)) {
+        throw new Error(t('invalidAvatarUrl'));
+      }
+      update.avatar_url = patch.avatarUrl || null;
+    }
     if (patch.showDone !== undefined) update.show_done = patch.showDone;
     if (patch.showLedger !== undefined) update.show_ledger = patch.showLedger;
     if (patch.theme !== undefined) {

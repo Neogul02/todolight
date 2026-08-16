@@ -7,6 +7,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { notifyDiscord } from '@/lib/discord';
 import { requireAuth, wrap } from './_base';
 import { requireManager, requireMembership } from '@/lib/guards';
+import { isOwnStorageUrl } from '@/lib/storage-url';
 import { type ActionT, getActionT } from '@/lib/server-i18n';
 import type { ApiResponse } from '@/types/api';
 import type { MemberRole, MemberSummary, OrgInvite, Organization } from '@/types/db';
@@ -142,7 +143,7 @@ export async function inviteMember(orgId: string, email: string): Promise<ApiRes
     const { data: existingProfile } = await getSupabaseAdmin()
       .from('profiles')
       .select('id')
-      .ilike('email', target)
+      .eq('email', target)
       .maybeSingle();
 
     if (existingProfile) {
@@ -195,7 +196,7 @@ export async function fetchMyInvites(): Promise<ApiResponse<OrgInvite[]>> {
     const { data, error } = await getSupabaseAdmin()
       .from('org_invites')
       .select('id, org_id, email, invited_by, status, created_at, responded_at, organizations!inner (name), profiles!org_invites_invited_by_fkey (display_name)')
-      .ilike('email', user.email)
+      .eq('email', user.email.toLowerCase())
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
@@ -346,6 +347,11 @@ export async function updateOrgImage(
   return wrap(async () => {
     const user = await requireAuth();
     await requireManager(orgId, user.id);
+    const t = await getActionT();
+
+    if (imageUrl && !isOwnStorageUrl(imageUrl, 'org-images', `${orgId}/`)) {
+      throw new Error(t('invalidOrgImageUrl'));
+    }
 
     const { error } = await getSupabaseAdmin()
       .from('organizations')

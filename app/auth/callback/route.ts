@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { safeNextPath } from '@/lib/utils';
 
 /**
  * Supabase 메일 링크(비밀번호 재설정·이메일 확인)가 돌아오는 자리.
@@ -10,8 +11,7 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const code = searchParams.get('code');
   // 열린 리다이렉트를 막으려고 앱 내부 경로만 받는다
-  const raw = searchParams.get('next') ?? '/board';
-  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/board';
+  const next = safeNextPath(searchParams.get('next'));
 
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=missing_code`);
