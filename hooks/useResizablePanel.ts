@@ -14,6 +14,10 @@ const STEP_RATIO = 0.08;
 /**
  * 위아래로 끌어 높이를 바꾸는 패널.
  *
+ * **높이는 손잡이로만 바뀐다.** 예전엔 달력에서 날짜를 누르면 목록을 반쯤 펴 주는 길이
+ * 하나 더 있었는데, 날짜를 누르는 건 대부분 "이 날 뭐 있나" 훑는 동작이라 누를 때마다
+ * 보려던 달력이 줄어들었다. 크기를 바꾸는 곳은 손잡이 하나뿐이어야 예측이 된다.
+ *
  * 높이를 px가 아니라 **컨테이너 대비 비율**로 들고 있는다 — 폰마다 화면 높이가 다르고
  * 주소창이 접혔다 펴지며 dvh가 실시간으로 바뀌는데, px로 잡아 두면 그때마다 비율이 어긋난다.
  *
@@ -59,12 +63,6 @@ export function useResizablePanel({
       if (Math.abs(s - value) < Math.abs(snaps[best] - value)) best = i;
     });
     return best;
-  }
-
-  /** 적어도 이 스냅만큼은 펴 준다 — 날짜를 눌렀는데 목록이 안 보이면 누른 보람이 없다 */
-  function expandAtLeast(index: number) {
-    if (!enabled) return;
-    if (nearestIndex(ratio) < index) goTo(index);
   }
 
   function onPointerDown(e: ReactPointerEvent) {
@@ -118,7 +116,6 @@ export function useResizablePanel({
     /** 컨테이너 높이 대비 패널 높이 (0~1) */
     ratio: enabled ? ratio : snaps[initial],
     dragging,
-    expandAtLeast,
     /** 핸들에 그대로 펼쳐서 붙인다 */
     handleProps: {
       onPointerDown,
