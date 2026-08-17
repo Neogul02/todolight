@@ -167,3 +167,31 @@ US-107 토스트를 작고 가운데로 — 완료
 - CLAUDE.md를 코드에 맞춰 갱신(가계부·패널·폼 흐름·설정·스크롤바 섹션 추가).
 검증: yarn build 통과, tsc/lint 통과, 폰 폭(~525px)에서 전 화면 육안 확인.
 남은 것: 랜딩/로그인은 로그인 상태라 브라우저로 못 봄 — 코드로만 점검했다.
+[ralph] API 왕복 줄이기 + 인터랙션 반응속도 (2026-08-17)
+전제: 행이 적다(todos 73, notes 28, participants 3, members 3). 쿼리 실행 시간은 무의미하고
+비용은 전부 (a) 액션 안의 순차 DB 왕복, (b) 브라우저→서버 액션 호출 횟수다.
+- fetchOrgTodos: 멤버검사→todos→notes→participants 4연속 → Promise.all 한 묶음.
+  메모는 todos!inner로 org·살아있음을 걸어 todo id 없이 읽고, 참여자는 자기 org_id로 읽는다.
+  실측(같은 DB, 9회 median): 235ms → 112ms. 행/순서는 옛 방식과 동일함을 대조 확인.
+  멤버검사는 같이 보내되 함께 await한다 — 실패하면 읽어 온 걸 한 줄도 안 돌려준다.
+- fetchMyOrgs: 조직목록 + member_count 2연속 → org_members(count) 집계로 1회.
+  실측 110ms → 60ms. 계정 3개 전부 member_count 값 일치 확인.
+- getAuthUser: React cache()로 요청 범위 메모. 레이아웃 1회 렌더에 3번 돌던 걸 1번으로.
+- useTodoMutations: onSettled마다 즉시 invalidate → resyncSoon(400ms 트레일링 합치기).
+  낙관적으로 안 그리는 경로(addNote, restore)만 resyncNow로 즉시 유지 —
+  거기서 미루면 방금 쓴 메모가 늦게 뜬다. clearTodoPending은 절대 미루지 않는다.
+  타이머는 모듈 수준 Map(orgId) — 훅이 카드마다 불려서 ref에 두면 하나도 안 합쳐진다.
+  dev 로그에서 setTodoStatus 2건 → fetchOrgTodos 1건으로 줄어드는 것 확인.
+학습:
+- supabase-js의 JWKS는 GLOBAL_JWKS(모듈 전역)에 캐시된다 — 요청마다 클라이언트를 새로
+  만들어도 JWKS를 다시 받지 않는다. "액션마다 JWKS 왕복" 가설은 틀렸다.
+- 브라우저에서 체크박스를 연타로 검증할 때: 카드가 완료로 바뀌면 목록이 재정렬돼
+  미리 잡아 둔 li가 detached가 된다. 클릭 직전에 다시 조회해야 한다.
+  disabled={busy}라 같은 카드 연타는 어차피 씹힌다 — 버스트는 서로 다른 카드로 만들어야 한다.
+검증(브라우저, dev 로그로 계측):
+- 서로 다른 카드 5장을 150ms 간격으로 체크 → setTodoStatus 5회 / fetchOrgTodos 1회.
+  (바꾸기 전 규칙이라면 5회였다.)
+- 추가·메모 추가·삭제·되살리기(Undo 토스트)를 임시 할 일 하나로 전 경로 확인.
+  메모는 resyncNow라 즉시 작성자·아바타까지 붙어 나타난다.
+- 패널 전환은 여전히 요청 0건, 트랙 transition 240ms 그대로.
+- 측정 중 바꾼 데이터는 전부 원복(9 left · 14 done). 임시 할 일은 소프트 삭제로 남는다.

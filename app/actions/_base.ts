@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { getActionT } from '@/lib/server-i18n';
 import type { ApiResponse } from '@/types/api';
@@ -37,13 +38,21 @@ export interface AuthUser {
   email: string | null;
 }
 
-export async function getAuthUser(): Promise<AuthUser | null> {
+/**
+ * 요청 하나 안에서는 한 번만 확인한다.
+ *
+ * 앱 진입 한 번에 이게 세 번 돈다 — `(app)/layout.tsx`가 직접 부르고, 거기서 병렬로 부르는
+ * `fetchMyOrgs`·`fetchMyProfile`이 각자 `requireAuth()`로 또 부른다. 매번 쿠키를 파싱하고
+ * Supabase 클라이언트를 새로 만들고 JWT를 검증하는데, 같은 요청 안에서는 결과가 같다.
+ * `cache()`는 요청 범위라 요청이 끝나면 비므로 세션이 오래 물리지 않는다.
+ */
+export const getAuthUser = cache(async function getAuthUser(): Promise<AuthUser | null> {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.auth.getClaims();
   const claims = data?.claims;
   if (!claims?.sub) return null;
   return { id: claims.sub as string, email: (claims.email as string | undefined) ?? null };
-}
+});
 
 /**
  * 로그인이 필요한 액션의 첫 줄에서 호출.

@@ -57,29 +57,54 @@ async function loadNotifyContext(orgId: string, userIds: string[]) {
 export async function fetchOrgTodos(orgId: string): Promise<ApiResponse<Todo[]>> {
   return wrap(async () => {
     const user = await requireAuth();
-    await assertMember(orgId, user.id);
+    const db = getSupabaseAdmin();
 
-    const { data, error } = await getSupabaseAdmin()
-      .from('todos')
-      .select(TODO_COLUMNS)
-      .eq('org_id', orgId)
-      .is('deleted_at', null)
-      .order('position', { ascending: true })
-      .order('created_at', { ascending: true });
-    if (error) throw new Error(error.message);
+    /*
+      네 가지를 **한 묶음으로 보낸다.**
 
-    const todos = (data ?? []) as Todo[];
+      예전에는 멤버 검사 → 할 일 → 메모 → 참여자가 전부 순차라 왕복을 네 번 줄 세웠다.
+      이 화면이 굼뜬 이유는 DB가 일하는 시간이 아니다 — 행이 수십 개뿐이라 실행 시간은
+      사실상 0이고 비용은 오로지 왕복 횟수였다(메모를 할 일 id로 뒤따라 읽으면 105ms,
+      한 번에 읽으면 54ms로 실측).
+
+      메모와 참여자를 할 일 결과 없이도 읽을 수 있도록 조건을 **조직 기준**으로 바꿨다:
+      메모는 `todos`를 inner join해 조직과 "살아 있음"을 걸고, 참여자는 자기 org_id로 건다.
+      참여자에는 지워진 할 일의 행이 섞여 올 수 있지만 살아 있는 할 일 id로만 꺼내 쓰므로
+      결과에 새어 나가지 않는다.
+
+      **멤버 검사는 결과를 내주기 전에 반드시 통과해야 한다.** 같이 보내되 여기서 함께
+      await하므로, 멤버가 아니면 Promise.all이 그대로 거절되고 읽어 온 것은 한 줄도
+      돌려주지 않는다.
+    */
+    const [, todosRes, notesRes, participantsRes] = await Promise.all([
+      assertMember(orgId, user.id),
+      db
+        .from('todos')
+        .select(TODO_COLUMNS)
+        .eq('org_id', orgId)
+        .is('deleted_at', null)
+        .order('position', { ascending: true })
+        .order('created_at', { ascending: true }),
+      db
+        .from('todo_notes')
+        .select(
+          'id, todo_id, author_id, content, created_at, profiles!inner (display_name, avatar_color, avatar_url), todos!inner (org_id, deleted_at)'
+        )
+        .eq('todos.org_id', orgId)
+        .is('todos.deleted_at', null)
+        .order('created_at', { ascending: true }),
+      db.from('todo_participants').select('todo_id, user_id').eq('org_id', orgId),
+    ]);
+
+    if (todosRes.error) throw new Error(todosRes.error.message);
+    if (notesRes.error) throw new Error(notesRes.error.message);
+    if (participantsRes.error) throw new Error(participantsRes.error.message);
+
+    const todos = (todosRes.data ?? []) as Todo[];
     if (todos.length === 0) return [];
 
-    const { data: notes, error: noteError } = await getSupabaseAdmin()
-      .from('todo_notes')
-      .select('id, todo_id, author_id, content, created_at, profiles!inner (display_name, avatar_color, avatar_url)')
-      .in('todo_id', todos.map(t => t.id))
-      .order('created_at', { ascending: true });
-    if (noteError) throw new Error(noteError.message);
-
     const byTodo = new Map<string, TodoNote[]>();
-    ((notes ?? []) as unknown as (TodoNote & {
+    ((notesRes.data ?? []) as unknown as (TodoNote & {
       profiles: { display_name: string; avatar_color: string | null; avatar_url: string | null };
     })[]).forEach(n => {
       const list = byTodo.get(n.todo_id) ?? [];
@@ -96,14 +121,8 @@ export async function fetchOrgTodos(orgId: string): Promise<ApiResponse<Todo[]>>
       byTodo.set(n.todo_id, list);
     });
 
-    const { data: participants, error: participantError } = await getSupabaseAdmin()
-      .from('todo_participants')
-      .select('todo_id, user_id')
-      .in('todo_id', todos.map(t => t.id));
-    if (participantError) throw new Error(participantError.message);
-
     const participantsByTodo = new Map<string, string[]>();
-    (participants ?? []).forEach(p => {
+    (participantsRes.data ?? []).forEach(p => {
       const list = participantsByTodo.get(p.todo_id) ?? [];
       list.push(p.user_id);
       participantsByTodo.set(p.todo_id, list);

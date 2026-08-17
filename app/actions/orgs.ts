@@ -19,30 +19,35 @@ const emailSchema = (t: ActionT) => z.string().trim().toLowerCase().email(t('inv
 export async function fetchMyOrgs(): Promise<ApiResponse<(Organization & { role: MemberRole; member_count: number })[]>> {
   return wrap(async () => {
     const user = await requireAuth();
+    /*
+      멤버 수까지 **한 번에** 읽는다.
+      예전엔 조직 목록을 읽고 나서 org_members를 한 번 더 읽어 사람 수를 셌다 — 이건 앱을
+      열 때 가장 먼저 도는 조회라(레이아웃이 await한다) 그 왕복이 첫 화면 대기 시간에
+      그대로 얹혔다. PostgREST의 집계(`org_members(count)`)로 같은 값을 함께 받아 온다.
+    */
     const { data, error } = await getSupabaseAdmin()
       .from('org_members')
-      .select('role, organizations!inner (id, name, owner_id, image_url, created_at)')
+      .select(
+        'role, organizations!inner (id, name, owner_id, image_url, created_at, org_members (count))'
+      )
       .eq('user_id', user.id)
       .order('joined_at', { ascending: true });
     if (error) throw new Error(error.message);
 
-    const rows = (data ?? []) as unknown as { role: MemberRole; organizations: Organization }[];
-    if (rows.length === 0) return [];
+    const rows = (data ?? []) as unknown as {
+      role: MemberRole;
+      organizations: Organization & { org_members: { count: number }[] };
+    }[];
 
-    const ids = rows.map(r => r.organizations.id);
-    const { data: counts } = await getSupabaseAdmin()
-      .from('org_members')
-      .select('org_id')
-      .in('org_id', ids);
-
-    const countMap = new Map<string, number>();
-    (counts ?? []).forEach(c => countMap.set(c.org_id, (countMap.get(c.org_id) ?? 0) + 1));
-
-    return rows.map(r => ({
-      ...r.organizations,
-      role: r.role,
-      member_count: countMap.get(r.organizations.id) ?? 1,
-    }));
+    return rows.map(r => {
+      const { org_members, ...org } = r.organizations;
+      return {
+        ...org,
+        role: r.role,
+        // 집계는 [{ count: n }] 한 줄로 온다. 내가 멤버라 최소 1이지만 방어적으로 1로 떨어뜨린다.
+        member_count: org_members?.[0]?.count ?? 1,
+      };
+    });
   });
 }
 

@@ -19,6 +19,27 @@ import { boardKeys } from './useOrgBoard';
 import type { Todo, TodoStatus } from '@/types/db';
 
 /**
+ * 뮤테이션이 끝난 뒤 서버 상태로 맞추는 재조회를 이만큼 미뤄 모은다.
+ *
+ * 체크를 다섯 번 연달아 누르면 예전엔 `fetchOrgTodos`가 다섯 번 돌았다 — 화면은 이미
+ * 낙관적으로 맞아 있는데 왕복만 다섯 번 나가고, 그때마다 다음 낙관적 패치가 `cancelQueries`로
+ * 그 요청들을 취소하느라 churn이 생겼다. 마지막 요청 기준 한 번만 돌리면 결과는 같다.
+ *
+ * 값이 이 정도인 이유: 연타 간격이 대략 150~400ms라 그보다 넉넉해야 한 묶음으로 모이고,
+ * 더 늘리면 남이 바꾼 내용이 늦게 따라온다(실시간 구독이 그 사이를 메우긴 한다).
+ */
+const RESYNC_COALESCE_MS = 400;
+
+/**
+ * 조직별로 예약해 둔 재조회 타이머.
+ *
+ * `useTodoMutations`는 카드마다(그것도 카드 하나에 두 번) 불려서 인스턴스가 수십 개다 —
+ * 훅 안의 ref에 두면 카드마다 따로 모여 여러 장을 연달아 누를 때 하나도 안 합쳐진다.
+ * 모듈 수준에 둬야 같은 조직의 모든 카드가 같은 타이머를 나눠 쓴다(lib/pending-todos.ts와 같은 이유).
+ */
+const scheduledResync = new Map<string, ReturnType<typeof setTimeout>>();
+
+/**
  * 보드의 할 일 쓰기 동작을 한곳에 모은다.
  *
  * 체크와 삭제는 낙관적으로 반영한다 — 모바일에서 서버 왕복(200~500ms)을 기다리면
@@ -49,18 +70,49 @@ export function useTodoMutations(orgId: string | null) {
     showMsg(error.message, 'error');
   }
 
-  /** 서버가 보낸 최종 상태로 맞춘다 — 실시간 이벤트와 순서가 엇갈려도 여기서 수렴한다 */
-  function resync() {
+  const scheduleKey = orgId ?? '';
+
+  function cancelScheduledResync() {
+    const timer = scheduledResync.get(scheduleKey);
+    if (timer) clearTimeout(timer);
+    scheduledResync.delete(scheduleKey);
+  }
+
+  /**
+   * 서버가 보낸 최종 상태로 **지금** 맞춘다.
+   * 낙관적으로 그리지 않는 동작(메모 추가·되살리기)에 쓴다 — 화면이 서버 응답을 기다리고
+   * 있는 중이라 여기서 미루면 방금 쓴 메모가 늦게 나타난다.
+   */
+  function resyncNow() {
+    cancelScheduledResync();
     queryClient.invalidateQueries({ queryKey: key });
   }
 
   /**
+   * 서버가 보낸 최종 상태로 **곧** 맞춘다(연달아 부르면 마지막 것 하나만 돈다).
+   * 이미 낙관적으로 반영해 둔 동작에 쓴다 — 화면은 벌써 맞아 있으니 왕복을 서두를 이유가 없고,
+   * 실시간 이벤트와 순서가 엇갈려도 이 한 번으로 수렴한다.
+   */
+  function resyncSoon() {
+    cancelScheduledResync();
+    scheduledResync.set(
+      scheduleKey,
+      setTimeout(() => {
+        scheduledResync.delete(scheduleKey);
+        queryClient.invalidateQueries({ queryKey: key });
+      }, RESYNC_COALESCE_MS)
+    );
+  }
+
+  /**
    * 요청이 끝났으니 실시간 병합을 다시 허용하고 서버 상태로 맞춘다.
-   * 해제를 먼저 해야 뒤이은 refetch 결과가 정상적으로 반영된다.
+   *
+   * **해제는 미루지 않는다.** 재조회는 모아서 한 번만 돌려도 되지만, 실시간 병합 차단이
+   * 늦게 풀리면 그 사이 도착한 남의 변경이 통째로 버려진다.
    */
   function settle(todoId: string) {
     clearTodoPending(todoId);
-    resync();
+    resyncSoon();
   }
 
   const toggleStatus = useMutation({
@@ -134,7 +186,7 @@ export function useTodoMutations(orgId: string | null) {
     },
     // 되살리기는 목록 순서를 서버가 다시 알려줘야 해서 낙관적으로 끼워 넣지 않는다
     onError: (error: Error) => showMsg(error.message, 'error'),
-    onSettled: resync,
+    onSettled: resyncNow,
   });
 
   const remove = useMutation({
@@ -181,7 +233,7 @@ export function useTodoMutations(orgId: string | null) {
       return res.data;
     },
     onError: (error: Error) => showMsg(error.message, 'error'),
-    onSuccess: resync,
+    onSuccess: resyncNow,
   });
 
   // 내용만 바뀌고 작성자·아바타는 그대로라 addNote와 달리 낙관적으로 반영할 수 있다.
@@ -206,7 +258,7 @@ export function useTodoMutations(orgId: string | null) {
       ),
     }),
     onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
-    onSettled: resync,
+    onSettled: resyncSoon,
   });
 
   // 하드 삭제라 되돌릴 수 없다 — 짧은 메모 한 줄이라 할 일 삭제와 달리 실행취소 토스트 없이 바로 지운다.
@@ -247,7 +299,7 @@ export function useTodoMutations(orgId: string | null) {
       ),
     }),
     onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
-    onSettled: resync,
+    onSettled: resyncSoon,
   });
 
   const leave = useMutation({
@@ -265,7 +317,7 @@ export function useTodoMutations(orgId: string | null) {
       ),
     }),
     onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
-    onSettled: resync,
+    onSettled: resyncSoon,
   });
 
   return { create, toggleStatus, edit, remove, restore, addNote, editNote, deleteNote, join, leave };
