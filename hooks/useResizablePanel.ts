@@ -71,7 +71,15 @@ export function useResizablePanel({
     if (!height) return;
     start.current = { y: e.clientY, ratio, height, moved: false };
     setDragging(true);
-    e.currentTarget.setPointerCapture(e.pointerId);
+    /*
+      캡처가 실패해도(브라우저·기기에 따라 던지는 경우가 있다) 드래그 자체는 이어져야 한다 —
+      여기서 예외가 새면 아래 preventDefault까지 못 가고 제스처가 통째로 죽는다.
+    */
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // 캡처 없이도 손잡이 위에서 움직이는 동안은 이벤트가 온다
+    }
     /*
       touch-none(touch-action: none)은 터치·펜에만 적용돼서 손가락 드래그가 페이지 스크롤로
       새는 건 이미 막혀 있다. 마우스는 touch-action의 영향을 아예 안 받는다 — 마우스로 이
@@ -93,6 +101,7 @@ export function useResizablePanel({
     setRatio(Math.min(max, Math.max(min, s.ratio + delta / s.height)));
   }
 
+  /** 손을 뗐다 — 누른 것이었으면 다음 단계로, 끌었으면 한 칸 옮긴다 */
   function onPointerUp() {
     const s = start.current;
     if (!s) return;
@@ -112,6 +121,23 @@ export function useResizablePanel({
     goTo(from + step);
   }
 
+  /**
+   * 브라우저가 제스처를 가져갔다 — **놓은 것이 아니다.**
+   *
+   * 터치에서 pointercancel은 흔하다: 스크롤로 판정했거나, 손가락이 여러 개가 됐거나,
+   * 시스템 알림이 떴거나. 이걸 pointerup과 같이 다루면 아직 4px도 안 움직인 상태라
+   * `moved`가 false여서 **"눌렀다"로 오인해 패널이 혼자 다음 칸으로 뛴다** —
+   * 끌었는데 안 끌리고 목록이 저 혼자 올라오던 게 이것이다.
+   * 취소는 시작한 높이로 되돌리고 아무것도 확정하지 않는다.
+   */
+  function onPointerCancel() {
+    const s = start.current;
+    if (!s) return;
+    start.current = null;
+    setDragging(false);
+    setRatio(s.ratio);
+  }
+
   return {
     /** 컨테이너 높이 대비 패널 높이 (0~1) */
     ratio: enabled ? ratio : snaps[initial],
@@ -121,7 +147,7 @@ export function useResizablePanel({
       onPointerDown,
       onPointerMove,
       onPointerUp,
-      onPointerCancel: onPointerUp,
+      onPointerCancel,
     },
   };
 }

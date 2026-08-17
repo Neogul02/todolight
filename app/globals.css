@@ -325,6 +325,12 @@ select:focus-visible {
 @utility no-select {
   user-select: none;
   -webkit-user-select: none;
+  /*
+    iOS는 길게 누르면 콜아웃(복사·공유 팝오버)을 띄우는데, 그 순간 진행 중인 포인터
+    제스처가 pointercancel로 끊긴다 — 달력 목록 손잡이를 끄는 도중에 이게 걸리면
+    드래그가 통째로 죽는다. 선택을 이미 막은 자리면 콜아웃도 같이 막는 게 맞다.
+  */
+  -webkit-touch-callout: none;
 }
 
 /* ──────────────────────────────────────────────────────────────
