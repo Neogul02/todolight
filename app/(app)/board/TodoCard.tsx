@@ -1,10 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
 import { useTodoMutations } from '@/hooks/useTodoMutations';
-import { useOutsideClick } from '@/hooks/useOutsideClick';
+import { useOutsideClick, useOutsideClickGroup } from '@/hooks/useOutsideClick';
 import { cn, dueState, formatKSTTime, formatRelativeDay, subjectParticle } from '@/lib/utils';
 import { getAvatarColor } from '@/lib/avatar';
 import { vibrateTick } from '@/lib/haptics';
@@ -111,9 +111,29 @@ export default function TodoCard({
 
   const noteCount = todo.notes?.length ?? 0;
 
-  // 펼쳐진 상태에서 카드 바깥을 클릭하면 접힌다. 닫혀 있을 땐 검사할 필요가 없다.
+  /*
+    펼쳐진 상태에서 카드 바깥을 클릭하면 접힌다. 닫혀 있을 땐 검사할 필요가 없다.
+    같이하기로 참여한 할 일은 주인 컬럼과 참여자 컬럼에 동시에 두 인스턴스로 열리므로,
+    "바깥"의 기준을 todo.id로 묶어 형제 인스턴스 안쪽 클릭까지 "안"으로 쳐 준다
+    (안 그러면 메모 입력창을 누르는 순간 다른 컬럼의 인스턴스가 바깥 클릭으로 오인해
+    둘 다 닫혀 버린다).
+  */
   const cardRef = useRef<HTMLLIElement>(null);
-  useOutsideClick(cardRef, onToggleOpen, open);
+  useOutsideClickGroup(cardRef, todo.id, open);
+  useOutsideClick(cardRef, onToggleOpen, open, todo.id);
+
+  /*
+    완료 처리되는 순간 펼쳐 둔 카드는 접는다 — 메모를 쓰거나 수정하던 카드가 아니라
+    "끝난 일" 목록으로 곧 내려갈 카드이므로, 펼친 채로 남겨 두면 이미 끝난 항목의
+    입력창이 계속 보인다. 되살릴 때(완료→미완료)는 접지 않는다 — 다시 할 일로 돌아온
+    카드는 계속 만지는 중일 수 있다. 이미 완료된 카드를 메모 확인차 펼친 경우는
+    건드리지 않도록, "지금 막 완료된" 전이(false→true)일 때만 접는다.
+  */
+  const wasDoneRef = useRef(done);
+  useEffect(() => {
+    if (open && done && !wasDoneRef.current) onToggleOpen();
+    wasDoneRef.current = done;
+  }, [done, open, onToggleOpen]);
 
   const titleTypers = (typingUsers ?? []).filter(u => u.field === 'title');
   const noteTypers = (typingUsers ?? []).filter(u => u.field === 'note');
