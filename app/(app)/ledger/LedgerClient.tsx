@@ -33,14 +33,14 @@ function defaultDayOf(month: string): string {
 }
 
 /**
- * 가계부 — 조직이 쓴 돈을 적어 두고 한 달 합계를 본다.
+ * 가계부 패널 — 조직이 쓴 돈을 적어 두고 한 달 합계를 본다.
  *
- * 보드의 네 번째 뷰가 아니라 별도 라우트다. 보드의 세 뷰는 전부 같은 `todos` 캐시를 다르게
- * 그린 것이지만, 가계부는 데이터도(지출) 연산도(합계) 다르다 — BoardClient에 얹으면
- * 가계부만 보는 동안에도 보드 쿼리와 실시간 구독이 계속 돈다.
+ * 보드의 한 뷰가 아니라 나란한 패널이다. 보드·달력은 같은 `todos` 캐시를 다르게 그린 것이지만
+ * 가계부는 데이터도(지출) 연산도(합계) 다르다. 그래서 ViewPager는 패널을 **처음 열릴 때만
+ * 마운트한다** — 가계부를 한 번도 안 본 사람에게는 이 쿼리도 실시간 채널도 아예 돌지 않는다.
  */
 export default function LedgerClient() {
-  const { activeOrgId, userId, orgs, profile, openMenu, pendingInvites } = useApp();
+  const { activeOrgId, userId, profile } = useApp();
   const locale = useLocale() as Locale;
   const t = useTranslations('ledger');
   const tCommon = useTranslations('common');
@@ -124,36 +124,10 @@ export default function LedgerClient() {
     );
   }
 
-  if (orgs.length === 0) {
-    return (
-      <Notice
-        title={t('noOrgTitle')}
-        description={t('noOrgDescription')}
-        action={
-          <div className="mt-7 flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Link
-              href="/orgs/new"
-              className="flex h-13 items-center justify-center rounded-2xl bg-accent px-6 text-[16px] font-medium text-accent-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]"
-            >
-              {t('createOrg')}
-            </Link>
-            <button
-              type="button"
-              onClick={openMenu}
-              className="flex h-13 items-center justify-center gap-1.5 rounded-2xl border border-hairline-strong bg-surface px-6 text-[16px] font-medium text-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]"
-            >
-              {t('checkInvites')}
-              {pendingInvites > 0 && <span className="size-2 rounded-full bg-danger" />}
-            </button>
-          </div>
-        }
-      />
-    );
-  }
-
   /*
-    설정에서 끈 상태로 주소를 직접 열었을 때. 조용히 /board로 튕기면 "왜 안 열리지"가 되므로
-    어디서 켜는지 알려 준다.
+    설정에서 끈 상태로 `?view=ledger`를 직접 열었을 때. 조용히 보드로 튕기면
+    "왜 안 열리지"가 되므로 어디서 켜는지 알려 준다.
+    (조직이 하나도 없는 경우는 ViewPager가 트랙을 세우기 전에 먼저 안내한다)
   */
   if (profile && !profile.show_ledger) {
     return (
@@ -173,7 +147,10 @@ export default function LedgerClient() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-5 pt-safe pb-tabbar sm:pt-6 sm:pb-6">
+    // 패널이 자기 안에서 스크롤한다 — 페이지가 늘어나는 게 아니라서, 보드에 다녀와도
+    // 보던 위치가 그대로 남는다. 목록은 화면 끝까지 내려가고 하단 탭바(알약)가 그 위에
+    // 뜨므로, 마지막 줄이 알약에 가리지 않도록 pb-tabbar로 그만큼만 비운다.
+    <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 pt-5 pt-safe pb-tabbar sm:pt-6 sm:pb-6">
       {/*
         달 이동 — 합계는 "한 달치"여야 의미가 있다. 범위가 없으면 숫자가 영원히 커지기만 한다.
         헤더가 없는 모바일에서는 이 줄이 화면 맨 위다 — 우측은 그 위에 뜬 아바타 버튼만큼

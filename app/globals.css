@@ -219,7 +219,7 @@
   color-scheme: light;
 
   /*
-    레이아웃 상수 — board-viewport 계산이 이 값을 공유한다.
+    레이아웃 상수 — app-viewport 계산이 이 값을 공유한다.
     모바일은 헤더 자체가 없다(아바타·뒤로가기는 콘텐츠 위에 뜨는 플로팅 버튼이라
     자리를 차지하지 않는다) — 그래서 --header-h가 0이고, 대신 하단에 뜨는 탭바만큼만
     --tabbar-h로 공간을 확보한다.
@@ -346,30 +346,30 @@ select:focus-visible {
 }
 
 /*
-  board-viewport/calendar-viewport처럼 높이를 고정하지 않는 일반 스크롤 페이지(가계부)가
-  하단 탭바 밑에 마지막 줄이 가리지 않도록 쓴다. --tabbar-h는 데스크톱에서 0이라
-  그쪽에서는 pb-safe와 동일하게 동작한다.
+  스크롤 영역의 마지막 줄이 하단 탭바 밑에 가리지 않도록 그만큼 미리 뺀다.
+  --tabbar-h는 데스크톱에서 0이라 그쪽에서는 pb-safe와 동일하게 동작한다.
 */
 @utility pb-tabbar {
   padding-bottom: calc(env(safe-area-inset-bottom) + var(--tabbar-h));
 }
 
 /**
- * 보드 스크롤 영역 높이.
- * 페이지 전체가 늘어나면 컬럼마다 높이가 널뛴다 —
- * 뷰포트에서 헤더·툴바·하단 탭바·홈 인디케이터를 뺀 만큼으로 고정하고 컬럼 내부만 스크롤시킨다.
+ * 보드·달력·가계부 패널이 들어가는 영역의 높이.
+ *
+ * 이 셋은 라우트가 아니라 한 페이지 안의 패널이고(app/(app)/ViewPager.tsx), 좌우로 밀어
+ * 바꾼다 — 트랙이 가로로 3배 넓기 때문에 **높이가 고정돼 있어야** 한다. 패널마다 높이가
+ * 다르면 트랙 높이가 가장 큰 패널을 따라가서, 짧은 패널 아래에 빈 공간이 남는다.
+ *
+ * **--tabbar-h는 빼지 않는다.** 하단 탭바는 콘텐츠 위에 뜨는 알약이지 자리를 차지하는 바가
+ * 아니다 — 여기서 빼면 화면 아래 76px이 아무것도 없는 죽은 띠로 남아, 알약 하나 띄우려고
+ * 화면 밑동을 통째로 가린 꼴이 된다. 콘텐츠는 화면 끝까지 내려가고 알약이 그 위에 뜬다.
+ * 대신 **스크롤 영역 쪽에서 `pb-tabbar`로 마지막 줄이 알약에 가리지 않을 만큼만** 비운다.
+ *
+ * 패널 안쪽은 각자 `h-full`로 이 높이를 나눠 쓰고 자기 안에서 세로 스크롤한다 —
+ * 예전처럼 화면마다 dvh 산수를 다시 하지 않는다(멤버 칩 툴바가 있고 없고는 flex가 푼다).
  */
-@utility board-viewport {
-  height: calc(100dvh - var(--header-h) - var(--board-toolbar-h) - var(--tabbar-h) - env(safe-area-inset-bottom));
-}
-
-/**
- * 달력 탭 높이(모바일 전용).
- * 달력 뷰에는 멤버 칩 툴바가 안 뜨므로 board-viewport와 달리 --board-toolbar-h를 빼지 않는다 —
- * 그대로 쓰면 툴바가 없는데도 그 높이만큼 빈 칸이 아래에 남는다.
- */
-@utility calendar-viewport {
-  height: calc(100dvh - var(--header-h) - var(--tabbar-h) - env(safe-area-inset-bottom));
+@utility app-viewport {
+  height: calc(100dvh - var(--header-h) - env(safe-area-inset-bottom));
 }
 
 /* ── Elevation ── 실제 값은 테마 블록의 --shadow-1/2에 있다 */

@@ -18,7 +18,7 @@ export function BoardSkeleton() {
   const t = useTranslations('board');
   return (
     <div
-      className="board-viewport flex gap-3 overflow-hidden px-3 pt-safe pb-3 sm:px-4 sm:pt-0"
+      className="flex h-full gap-3 overflow-hidden px-3 pt-safe pb-3 sm:px-4 sm:pt-0"
       aria-busy="true"
       aria-label={t('loadingAria')}
     >

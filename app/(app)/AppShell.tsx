@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
@@ -20,7 +20,18 @@ import { showMsg } from '@/lib/toast';
 import { cn, formatRelativeDay } from '@/lib/utils';
 import type { Locale } from '@/lib/locales';
 import type { Profile } from '@/types/db';
-import { AppContextProvider, type BoardMode, type OrgWithRole } from './OrgContext';
+import {
+  AppContextProvider,
+  parseAppView,
+  type AppView,
+  type BoardMode,
+  type OrgWithRole,
+} from './OrgContext';
+
+/** 패널 주소. 보드는 기본값이라 쿼리를 붙이지 않는다 — 주소가 깔끔한 쪽이 공유하기 좋다 */
+function hrefOf(view: AppView): string {
+  return view === 'board' ? '/board' : `/board?view=${view}`;
+}
 
 export default function AppShell({
   userId,
@@ -37,6 +48,7 @@ export default function AppShell({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const locale = useLocale() as Locale;
   const t = useTranslations('appshell');
@@ -56,25 +68,33 @@ export default function AppShell({
     창을 줄여서 넘어온 경우에도 보드로 떨어뜨린다(버튼이 없어 되돌아갈 길이 없으므로).
   */
   const boardMode: BoardMode = !isDesktop && picked === 'dashboard' ? 'board' : picked;
-  const setBoardMode = setManualMode;
 
   /*
-    보드↔달력↔가계부는 예전엔 한 페이지 안의 모드 전환이라 애니메이션이 공짜였는데,
-    /calendar를 별도 라우트로 뺀 뒤로는 화면이 뚝 끊겨 바뀌었다 — 라우트가 바뀌어도
-    레이아웃(AppShell)은 그대로 남고 children만 바뀌므로, 그 children을 pathname으로
-    키를 준 AnimatePresence로 감싸면 라우트 전환에도 부드러운 느낌을 줄 수 있다.
+    지금 보이는 패널.
 
-    onAnimationStart/Complete를 콘솔에 찍어 클릭→완료까지 실측한 결과: mode="wait"라
-    나가고(exit) 들어오는(enter) 애니메이션이 순차로 이어져서 0.2s+0.2s=400ms대로
-    체감 지속시간이 두 배가 됐다. y 이동을 빼고 순수 페이드로 바꾸고 지속시간을 0.12s로
-    줄여 총 시간을 낮췄다(보드는 남는 곳, 대시보드는 다른 사람 목록이라 슬라이드가 관계를
-    암시했지만, 보드·달력·가계부는 서로 나란한 목적지라 방향성 있는 슬라이드가 의미가
-    없다 — 순수 페이드가 더 어울린다). production 빌드로 재 보니 exit 132ms + enter 130ms,
-    총 265ms 안팎.
+    첫 값만 주소에서 읽고(딥링크·새로고침·`/calendar` 리다이렉트가 이 길로 들어온다),
+    그 뒤로는 이 state가 진실이다. 바뀔 때 주소는 **replaceState로만** 갈아끼운다 —
+    Next 네비게이션이 아니라서 RSC 왕복이 없고, 히스토리에 패널마다 항목이 쌓이지 않아
+    뒤로가기 한 번이 앱 밖이 아니라 "직전에 있던 화면"으로 간다.
 
-    mode="wait"인 이유는 BoardClient의 뷰 전환과 같다 — 두 페이지가 겹쳐 있으면 높이가
-    서로 달라 화면이 출렁인다. initial={false}는 앱을 처음 열 때도 켠다 — 안 그러면 첫
-    진입 때도 페이드인이 걸려서, 흰 화면을 없애려고 들인 공(스켈레톤)이 무색해진다.
+    useSearchParams()는 layout.tsx의 Suspense 안이라 프리렌더 경고가 나지 않는다.
+  */
+  const [view, setView] = useState<AppView>(() => parseAppView(searchParams.get('view')));
+
+  /*
+    라우트 전환 페이드.
+
+    보드·달력·가계부는 이제 라우트가 아니라 한 페이지 안의 패널이라(ViewPager) 여기를
+    타지 않는다 — 남는 건 `/board` ↔ `/team` · `/me` · `/orgs/new`뿐이다.
+    라우트가 바뀌어도 레이아웃(AppShell)은 그대로 남고 children만 바뀌므로, 그 children을
+    pathname으로 키를 준 AnimatePresence로 감싸면 전환에 부드러운 느낌이 붙는다.
+
+    지속시간이 0.12s인 이유: mode="wait"라 나가고(exit) 들어오는(enter) 애니메이션이 순차로
+    이어져서, 0.2s로 두면 실측 400ms대로 체감이 두 배가 됐다. production 빌드에서
+    exit 132ms + enter 130ms, 총 265ms 안팎이다.
+
+    mode="wait"인 이유는 두 페이지가 겹쳐 있으면 높이가 서로 달라 화면이 출렁이기 때문이고,
+    initial={false}는 앱을 처음 열 때 페이드인이 걸려 스켈레톤이 무색해지는 걸 막는다.
 
     routeMotion을 useMemo로 감싸는 이유: 감싸지 않으면 렌더마다 새 객체가 생겨서,
     애니메이션이 끝나기 전에 AppShell이 다시 렌더되면(진행 중인 쿼리 등으로 흔하다)
@@ -119,24 +139,30 @@ export default function AppShell({
   ];
 
   const activeOrg = orgs.find(o => o.id === activeOrgId) ?? null;
+  // 세 패널이 전부 여기 산다 — 팀·설정·새 조직만 별도 라우트다.
   const onBoard = pathname === '/board';
-  const onCalendar = pathname === '/calendar';
-  const onLedger = pathname === '/ledger';
-  /*
-    보드의 두 뷰, 달력, 가계부는 전부 "매일 들여다보는 화면"이라 같은 세그먼트에 묶어 둔다 —
-    달력·가계부는 보드 안의 뷰가 아니라 나란한 별도 라우트라서, 그 화면에 있는 동안 보드
-    뷰(보드·대시보드)를 고르면 /board로 돌려보낸다. 안 그러면 모드만 바뀌고 화면은 그대로라
-    버튼이 먹통처럼 보인다.
-  */
-  const showViewSwitch = onBoard || onCalendar || onLedger;
-  // 설정에서 끄면 버튼 자체를 감춘다. 다만 이미 /ledger에 있다면 남겨 둔다 —
+  const showViewSwitch = onBoard;
+  // 설정에서 끄면 버튼 자체를 감춘다. 다만 이미 가계부를 보고 있다면 남겨 둔다 —
   // 켜 놓고 들어왔다가 다른 기기에서 끄면 나갈 길이 사라진다.
-  const showLedgerButton = (profile?.show_ledger ?? true) || onLedger;
+  const showLedgerButton = (profile?.show_ledger ?? true) || view === 'ledger';
+  const boardHref = hrefOf(view);
 
-  function pickBoardMode(key: BoardMode) {
-    setBoardMode(key);
-    if (!onBoard) router.push('/board');
-  }
+  /*
+    패널 전환.
+
+    `/board` 안에서는 state만 바꾸고 주소는 replaceState로 맞춘다 — Next 네비게이션이 아니라서
+    RSC 왕복도, 컴포넌트 재마운트도 없다. 바로 이게 전환이 끊기던 원인이었다.
+    `/board` 밖(팀·설정)에서는 진짜 이동이 필요하니 원하는 패널을 쿼리에 실어 push한다.
+  */
+  const goToView = useCallback(
+    (next: AppView, nextBoardMode?: BoardMode) => {
+      if (nextBoardMode) setManualMode(nextBoardMode);
+      setView(next);
+      if (pathname === '/board') window.history.replaceState(null, '', hrefOf(next));
+      else router.push(hrefOf(next));
+    },
+    [pathname, router]
+  );
 
   useEffect(() => {
     if (profile?.theme) applyTheme(profile.theme);
@@ -175,7 +201,7 @@ export default function AppShell({
       if (data.accept && data.orgId) {
         selectOrg(data.orgId);
         setMenuOpen(false);
-        router.push('/board');
+        goToView('board');
       }
       router.refresh();
     },
@@ -206,7 +232,9 @@ export default function AppShell({
         pendingInvites: pendingCount,
         isManager: activeOrg?.role === 'owner' || activeOrg?.role === 'admin',
         boardMode,
-        setBoardMode,
+        view,
+        goToView,
+        boardHref,
       }}
     >
       <div className="flex min-h-dvh flex-col">
@@ -222,9 +250,9 @@ export default function AppShell({
               보드가 아닌 화면에서는 되돌아갈 길을 남긴다.
               달력·가계부는 예외 — 뷰 세그먼트가 그대로 떠 있어서 거기서 바로 보드로 갈 수 있다.
             */}
-            {!onBoard && !onCalendar && !onLedger && (
+            {!onBoard && (
               <Link
-                href="/board"
+                href={boardHref}
                 aria-label={t('boardBack')}
                 className="grid size-10 shrink-0 place-items-center rounded-xl no-select active:bg-canvas-soft"
               >
@@ -239,7 +267,7 @@ export default function AppShell({
               뒤로가기 화살표와 목적지가 같아서 별도 아이콘 없이 이 영역 전체가 그 역할을 겸한다.
             */}
             <Link
-              href="/board"
+              href={boardHref}
               aria-label={t('boardBack')}
               className="mr-1 flex min-w-0 flex-1 items-center gap-1.5 rounded-xl px-2 py-1.5 no-select transition-colors active:bg-canvas-soft"
             >
@@ -260,12 +288,12 @@ export default function AppShell({
             {showViewSwitch && (
               <div className="flex h-9 shrink-0 overflow-hidden rounded-lg border border-hairline no-select">
                 {VIEW_MODES.map(({ key, label, Icon }) => {
-                  const active = onBoard && boardMode === key;
+                  const active = view === 'board' && boardMode === key;
                   return (
                     <button
                       key={key}
                       type="button"
-                      onClick={() => pickBoardMode(key)}
+                      onClick={() => goToView('board', key)}
                       aria-pressed={active}
                       aria-label={label}
                       title={label}
@@ -283,34 +311,22 @@ export default function AppShell({
                   );
                 })}
                 {/*
-                  달력·가계부는 보드 안의 뷰가 아니라 나란한 별도 페이지다 —
-                  구분선을 하나 넣어 앞의 보드·대시보드 칸과 성격이 다르다는 걸 드러낸다.
+                  달력·가계부는 보드와 나란한 패널이다 — 구분선을 하나 넣어
+                  앞의 보드·대시보드 칸(같은 패널의 두 레이아웃)과 성격이 다르다는 걸 드러낸다.
                 */}
-                <Link
-                  href="/calendar"
-                  aria-label={t('viewCalendar')}
-                  title={t('viewCalendar')}
-                  aria-current={onCalendar ? 'page' : undefined}
-                  className={cn(
-                    'grid w-10 place-items-center border-l border-hairline transition-colors',
-                    onCalendar ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted'
-                  )}
-                >
-                  <CalendarIcon className="size-[18px]" />
-                </Link>
+                <ViewSegmentButton
+                  active={view === 'calendar'}
+                  label={t('viewCalendar')}
+                  onClick={() => goToView('calendar')}
+                  Icon={CalendarIcon}
+                />
                 {showLedgerButton && (
-                  <Link
-                    href="/ledger"
-                    aria-label={t('viewLedger')}
-                    title={t('viewLedger')}
-                    aria-current={onLedger ? 'page' : undefined}
-                    className={cn(
-                      'grid w-10 place-items-center border-l border-hairline transition-colors',
-                      onLedger ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted'
-                    )}
-                  >
-                    <LedgerIcon className="size-[18px]" />
-                  </Link>
+                  <ViewSegmentButton
+                    active={view === 'ledger'}
+                    label={t('viewLedger')}
+                    onClick={() => goToView('ledger')}
+                    Icon={LedgerIcon}
+                  />
                 )}
               </div>
             )}
@@ -340,9 +356,9 @@ export default function AppShell({
         </header>
 
         {/* 뒤로가기 — 팀·설정·새 조직처럼 뷰 세그먼트가 없는 화면에서만, 콘텐츠 맨 위를 덮고 뜬다 */}
-        {!onBoard && !onCalendar && !onLedger && (
+        {!onBoard && (
           <Link
-            href="/board"
+            href={boardHref}
             aria-label={t('boardBack')}
             className="fixed left-3 top-[calc(env(safe-area-inset-top)+8px)] z-40 grid size-11 place-items-center rounded-full bg-canvas/55 no-select shadow-sm backdrop-blur-xl transition-transform active:scale-95 sm:hidden"
           >
@@ -350,41 +366,71 @@ export default function AppShell({
           </Link>
         )}
 
-        {/* 아바타 — 어느 화면에서든 프로필 메뉴로 들어가는 유일한 문이라 늘 떠 있다 */}
+        {/*
+          아바타 — 어느 화면에서든 프로필 메뉴로 들어가는 유일한 문이라 늘 떠 있다.
+
+          뒤로가기와 달리 **배경 원판을 깔지 않는다.** 44px 원판 안에 24px 아바타를 넣으면
+          사진 둘레로 20px짜리 테가 둘리는데, 사진이 이미 원이라 원이 두 겹으로 보인다.
+          화살표는 얇은 선이라 콘텐츠 위에서 읽히려면 판이 필요하지만, 사진은 스스로 덩어리다.
+
+          사진 크기는 그대로 두고 판만 없앴다 — 버튼은 여전히 44px이라 손가락이 닿는 넓이는
+          줄지 않는다(보이는 것만 작아진 것이지 터치 타깃이 작아진 게 아니다).
+        */}
         <button
           type="button"
           onClick={() => setMenuOpen(true)}
           aria-label={t('menu')}
-          className="fixed right-3 top-[calc(env(safe-area-inset-top)+8px)] z-40 grid size-11 place-items-center rounded-full bg-canvas/55 no-select shadow-sm backdrop-blur-xl transition-transform active:scale-95 sm:hidden"
+          className="fixed right-3 top-[calc(env(safe-area-inset-top)+8px)] z-40 grid size-11 place-items-center rounded-full no-select transition-transform active:scale-95 sm:hidden"
         >
-          <Avatar
-            name={profile?.display_name ?? email ?? '나'}
-            color={profile?.avatar_color}
-            imageUrl={profile?.avatar_url}
-            seed={userId}
-            size="sm"
-          />
-          {pendingCount > 0 && (
-            <span
-              className="absolute right-0.5 top-0.5 size-2.5 rounded-full border-2 border-canvas bg-danger"
-              aria-label={t('pendingInvitesAria', { count: pendingCount })}
+          {/* 빨간 점은 버튼(44px)이 아니라 사진(24px) 가장자리에 붙어야 한다 —
+              버튼 모서리에 두면 사진에서 한참 떨어져 혼자 떠 보인다 */}
+          <span className="relative">
+            <Avatar
+              name={profile?.display_name ?? email ?? '나'}
+              color={profile?.avatar_color}
+              imageUrl={profile?.avatar_url}
+              seed={userId}
+              size="sm"
             />
-          )}
+            {pendingCount > 0 && (
+              <span
+                className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-canvas bg-danger"
+                aria-label={t('pendingInvitesAria', { count: pendingCount })}
+              />
+            )}
+          </span>
         </button>
 
-        {/* 하단 탭바 — 헤더의 뷰 세그먼트를 그대로 옮긴 것이라 조건도 같다: 보드·달력·가계부에서만 */}
+        {/*
+          하단 탭바 — 헤더의 뷰 세그먼트를 그대로 옮긴 것이라 조건도 같다: 보드 라우트에서만.
+
+          알약만 뜨고 그 좌우로는 화면이 그대로 보인다. 감싸는 nav는 가로로 꽉 차 있지만
+          **`pointer-events-none`이라 투명한 띠가 아니라 없는 것과 같다** — 안 그러면 알약
+          옆의 빈 자리를 눌렀을 때 밑에 있는 카드가 아니라 이 띠가 탭을 먹는다.
+          누를 것은 알약뿐이라 거기만 `pointer-events-auto`로 되살린다.
+        */}
         {showViewSwitch && (
-          <nav className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+12px)] z-40 flex justify-center sm:hidden">
-            <div className="flex items-center gap-1 rounded-full border border-hairline/60 bg-surface/55 p-1.5 no-select shadow-md backdrop-blur-xl">
+          <nav className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+12px)] z-40 flex justify-center sm:hidden">
+            <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-hairline/60 bg-surface/55 p-1.5 no-select shadow-md backdrop-blur-xl">
               <TabBarButton
-                active={onBoard}
+                active={view === 'board'}
                 label={t('viewBoard')}
-                onClick={() => pickBoardMode('board')}
+                onClick={() => goToView('board', 'board')}
                 Icon={BoardViewIcon}
               />
-              <TabBarLink active={onCalendar} href="/calendar" label={t('viewCalendar')} Icon={CalendarIcon} />
+              <TabBarButton
+                active={view === 'calendar'}
+                label={t('viewCalendar')}
+                onClick={() => goToView('calendar')}
+                Icon={CalendarIcon}
+              />
               {showLedgerButton && (
-                <TabBarLink active={onLedger} href="/ledger" label={t('viewLedger')} Icon={LedgerIcon} />
+                <TabBarButton
+                  active={view === 'ledger'}
+                  label={t('viewLedger')}
+                  onClick={() => goToView('ledger')}
+                  Icon={LedgerIcon}
+                />
               )}
             </div>
           </nav>
@@ -511,7 +557,36 @@ export default function AppShell({
   );
 }
 
-/** 하단 탭바 항목 — 보드 탭은 보드 모드까지 같이 정해야 해서 버튼이다(pickBoardMode 참고) */
+/** 헤더(PC) 뷰 세그먼트 한 칸 — 세 패널이 한 라우트라 링크가 아니라 버튼이다 */
+function ViewSegmentButton({
+  active,
+  label,
+  onClick,
+  Icon,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+  Icon: (p: { className?: string }) => React.ReactElement;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      aria-label={label}
+      title={label}
+      className={cn(
+        'grid w-10 place-items-center border-l border-hairline transition-colors',
+        active ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted'
+      )}
+    >
+      <Icon className="size-[18px]" />
+    </button>
+  );
+}
+
+/** 하단 탭바(모바일) 항목 — 위와 같은 이유로 전부 버튼이다 */
 function TabBarButton({
   active,
   label,
@@ -536,33 +611,6 @@ function TabBarButton({
       <Icon className="size-[22px]" />
       <span className="text-[10px] font-medium">{label}</span>
     </button>
-  );
-}
-
-/** 달력·가계부는 그냥 라우트라 링크로 충분하다 */
-function TabBarLink({
-  active,
-  href,
-  label,
-  Icon,
-}: {
-  active: boolean;
-  href: string;
-  label: string;
-  Icon: (p: { className?: string }) => React.ReactElement;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? 'page' : undefined}
-      className={cn(
-        'flex w-16 flex-col items-center gap-0.5 rounded-full py-1.5 transition-colors',
-        active ? 'text-accent' : 'text-ink-muted'
-      )}
-    >
-      <Icon className="size-[22px]" />
-      <span className="text-[10px] font-medium">{label}</span>
-    </Link>
   );
 }
 

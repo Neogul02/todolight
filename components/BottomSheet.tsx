@@ -1,12 +1,19 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useIsClient } from '@/hooks/useIsClient';
 import { cn } from '@/lib/utils';
 
 /**
  * 모바일에서 아래에서 올라오는 시트, sm 이상에서는 가운데 모달.
  * iOS 습관대로 아래로 끌어내리면 닫히고, 홈 인디케이터 높이만큼 여백을 준다.
+ *
+ * **body로 포털한다.** 시트의 바깥 껍데기는 `fixed inset-0`인데, CSS에서 `position: fixed`는
+ * 조상 중에 `transform`이 걸린 요소가 있으면 뷰포트가 아니라 **그 조상**을 기준으로 배치된다.
+ * 뷰 전환기(ViewPager)가 패널 트랙에 `translateX`를 상시 걸고 있어서, 그 안에서 시트를 열면
+ * 화면 밖으로 밀려난다. 트리 위치와 무관하게 늘 뷰포트를 덮도록 body에 그린다.
  */
 export function BottomSheet({
   open,
@@ -80,7 +87,12 @@ export function BottomSheet({
     };
   }, [open, onClose, focusables]);
 
-  return (
+  // 서버 렌더에는 document가 없다 — 하이드레이션 전에는 아무것도 그리지 않는다.
+  // 시트는 사용자가 눌러야 열리므로 첫 페인트에 보일 일이 없다.
+  const isClient = useIsClient();
+  if (!isClient) return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -150,6 +162,7 @@ export function BottomSheet({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

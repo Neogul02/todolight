@@ -24,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // viewportFit: cover — 이게 없으면 env(safe-area-inset-*)가 전부 0으로 계산돼
-// 홈 인디케이터 회피(pb-safe, board-viewport)가 무효화된다.
+// 홈 인디케이터 회피(pb-safe, app-viewport)가 무효화된다.
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,

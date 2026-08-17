@@ -3,15 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
-import {
-  boardKeys,
-  useBoardRealtime,
-  useOrgMembers,
-  useOrgPresence,
-  useOrgTodos,
-} from '@/hooks/useOrgBoard';
+import { useOrgMembers, useOrgTodos } from '@/hooks/useOrgBoard';
 import { useTypingPresence } from '@/hooks/useTypingPresence';
 import { useFocusPresence } from '@/hooks/useFocusPresence';
 import { useCarousel } from '@/hooks/useCarousel';
@@ -22,28 +15,22 @@ import { cn } from '@/lib/utils';
 import type { Locale } from '@/lib/locales';
 import type { MemberSummary, Todo } from '@/types/db';
 import MemberColumn from './MemberColumn';
-import HandoffModal from './HandoffModal';
 import { BoardSkeleton } from './BoardSkeleton';
 
-export default function BoardClient() {
-  const {
-    activeOrgId,
-    userId,
-    orgs,
-    isManager,
-    openMenu,
-    pendingInvites,
-    profile,
-    boardMode: mode,
-  } = useApp();
-  const queryClient = useQueryClient();
+/**
+ * 보드 패널 — 멤버별 컬럼을 가로 캐러셀(모바일)이나 격자(PC 대시보드)로 그린다.
+ *
+ * 조직 단위로 하나뿐이어야 하는 것들은 여기 없다:
+ * 실시간 구독·접속 표시는 ViewPager가, 대신 처리 시트는 `onHandoff`로 올려 보낸다 —
+ * 달력 패널과 동시에 살아 있기 때문에 각자 열면 같은 채널이 두 번 열리고 시트가 두 벌이 된다.
+ */
+export default function BoardClient({ onHandoff }: { onHandoff: (todo: Todo) => void }) {
+  const { activeOrgId, userId, isManager, profile, boardMode: mode } = useApp();
   const locale = useLocale() as Locale;
   const t = useTranslations('board');
 
   const members = useOrgMembers(activeOrgId);
   const todos = useOrgTodos(activeOrgId);
-  useBoardRealtime(activeOrgId);
-  useOrgPresence(activeOrgId, userId);
   const { typingByTodoId, broadcastTyping } = useTypingPresence(
     activeOrgId,
     userId,
@@ -57,7 +44,6 @@ export default function BoardClient() {
   // 완료 표시 여부는 설정(내 설정)에서 계정에 저장한다 — 기기를 옮겨도 같은 화면이어야 한다.
   // 기본은 보임: 팀원이 뭘 끝냈는지가 곧 공유의 목적이다.
   const showDone = profile?.show_done ?? true;
-  const [handoff, setHandoff] = useState<Todo | null>(null);
 
   /*
     펼쳐 둔 카드는 보드 전체에서 하나뿐이다.
@@ -121,13 +107,12 @@ export default function BoardClient() {
   }, [todos.data]);
 
   /*
-    한 화면에 한 명만 보이는 모바일에서만 순환시킨다.
-    데스크톱은 컬럼이 여러 개 동시에 보여서, 끝에서 되감기면 화면이 뚝 끊긴 것처럼 보인다.
-  */
-  /*
     resetKey에 mode를 섞는다. 대시보드에 다녀오면 캐러셀이 통째로 다시 마운트되는데,
     그때 위치를 다시 잡지 않으면 스크롤이 0에 남아 엉뚱한 사람 컬럼부터 보인다.
     보드는 언제 열어도 내 할 일부터 보여야 한다.
+
+    **달력·가계부는 여기 안 들어간다.** 셋은 같은 페이지의 패널이라 옆으로 밀려 나가도
+    이 컴포넌트가 살아 있다 — 다녀왔다고 보던 사람을 첫 컬럼으로 끌고 오면 자리를 잃는다.
   */
   const { scrollerRef, activeIndex, onScroll, goTo, registerNode } = useCarousel(
     orderedMembers.length,
@@ -157,42 +142,10 @@ export default function BoardClient() {
     [reduceMotion]
   );
 
-  function refresh() {
-    if (activeOrgId) queryClient.invalidateQueries({ queryKey: boardKeys.todos(activeOrgId) });
-  }
-
-  if (orgs.length === 0) {
-    return (
-      <main className="mx-auto flex max-w-[520px] flex-col items-center px-6 py-16 pb-safe text-center">
-        <h1 className="text-heading-1 text-ink">{t('noOrgTitle')}</h1>
-        <p className="mt-2 text-body-sm text-ink-muted">{t('noOrgDescription')}</p>
-        <div className="mt-7 flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          <Link
-            href="/orgs/new"
-            className="flex h-13 items-center justify-center rounded-2xl bg-accent px-6 text-[16px] font-medium text-accent-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]"
-          >
-            {t('createOrg')}
-          </Link>
-          <button
-            type="button"
-            onClick={openMenu}
-            className="flex h-13 items-center justify-center gap-1.5 rounded-2xl border border-hairline-strong bg-surface px-6 text-[16px] font-medium text-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]"
-          >
-            {t('checkInvites')}
-            {pendingInvites > 0 && <span className="size-2 rounded-full bg-danger" />}
-          </button>
-        </div>
-      </main>
-    );
-  }
-
   const loading = members.isLoading || todos.isLoading;
   const error = members.error ?? todos.error;
   // 공유 보드인데 혼자면 기능의 절반이 비어 있는 셈이다 — 다음 할 일을 알려 준다
   const soloMember = !loading && !error && orderedMembers.length === 1;
-  const handoffOwner = handoff
-    ? orderedMembers.find(m => m.user_id === handoff.owner_id)?.display_name ?? t('teammate')
-    : '';
 
   /*
     멤버 칩은 보드 뷰에서 항상 띄운다.
@@ -203,14 +156,12 @@ export default function BoardClient() {
   const showChips = mode === 'board' && orderedMembers.length > 0;
 
   return (
-    <main
-      className="mx-auto w-full max-w-[1400px]"
-      /*
-        칩 툴바를 감출 때는 board-viewport가 빼던 높이도 같이 돌려줘야 한다 —
-        안 그러면 칩이 있던 자리가 빈 띠로 남아 컬럼이 그만큼 짧아진다.
-      */
-      style={showChips ? undefined : ({ '--board-toolbar-h': '0px' } as React.CSSProperties)}
-    >
+    /*
+      패널 높이(app-viewport)를 그대로 받아 flex로 나눈다 — 칩 툴바는 있는 만큼만 먹고
+      나머지를 캐러셀이 가져간다. 예전엔 board-viewport가 dvh에서 헤더·툴바·탭바를 직접
+      빼느라, 칩이 없을 때 `--board-toolbar-h`를 인라인으로 0px로 덮는 보정까지 필요했다.
+    */
+    <main className="mx-auto flex h-full w-full max-w-[1400px] flex-col">
       {/*
         멤버 칩은 보드 전용이고 모바일 전용이다 — 다른 뷰에서 툴바를 남겨 두면
         빈 띠가 화면 위를 먹는다. (뷰 전환은 헤더로, 완료 보기는 설정으로 옮겼다)
@@ -218,7 +169,7 @@ export default function BoardClient() {
       {showChips && (
         // 헤더가 없어 이 칩 줄이 모바일 화면의 맨 위다 — pt-safe로 노치를 피하고,
         // 우측은 그 위에 뜬 아바타 버튼(size-11)만큼 비워 칩이 아바타 밑에 깔리지 않게 한다.
-        <div className="flex h-[var(--board-toolbar-h)] items-center px-3 pt-safe sm:hidden">
+        <div className="flex h-[var(--board-toolbar-h)] shrink-0 items-center px-3 pt-safe sm:hidden">
           <div className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-1 pr-12">
             {orderedMembers.map((m, i) => (
               <MemberChip
@@ -236,7 +187,11 @@ export default function BoardClient() {
         </div>
       )}
 
-      {loading && <BoardSkeleton />}
+      {loading && (
+        <div className="min-h-0 flex-1">
+          <BoardSkeleton />
+        </div>
+      )}
 
       {error && (
         <Card className="mx-3 p-5 text-[14px] text-danger sm:mx-4">
@@ -245,12 +200,12 @@ export default function BoardClient() {
       )}
 
       {/* ── 보드 : 가로 캐러셀 ──
-          페이지 전체를 늘리는 대신 이 영역 높이를 뷰포트에 고정하고 컬럼 내부만 스크롤한다.
+          페이지 전체를 늘리는 대신 남은 높이를 다 쓰고 컬럼 내부만 스크롤한다.
           내 컬럼이 항상 첫 번째라 처음 열면 내 할 일부터 보이고, 양옆으로 넘기면 팀원이 나온다. */}
       {/* mode="wait" — 두 뷰가 겹쳐 있으면 높이가 서로 달라 화면이 출렁인다 */}
       <AnimatePresence mode="wait" initial={false}>
         {!loading && !error && mode === 'board' && (
-          <motion.div key="board" {...viewMotion}>
+          <motion.div key="board" {...viewMotion} className="min-h-0 flex-1">
             {/*
               scroll-pl은 스냅 기준선을 좌측 패딩만큼 밀어 준다.
               없으면 두 번째 컬럼부터 패딩을 무시하고 화면 왼쪽 끝에 붙어서,
@@ -259,7 +214,7 @@ export default function BoardClient() {
             <div
               ref={scrollerRef}
               onScroll={onScroll}
-              className="snap-board board-viewport flex cursor-grab gap-3 overflow-x-auto scroll-pl-3 px-3 pb-3 sm:scroll-pl-4 sm:px-4"
+              className="snap-board flex h-full cursor-grab gap-3 overflow-x-auto scroll-pl-3 px-3 pb-3 sm:scroll-pl-4 sm:px-4"
             >
               {orderedMembers.map((m, i) => (
                 <MemberColumn
@@ -274,7 +229,7 @@ export default function BoardClient() {
                   showDone={showDone}
                   openTodoId={openTodoId}
                   onToggleOpen={toggleOpenTodo}
-                  onHandoff={setHandoff}
+                  onHandoff={onHandoff}
                   typingByTodoId={typingByTodoId}
                   onTyping={broadcastTyping}
                   focusByTodoId={focusByTodoId}
@@ -299,7 +254,11 @@ export default function BoardClient() {
           <motion.div
             key="dashboard"
             {...viewMotion}
-            className="flex flex-col gap-3 px-3 pt-3 pb-safe sm:grid sm:grid-cols-2 sm:px-4 lg:grid-cols-3"
+            /*
+              대시보드는 내용만큼 길어진다 — 예전엔 페이지가 늘어나 body가 스크롤했지만
+              이제는 패널 높이가 고정이라 이 격자가 자기 안에서 스크롤한다.
+            */
+            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pt-3 pb-tabbar sm:grid sm:grid-cols-2 sm:px-4 sm:pb-3 lg:grid-cols-3"
           >
             {orderedMembers.map(m => (
               <MemberColumn
@@ -314,7 +273,7 @@ export default function BoardClient() {
                 stacked
                 openTodoId={openTodoId}
                 onToggleOpen={toggleOpenTodo}
-                onHandoff={setHandoff}
+                onHandoff={onHandoff}
                 typingByTodoId={typingByTodoId}
                 onTyping={broadcastTyping}
                 focusByTodoId={focusByTodoId}
@@ -325,15 +284,6 @@ export default function BoardClient() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {handoff && (
-        <HandoffModal
-          todo={handoff}
-          ownerName={handoffOwner}
-          onClose={() => setHandoff(null)}
-          onDone={refresh}
-        />
-      )}
     </main>
   );
 }

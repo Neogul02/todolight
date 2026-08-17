@@ -197,10 +197,15 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
         )}
       </form>
 
+      {/*
+        컬럼은 화면 끝까지 내려가고 하단 탭바(알약)가 그 위에 뜬다 —
+        마지막 카드가 알약 밑에 영영 갇히지 않도록 스크롤 영역 아래를 그만큼 비운다.
+        쌓기(대시보드)일 때는 이 ul이 스크롤 컨테이너가 아니라 격자가 대신 비운다.
+      */}
       <ul
         className={cn(
-          'flex flex-1 flex-col gap-2 px-3 pb-3',
-          !stacked && 'overflow-y-auto overscroll-contain'
+          'flex flex-1 flex-col gap-2 px-3',
+          stacked ? 'pb-3' : 'overflow-y-auto overscroll-contain pb-tabbar'
         )}
       >
         <AnimatePresence initial={false}>

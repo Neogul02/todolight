@@ -307,12 +307,12 @@ export function CalendarView({
     <div
       ref={rootRef}
       /*
-        overflow-hidden — 고정 높이(calendar-viewport)를 넘치는 내용이 생기면 페이지(body)가
-        그만큼 늘어나 자체적으로 스크롤되기 시작한다. 그 상태에서 손잡이를 마우스로 끌면
+        overflow-hidden — 패널 높이(app-viewport)를 넘치는 내용이 생기면 패널이
+        그만큼 자체적으로 스크롤되기 시작한다. 그 상태에서 손잡이를 마우스로 끌면
         캡처된 포인터로 패널은 리사이즈되는데 화면은 그와 별개로 페이지 스크롤을 따라 같이
         움직인다 — 여기서 미리 잘라내 그 여지 자체를 없앤다.
       */
-      className="calendar-viewport mx-auto flex w-full max-w-[720px] flex-col overflow-hidden px-3 pt-safe sm:h-auto sm:overflow-visible sm:px-4 sm:pt-2 sm:pb-safe"
+      className="mx-auto flex h-full w-full max-w-[720px] flex-col overflow-hidden px-3 pt-safe sm:h-auto sm:overflow-visible sm:px-4 sm:pt-2 sm:pb-safe"
     >
       {/*
         헤더가 없는 모바일에서는 이 줄이 화면 맨 위다 — 우측은 그 위에 뜬 아바타 버튼만큼
@@ -608,7 +608,8 @@ export function CalendarView({
             </Button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-safe sm:overflow-visible">
+          {/* 목록은 화면 끝까지 내려가고 하단 탭바(알약)가 그 위에 뜬다 — 그만큼만 비운다 */}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-tabbar sm:overflow-visible sm:pb-safe">
 
           {selectedEvents.length > 0 && (
             <ul className="mb-2 flex flex-col gap-1.5">

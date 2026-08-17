@@ -21,7 +21,7 @@ export function CalendarSkeleton() {
   const t = useTranslations('calendar');
   return (
     <div
-      className="calendar-viewport mx-auto flex w-full max-w-[720px] flex-col px-3 pt-safe sm:h-auto sm:px-4 sm:pt-2 sm:pb-safe"
+      className="mx-auto flex h-full w-full max-w-[720px] flex-col px-3 pt-safe sm:h-auto sm:px-4 sm:pt-2 sm:pb-safe"
       aria-busy="true"
       aria-label={t('loadingAria')}
     >
