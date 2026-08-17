@@ -216,8 +216,10 @@ export default function BoardClient() {
         빈 띠가 화면 위를 먹는다. (뷰 전환은 헤더로, 완료 보기는 설정으로 옮겼다)
       */}
       {showChips && (
-        <div className="flex h-[var(--board-toolbar-h)] items-center px-3 sm:hidden">
-          <div className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-1">
+        // 헤더가 없어 이 칩 줄이 모바일 화면의 맨 위다 — pt-safe로 노치를 피하고,
+        // 우측은 그 위에 뜬 아바타 버튼(size-11)만큼 비워 칩이 아바타 밑에 깔리지 않게 한다.
+        <div className="flex h-[var(--board-toolbar-h)] items-center px-3 pt-safe sm:hidden">
+          <div className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-1 pr-12">
             {orderedMembers.map((m, i) => (
               <MemberChip
                 key={m.user_id}

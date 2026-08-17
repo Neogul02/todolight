@@ -312,9 +312,13 @@ export function CalendarView({
         캡처된 포인터로 패널은 리사이즈되는데 화면은 그와 별개로 페이지 스크롤을 따라 같이
         움직인다 — 여기서 미리 잘라내 그 여지 자체를 없앤다.
       */
-      className="calendar-viewport mx-auto flex w-full max-w-[720px] flex-col overflow-hidden px-3 pt-2 sm:h-auto sm:overflow-visible sm:px-4 sm:pb-safe"
+      className="calendar-viewport mx-auto flex w-full max-w-[720px] flex-col overflow-hidden px-3 pt-safe sm:h-auto sm:overflow-visible sm:px-4 sm:pt-2 sm:pb-safe"
     >
-      <div className="flex items-center justify-between pb-2">
+      {/*
+        헤더가 없는 모바일에서는 이 줄이 화면 맨 위다 — 우측은 그 위에 뜬 아바타 버튼만큼
+        비워(pr-12) 다음 달 버튼이 아바타 밑에 깔리지 않게 한다.
+      */}
+      <div className="flex items-center justify-between pb-2 pr-12 sm:pr-0">
         <button
           type="button"
           onClick={() => shift(-1)}

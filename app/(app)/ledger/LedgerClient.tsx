@@ -173,9 +173,13 @@ export default function LedgerClient() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-5 pb-safe sm:py-6">
-      {/* 달 이동 — 합계는 "한 달치"여야 의미가 있다. 범위가 없으면 숫자가 영원히 커지기만 한다 */}
-      <div className="flex items-center gap-1">
+    <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-5 pt-safe pb-tabbar sm:pt-6 sm:pb-6">
+      {/*
+        달 이동 — 합계는 "한 달치"여야 의미가 있다. 범위가 없으면 숫자가 영원히 커지기만 한다.
+        헤더가 없는 모바일에서는 이 줄이 화면 맨 위다 — 우측은 그 위에 뜬 아바타 버튼만큼
+        비워(pr-12) 다음 달 버튼이 아바타 밑에 깔리지 않게 한다.
+      */}
+      <div className="flex items-center gap-1 pr-12 sm:pr-0">
         <MonthButton dir="prev" label={t('prevMonth')} onClick={() => goMonth(-1)} />
         <h1 className="flex-1 text-center text-title text-ink tabular-nums">
           {formatMonth(month, locale)}

@@ -210,7 +210,13 @@ export default function AppShell({
       }}
     >
       <div className="flex min-h-dvh flex-col">
-        <header className="sticky top-0 z-30 border-b border-hairline bg-canvas/85 backdrop-blur-md">
+        {/*
+          모바일은 헤더 자체가 없다 — 조직 이름·아이콘·뷰 세그먼트를 다 걷어내고
+          화면을 보드/달력/가계부 콘텐츠에 최대한 내준다. 대신 아바타(우상단)·
+          뒤로가기(팀·설정 화면, 좌상단)를 콘텐츠 위에 뜨는 버튼으로, 뷰 전환은
+          하단 플로팅 탭바로 대체한다(아래 세 블록). PC는 기존 헤더 그대로다.
+        */}
+        <header className="sticky top-0 z-30 hidden border-b border-hairline bg-canvas/85 backdrop-blur-md sm:block">
           <div className="mx-auto flex h-[var(--header-h)] w-full max-w-[1400px] items-center gap-1 px-2 sm:px-3">
             {/*
               보드가 아닌 화면에서는 되돌아갈 길을 남긴다.
@@ -333,6 +339,57 @@ export default function AppShell({
           </div>
         </header>
 
+        {/* 뒤로가기 — 팀·설정·새 조직처럼 뷰 세그먼트가 없는 화면에서만, 콘텐츠 맨 위를 덮고 뜬다 */}
+        {!onBoard && !onCalendar && !onLedger && (
+          <Link
+            href="/board"
+            aria-label={t('boardBack')}
+            className="fixed left-3 top-[calc(env(safe-area-inset-top)+8px)] z-40 grid size-11 place-items-center rounded-full bg-canvas/55 no-select shadow-sm backdrop-blur-xl transition-transform active:scale-95 sm:hidden"
+          >
+            <BackIcon className="size-5 text-ink-secondary" />
+          </Link>
+        )}
+
+        {/* 아바타 — 어느 화면에서든 프로필 메뉴로 들어가는 유일한 문이라 늘 떠 있다 */}
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          aria-label={t('menu')}
+          className="fixed right-3 top-[calc(env(safe-area-inset-top)+8px)] z-40 grid size-11 place-items-center rounded-full bg-canvas/55 no-select shadow-sm backdrop-blur-xl transition-transform active:scale-95 sm:hidden"
+        >
+          <Avatar
+            name={profile?.display_name ?? email ?? '나'}
+            color={profile?.avatar_color}
+            imageUrl={profile?.avatar_url}
+            seed={userId}
+            size="sm"
+          />
+          {pendingCount > 0 && (
+            <span
+              className="absolute right-0.5 top-0.5 size-2.5 rounded-full border-2 border-canvas bg-danger"
+              aria-label={t('pendingInvitesAria', { count: pendingCount })}
+            />
+          )}
+        </button>
+
+        {/* 하단 탭바 — 헤더의 뷰 세그먼트를 그대로 옮긴 것이라 조건도 같다: 보드·달력·가계부에서만 */}
+        {showViewSwitch && (
+          <nav className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+12px)] z-40 flex justify-center sm:hidden">
+            <div className="flex items-center gap-1 rounded-full border border-hairline/60 bg-surface/55 p-1.5 no-select shadow-md backdrop-blur-xl">
+              <TabBarButton
+                active={onBoard}
+                label={t('viewBoard')}
+                onClick={() => pickBoardMode('board')}
+                Icon={BoardViewIcon}
+              />
+              <TabBarLink active={onCalendar} href="/calendar" label={t('viewCalendar')} Icon={CalendarIcon} />
+              {showLedgerButton && (
+                <TabBarLink active={onLedger} href="/ledger" label={t('viewLedger')} Icon={LedgerIcon} />
+              )}
+            </div>
+          </nav>
+        )}
+
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={pathname} {...routeMotion} className="flex-1">
             {children}
@@ -451,6 +508,61 @@ export default function AppShell({
       </BottomSheet>
 
     </AppContextProvider>
+  );
+}
+
+/** 하단 탭바 항목 — 보드 탭은 보드 모드까지 같이 정해야 해서 버튼이다(pickBoardMode 참고) */
+function TabBarButton({
+  active,
+  label,
+  onClick,
+  Icon,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+  Icon: (p: { className?: string }) => React.ReactElement;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'flex w-16 flex-col items-center gap-0.5 rounded-full py-1.5 transition-colors',
+        active ? 'text-accent' : 'text-ink-muted'
+      )}
+    >
+      <Icon className="size-[22px]" />
+      <span className="text-[10px] font-medium">{label}</span>
+    </button>
+  );
+}
+
+/** 달력·가계부는 그냥 라우트라 링크로 충분하다 */
+function TabBarLink({
+  active,
+  href,
+  label,
+  Icon,
+}: {
+  active: boolean;
+  href: string;
+  label: string;
+  Icon: (p: { className?: string }) => React.ReactElement;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'flex w-16 flex-col items-center gap-0.5 rounded-full py-1.5 transition-colors',
+        active ? 'text-accent' : 'text-ink-muted'
+      )}
+    >
+      <Icon className="size-[22px]" />
+      <span className="text-[10px] font-medium">{label}</span>
+    </Link>
   );
 }
 

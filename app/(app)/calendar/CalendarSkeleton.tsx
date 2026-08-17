@@ -21,11 +21,11 @@ export function CalendarSkeleton() {
   const t = useTranslations('calendar');
   return (
     <div
-      className="calendar-viewport mx-auto flex w-full max-w-[720px] flex-col px-3 pt-2 sm:h-auto sm:px-4 sm:pb-safe"
+      className="calendar-viewport mx-auto flex w-full max-w-[720px] flex-col px-3 pt-safe sm:h-auto sm:px-4 sm:pt-2 sm:pb-safe"
       aria-busy="true"
       aria-label={t('loadingAria')}
     >
-      <div className="flex items-center justify-between pb-2">
+      <div className="flex items-center justify-between pb-2 pr-12 sm:pr-0">
         <span className="size-10" />
         <Bar className="h-5 w-28" />
         <span className="size-10" />

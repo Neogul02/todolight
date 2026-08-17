@@ -150,7 +150,7 @@ export default function MeClient() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-[560px] flex-col gap-4 px-4 py-5 pb-safe sm:py-6">
+    <main className="mx-auto flex w-full max-w-[560px] flex-col gap-4 px-4 py-5 pt-safe pb-safe sm:pt-6 sm:pb-6">
       <h1 className="text-heading-2 text-ink">{t('title')}</h1>
 
       <Card className="p-5">

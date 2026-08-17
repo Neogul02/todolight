@@ -233,7 +233,7 @@ export default function TeamClient() {
   const managed = managing ? canManage(managing) : null;
 
   return (
-    <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-5 pb-safe sm:py-6">
+    <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-5 pt-safe pb-safe sm:pt-6 sm:pb-6">
       <div className="flex items-center gap-3">
         <OrgIcon name={activeOrg.name} imageUrl={activeOrg.image_url} seed={activeOrg.id} size="lg" />
         <div className="min-w-0">

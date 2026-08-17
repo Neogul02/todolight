@@ -218,9 +218,15 @@
   background: var(--canvas);
   color-scheme: light;
 
-  /* 레이아웃 상수 — board-viewport 계산이 이 값을 공유한다 */
-  --header-h: 52px;
+  /*
+    레이아웃 상수 — board-viewport 계산이 이 값을 공유한다.
+    모바일은 헤더 자체가 없다(아바타·뒤로가기는 콘텐츠 위에 뜨는 플로팅 버튼이라
+    자리를 차지하지 않는다) — 그래서 --header-h가 0이고, 대신 하단에 뜨는 탭바만큼만
+    --tabbar-h로 공간을 확보한다.
+  */
+  --header-h: 0px;
   --board-toolbar-h: 56px;
+  --tabbar-h: 76px;
 
   /*
     랜딩 헤드라인·조직 이름처럼 유틸리티 스케일 밖에서 직접 자간을 주는 곳에 쓴다.
@@ -229,11 +235,12 @@
   --tracking-headline: -0.035em;
 }
 
-/* sm 이상에서는 멤버 칩을 감춘다(컬럼이 모두 보인다) — 툴바 높이도 함께 사라진다 */
+/* sm 이상은 기존 헤더 + 멤버 칩 없는 레이아웃으로 되돌아간다 — 모바일 전용 변경이다 */
 @media (min-width: 640px) {
   :root {
     --header-h: 56px;
     --board-toolbar-h: 0px;
+    --tabbar-h: 0px;
   }
 }
 
@@ -328,13 +335,32 @@ select:focus-visible {
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+/*
+  모바일 전용 플로팅 컨트롤(아바타·뒤로가기·하단 탭바)이 상단은 콘텐츠를 그대로
+  덮게 두고(사용자가 고른 방식 — 화면을 최대한 넓게 쓴다), 하단 탭바만큼은 마지막
+  카드가 탭바 밑에 영영 갇히지 않도록 스크롤 영역 쪽에서 그만큼 공간을 미리 뺀다.
+*/
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+/*
+  board-viewport/calendar-viewport처럼 높이를 고정하지 않는 일반 스크롤 페이지(가계부)가
+  하단 탭바 밑에 마지막 줄이 가리지 않도록 쓴다. --tabbar-h는 데스크톱에서 0이라
+  그쪽에서는 pb-safe와 동일하게 동작한다.
+*/
+@utility pb-tabbar {
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--tabbar-h));
+}
+
 /**
  * 보드 스크롤 영역 높이.
  * 페이지 전체가 늘어나면 컬럼마다 높이가 널뛴다 —
- * 뷰포트에서 헤더·툴바·홈 인디케이터를 뺀 만큼으로 고정하고 컬럼 내부만 스크롤시킨다.
+ * 뷰포트에서 헤더·툴바·하단 탭바·홈 인디케이터를 뺀 만큼으로 고정하고 컬럼 내부만 스크롤시킨다.
  */
 @utility board-viewport {
-  height: calc(100dvh - var(--header-h) - var(--board-toolbar-h) - env(safe-area-inset-bottom));
+  height: calc(100dvh - var(--header-h) - var(--board-toolbar-h) - var(--tabbar-h) - env(safe-area-inset-bottom));
 }
 
 /**
@@ -343,7 +369,7 @@ select:focus-visible {
  * 그대로 쓰면 툴바가 없는데도 그 높이만큼 빈 칸이 아래에 남는다.
  */
 @utility calendar-viewport {
-  height: calc(100dvh - var(--header-h) - env(safe-area-inset-bottom));
+  height: calc(100dvh - var(--header-h) - var(--tabbar-h) - env(safe-area-inset-bottom));
 }
 
 /* ── Elevation ── 실제 값은 테마 블록의 --shadow-1/2에 있다 */
