@@ -239,13 +239,26 @@ export default function AppShell({
     >
       <div className="flex min-h-dvh flex-col">
         {/*
-          모바일은 헤더 자체가 없다 — 조직 이름·아이콘·뷰 세그먼트를 다 걷어내고
-          화면을 보드/달력/가계부 콘텐츠에 최대한 내준다. 대신 아바타(우상단)·
-          뒤로가기(팀·설정 화면, 좌상단)를 콘텐츠 위에 뜨는 버튼으로, 뷰 전환은
-          하단 플로팅 탭바로 대체한다(아래 세 블록). PC는 기존 헤더 그대로다.
+          헤더는 **보드에서만 감춘다.**
+
+          보드·달력·가계부는 매일 들여다보는 화면이라 폰에서 세로 52px을 상단 바에 내주는 게
+          아깝다 — 거기서는 아바타를 콘텐츠 위에 띄우고 뷰 전환은 하단 탭바가 맡는다.
+          반대로 팀·내 설정·새 조직은 어쩌다 한 번 들어와 볼일을 보고 나가는 화면이라
+          "여기가 어디고 어떻게 나가나"가 분명한 쪽이 낫다 — 평범한 상단 바를 둔다.
+          (그러면 뒤로가기·아바타를 콘텐츠 위에 따로 띄울 필요도 없어진다.)
+
+          모바일 높이는 `--header-h`가 아니라 `h-14`로 직접 준다 — `--header-h`는 보드 패널
+          높이(app-viewport)를 재는 값이라 모바일에서 0이어야 하고, 그 0을 그대로 쓰면
+          이 바가 납작해진다. pt-safe로 노치를 피한다.
         */}
-        <header className="sticky top-0 z-30 hidden border-b border-hairline bg-canvas/85 backdrop-blur-md sm:block">
-          <div className="mx-auto flex h-[var(--header-h)] w-full max-w-[1400px] items-center gap-1 px-2 sm:px-3">
+        <header
+          className={cn(
+            'sticky top-0 z-30 border-b border-hairline bg-canvas/85 pt-safe backdrop-blur-md sm:pt-0',
+            onBoard && 'hidden sm:block'
+          )}
+        >
+          {/* pt-safe는 header에 준다 — 높이를 가진 이 줄에 얹으면 그만큼 안쪽이 눌린다 */}
+          <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center gap-1 px-2 sm:h-[var(--header-h)] sm:px-3">
             {/*
               보드가 아닌 화면에서는 되돌아갈 길을 남긴다.
               달력·가계부는 예외 — 뷰 세그먼트가 그대로 떠 있어서 거기서 바로 보드로 갈 수 있다.
@@ -355,24 +368,15 @@ export default function AppShell({
           </div>
         </header>
 
-        {/* 뒤로가기 — 팀·설정·새 조직처럼 뷰 세그먼트가 없는 화면에서만, 콘텐츠 맨 위를 덮고 뜬다 */}
-        {!onBoard && (
-          <Link
-            href={boardHref}
-            aria-label={t('boardBack')}
-            className="fixed left-3 top-[calc(env(safe-area-inset-top)+8px)] z-40 grid size-11 place-items-center rounded-full bg-canvas/55 no-select shadow-sm backdrop-blur-xl transition-transform active:scale-95 sm:hidden"
-          >
-            <BackIcon className="size-5 text-ink-secondary" />
-          </Link>
-        )}
-
         {/*
-          아바타 — 어느 화면에서든 프로필 메뉴로 들어가는 유일한 문이라 늘 떠 있다.
+          콘텐츠 위에 뜨는 아바타 — **보드에서만.**
 
-          뒤로가기와 달리 **배경 원판을 깔지 않는다.** 44px 원판 안에 24px 아바타를 넣으면
-          사진 둘레로 20px짜리 테가 둘리는데, 사진이 이미 원이라 원이 두 겹으로 보인다.
-          화살표는 얇은 선이라 콘텐츠 위에서 읽히려면 판이 필요하지만, 사진은 스스로 덩어리다.
+          팀·내 설정·새 조직에는 상단 바가 있고 그 안에 같은 아바타가 이미 있다.
+          둘 다 띄우면 아바타가 두 개 보이고, 위에 뜬 쪽이 상단 바의 아바타를 덮는다.
+          프로필 메뉴로 들어가는 문은 어느 화면에서든 하나씩 있어야 하되, 두 개면 안 된다.
 
+          **배경 원판을 깔지 않는다.** 44px 원판 안에 24px 아바타를 넣으면 사진 둘레로
+          20px짜리 테가 둘리는데, 사진이 이미 원이라 원이 두 겹으로 보인다.
           사진 크기는 그대로 두고 판만 없앴다 — 버튼은 여전히 44px이라 손가락이 닿는 넓이는
           줄지 않는다(보이는 것만 작아진 것이지 터치 타깃이 작아진 게 아니다).
         */}
@@ -380,7 +384,10 @@ export default function AppShell({
           type="button"
           onClick={() => setMenuOpen(true)}
           aria-label={t('menu')}
-          className="fixed right-3 top-[calc(env(safe-area-inset-top)+8px)] z-40 grid size-11 place-items-center rounded-full no-select transition-transform active:scale-95 sm:hidden"
+          className={cn(
+            'fixed right-3 top-[calc(env(safe-area-inset-top)+8px)] z-40 grid size-11 place-items-center rounded-full no-select transition-transform active:scale-95 sm:hidden',
+            !onBoard && 'hidden'
+          )}
         >
           {/* 빨간 점은 버튼(44px)이 아니라 사진(24px) 가장자리에 붙어야 한다 —
               버튼 모서리에 두면 사진에서 한참 떨어져 혼자 떠 보인다 */}

@@ -11,6 +11,11 @@
 const BACKGROUND = '#ffffff';
 const INK = '#14120f';
 
+/* 스플래시는 화면을 꽉 채우므로 어두운 테마에서 흰 판이 번쩍이지 않게 밝기를 따라간다.
+   값은 globals.css의 ink / ink-dark 캔버스·잉크와 같다 */
+const DARK_BACKGROUND = '#121212';
+const DARK_INK = '#f5f2ec';
+
 export function AppIconMark({
   size,
   markRatio = 0.56,
@@ -36,6 +41,47 @@ export function AppIconMark({
         <path
           d="M19 53 L40 75 L83 25"
           stroke={INK}
+          strokeWidth={13}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
+  );
+}
+
+/**
+ * iOS 홈 화면 앱의 실행 화면(스플래시).
+ *
+ * 아이콘과 달리 **화면을 꽉 채우는 그림**이라 배경이 그대로 첫인상이 된다 —
+ * 어두운 테마를 쓰는 사람에게 흰 판이 번쩍이지 않도록 기기 밝기에 맞춘 두 벌을 그린다.
+ * 마크는 짧은 변 기준으로 잡는다(긴 변 기준이면 세로로 긴 화면에서 터무니없이 커진다).
+ */
+export function AppSplashMark({
+  width,
+  height,
+  dark = false,
+}: {
+  width: number;
+  height: number;
+  dark?: boolean;
+}) {
+  const mark = Math.min(width, height) * 0.22;
+  return (
+    <div
+      style={{
+        width,
+        height,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: dark ? DARK_BACKGROUND : BACKGROUND,
+      }}
+    >
+      <svg width={mark} height={mark} viewBox="0 0 100 100" fill="none">
+        <path
+          d="M19 53 L40 75 L83 25"
+          stroke={dark ? DARK_INK : INK}
           strokeWidth={13}
           strokeLinecap="round"
           strokeLinejoin="round"

@@ -25,7 +25,8 @@ export function CalendarSkeleton() {
       aria-busy="true"
       aria-label={t('loadingAria')}
     >
-      <div className="flex items-center justify-between pb-2 pr-12 sm:pr-0">
+      {/* 실제 달력(CalendarView)의 달 이동 줄과 같은 여백 — 데이터가 와도 자리가 안 튄다 */}
+      <div className="flex items-center justify-between px-12 pb-2 sm:px-0">
         <span className="size-10" />
         <Bar className="h-5 w-28" />
         <span className="size-10" />

@@ -316,9 +316,11 @@ export function CalendarView({
     >
       {/*
         헤더가 없는 모바일에서는 이 줄이 화면 맨 위다 — 우측은 그 위에 뜬 아바타 버튼만큼
-        비워(pr-12) 다음 달 버튼이 아바타 밑에 깔리지 않게 한다.
+        비워 다음 달 버튼이 아바타 밑에 깔리지 않게 해야 하는데, **오른쪽만 비우면 달 이름이
+        화면 가운데가 아니라 왼쪽으로 밀린 자리에 놓인다.** 양쪽을 같은 만큼 비워 줄 전체가
+        화면 가운데를 기준으로 대칭이 되게 한다.
       */}
-      <div className="flex items-center justify-between pb-2 pr-12 sm:pr-0">
+      <div className="flex items-center justify-between px-12 pb-2 sm:px-0">
         <button
           type="button"
           onClick={() => shift(-1)}

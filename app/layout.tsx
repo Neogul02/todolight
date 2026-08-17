@@ -4,6 +4,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
 import './globals.css';
 import Providers from './providers';
+import { SPLASH_SCREENS, splashMedia, splashSlug } from '@/lib/splash-screens';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta');
@@ -51,6 +52,27 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale} data-theme="ink" suppressHydrationWarning>
       <head>
+        {/*
+          홈 화면 앱의 실행 화면.
+
+          바로가기로 열면 첫 페인트까지 흰 판이 뜬다 — Android는 manifest의 background_color와
+          아이콘으로 알아서 그려 주지만 **iOS는 이 링크가 없으면 그냥 흰 화면**이고, 기기 크기가
+          정확히 맞는 이미지가 있어야만 쓴다. 그래서 기기별로 두 벌(밝은·어두운)씩 걸어 둔다.
+
+          이미 홈 화면에 추가해 둔 기기는 **한 번 지웠다 다시 추가해야** 반영된다 —
+          iOS가 추가 시점에 실행 화면을 캐시한다.
+        */}
+        {SPLASH_SCREENS.flatMap(screen =>
+          [false, true].map(dark => (
+            <link
+              key={splashSlug(screen, dark)}
+              rel="apple-touch-startup-image"
+              media={splashMedia(screen, dark)}
+              href={`/splash/${splashSlug(screen, dark)}`}
+            />
+          ))
+        )}
+
         {/*
           첫 페인트 전에 테마를 칠한다. React가 붙은 뒤에 칠하면 다크를 쓰는 사람에게
           흰 화면이 한 번 번쩍인다. 그래서 렌더를 막는 인라인 스크립트로 둔다.
