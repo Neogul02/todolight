@@ -294,7 +294,12 @@ export default function TodoCard({
           onPointerUp={handleHandleUp}
           onPointerCancel={handleHandleUp}
           aria-expanded={open}
-          className={cn('min-w-0 flex-1 py-2 text-left', draggable && 'touch-pan-y')}
+          // 꾹 눌러 드래그하는 손잡이다 — no-select 없으면 iOS가 그 자리 텍스트를 선택하고
+          // 콜아웃을 띄워서 포인터 제스처가 pointercancel로 끊긴다(순서 바꾸기가 시작하다 만다).
+          className={cn(
+            'min-w-0 flex-1 py-2 text-left',
+            draggable && 'touch-pan-y no-select'
+          )}
         >
           <p
             className={cn(
