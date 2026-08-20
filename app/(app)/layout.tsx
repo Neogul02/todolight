@@ -35,7 +35,17 @@ async function AppShellData({
   children: React.ReactNode;
 }) {
   const [orgsRes, profileRes] = await Promise.all([fetchMyOrgs(), fetchMyProfile()]);
-  const orgs = orgsRes.success ? orgsRes.data : [];
+  /*
+    오래 쉬었다 다시 들어오면(모바일 백그라운드 장시간 후 재진입) 서버리스 콜드 스타트와
+    Supabase 커넥션 풀러가 겹쳐 이 첫 조회가 일시적으로 실패하는 경우가 있었다.
+    실패를 곧장 빈 배열로 떨어뜨리면 조직이 있는데도 "조직이 없다" 화면이 한 번 번쩍인다 —
+    한 번 더 시도해서 진짜로 조직이 없는 경우와 구분한다.
+  */
+  let orgs = orgsRes.success ? orgsRes.data : null;
+  if (orgs === null) {
+    const retryRes = await fetchMyOrgs();
+    orgs = retryRes.success ? retryRes.data : [];
+  }
   const profile = profileRes.success ? profileRes.data : null;
 
   return (
