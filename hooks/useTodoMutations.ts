@@ -7,6 +7,7 @@ import {
   createTodo,
   deleteTodo,
   deleteTodoNote,
+  reorderTodo,
   restoreTodo,
   setTodoStatus,
   updateTodo,
@@ -225,6 +226,29 @@ export function useTodoMutations(orgId: string | null) {
     onSettled: (_data, _error, input) => settle(input.todo.id),
   });
 
+  /**
+   * 순서 바꾸기 — 꾹 눌러 드래그로 옮긴 뒤 새 position만 반영한다.
+   * 컬럼(MemberColumn)이 이웃 두 항목의 position 평균으로 새 값을 미리 계산해서 보낸다 —
+   * 화면은 드래그하는 동안 이미 그 순서로 움직이고 있으니 낙관적 반영은 값만 맞추면 된다.
+   */
+  const reorder = useMutation({
+    mutationFn: async (input: { todoId: string; position: number }) => {
+      const res = await reorderTodo(input.todoId, input.position);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onMutate: async input => {
+      markTodoPending(input.todoId);
+      return {
+        snapshot: await patch(todos =>
+          todos.map(t => (t.id === input.todoId ? { ...t, position: input.position } : t))
+        ),
+      };
+    },
+    onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
+    onSettled: (_data, _error, input) => settle(input.todoId),
+  });
+
   // 메모는 작성자 이름·아바타 조인이 필요해서 낙관적으로 그리지 않고 서버 결과를 기다린다.
   const addNote = useMutation({
     mutationFn: async (input: { todoId: string; content: string }) => {
@@ -320,5 +344,17 @@ export function useTodoMutations(orgId: string | null) {
     onSettled: resyncSoon,
   });
 
-  return { create, toggleStatus, edit, remove, restore, addNote, editNote, deleteNote, join, leave };
+  return {
+    create,
+    toggleStatus,
+    edit,
+    remove,
+    restore,
+    reorder,
+    addNote,
+    editNote,
+    deleteNote,
+    join,
+    leave,
+  };
 }

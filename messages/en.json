@@ -320,6 +320,7 @@
     "noteRequired": "Please enter a note.",
     "invalidDateFormat": "That date doesn't look right.",
     "invalidId": "That request was not valid.",
+    "invalidPosition": "That order value isn't valid.",
     "todoNotFound": "Couldn't find that to-do.",
     "cannotDeleteTodo": "Only the owner or a manager can delete this.",
     "noteNotFound": "Couldn't find that note.",

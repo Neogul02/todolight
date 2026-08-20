@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { AnimatePresence, motion, Reorder, useDragControls, useReducedMotion } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
 import { useTodoMutations } from '@/hooks/useTodoMutations';
 import { useOutsideClick, useOutsideClickGroup } from '@/hooks/useOutsideClick';
@@ -24,6 +24,11 @@ const DUE_TONE = {
   none: 'neutral',
 } as const;
 
+/** 이만큼 누르고 있으면 탭이 아니라 순서 바꾸기로 친다 */
+const LONG_PRESS_MS = 450;
+/** 이보다 더 움직이면 누른 게 아니라 스크롤하려는 것 — 순서 바꾸기를 취소한다 */
+const PRESS_SLOP_PX = 6;
+
 export default function TodoCard({
   todo,
   isMine,
@@ -36,6 +41,8 @@ export default function TodoCard({
   typingUsers,
   onTyping,
   focusUsers,
+  draggable = false,
+  onReorderCommit,
 }: {
   todo: Todo;
   isMine: boolean;
@@ -51,6 +58,10 @@ export default function TodoCard({
   onTyping: (todoId: string, field: 'title' | 'note') => void;
   /** 지금 이 카드를 펼쳐서 보고 있는 다른 멤버들 */
   focusUsers?: FocusUser[];
+  /** 제목 칸을 꾹 눌러 같은 마감일 그룹 안에서 순서를 바꿀 수 있는지 — 완료 항목·대시보드에서는 끈다 */
+  draggable?: boolean;
+  /** 드래그를 놓았을 때 새 위치를 서버에 반영하라는 신호 */
+  onReorderCommit?: () => void;
 }) {
   const locale = useLocale() as Locale;
   const t = useTranslations('board');
@@ -106,7 +117,56 @@ export default function TodoCard({
     여지가 아예 없다(effect로 상태를 되돌리는 것보다 이쪽이 React가 권장하는 방식이다).
   */
   function handleTitleClick() {
+    // 꾹 눌러 순서를 바꾼 직후에는 손을 뗀 자리에서 클릭이 한 번 더 온다 — 그건 여닫기가 아니다.
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
     onToggleOpen();
+  }
+
+  /*
+    제목 칸을 꾹 누르면 순서 바꾸기 모드로 들어간다. 체크박스·삭제 버튼에는 이 손잡이를
+    달지 않는다 — 카드 아무 데나 누르면 다 드래그 후보가 되면 체크·삭제를 누르다 살짝
+    오래 눌렸을 때도 카드가 들려 버린다.
+    dragControls.start는 setTimeout 뒤에도 부를 수 있다 — 프레이머는 그 시점의 포인터가
+    여전히 눌려 있기만 하면 그 이벤트로 드래그를 시작한다(공식 "손잡이" 패턴과 같다).
+  */
+  const dragControls = useDragControls();
+  const [isDragging, setIsDragging] = useState(false);
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressOrigin = useRef<{ x: number; y: number } | null>(null);
+  const suppressClickRef = useRef(false);
+
+  function clearPressTimer() {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+  }
+
+  function handleHandleDown(e: ReactPointerEvent) {
+    if (!draggable || open) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    pressOrigin.current = { x: e.clientX, y: e.clientY };
+    clearPressTimer();
+    pressTimer.current = setTimeout(() => {
+      pressTimer.current = null;
+      suppressClickRef.current = true;
+      vibrateTick(20);
+      dragControls.start(e);
+    }, LONG_PRESS_MS);
+  }
+
+  function handleHandleMove(e: ReactPointerEvent) {
+    const origin = pressOrigin.current;
+    if (!origin || !pressTimer.current) return;
+    if (Math.hypot(e.clientX - origin.x, e.clientY - origin.y) > PRESS_SLOP_PX) clearPressTimer();
+  }
+
+  function handleHandleUp() {
+    clearPressTimer();
+    pressOrigin.current = null;
   }
 
   const noteCount = todo.notes?.length ?? 0;
@@ -151,19 +211,14 @@ export default function TodoCard({
     .filter((m): m is MemberSummary => Boolean(m));
   const focusColor = focusMembers[0] ? getAvatarColor(focusMembers[0].avatar_color, focusMembers[0].user_id).bg : null;
 
-  return (
-    <motion.li
-      ref={cardRef}
-      layout
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.97 }}
-      transition={{ duration: 0.16 }}
-      className={cn(
-        'relative rounded-xl border border-hairline bg-surface px-3 py-1.5 transition-colors',
-        done && 'bg-surface-alt'
-      )}
-    >
+  const cardClassName = cn(
+    'relative rounded-xl border border-hairline bg-surface px-3 py-1.5 transition-colors',
+    done && 'bg-surface-alt',
+    isDragging && 'shadow-level-2 z-20 scale-[1.02]'
+  );
+
+  const cardBody = (
+    <>
       {focusColor && (
         <motion.span
           aria-hidden
@@ -234,8 +289,12 @@ export default function TodoCard({
         <button
           type="button"
           onClick={handleTitleClick}
+          onPointerDown={handleHandleDown}
+          onPointerMove={handleHandleMove}
+          onPointerUp={handleHandleUp}
+          onPointerCancel={handleHandleUp}
           aria-expanded={open}
-          className="min-w-0 flex-1 py-2 text-left"
+          className={cn('min-w-0 flex-1 py-2 text-left', draggable && 'touch-pan-y')}
         >
           <p
             className={cn(
@@ -348,6 +407,46 @@ export default function TodoCard({
           </motion.div>
         )}
       </AnimatePresence>
+    </>
+  );
+
+  // 순서 바꾸기 대상이면 Reorder.Item으로 감싼다 — 손잡이(제목 칸)의 꾹 누르기가
+  // dragControls로 이 항목의 드래그를 연다. 완료 항목·대시보드에서는 평범한 motion.li다.
+  if (draggable) {
+    return (
+      <Reorder.Item
+        ref={cardRef}
+        value={todo.id}
+        layout
+        dragListener={false}
+        dragControls={dragControls}
+        onDragStart={() => setIsDragging(true)}
+        onDragEnd={() => {
+          setIsDragging(false);
+          onReorderCommit?.();
+        }}
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.97 }}
+        transition={{ duration: 0.16 }}
+        className={cardClassName}
+      >
+        {cardBody}
+      </Reorder.Item>
+    );
+  }
+
+  return (
+    <motion.li
+      ref={cardRef}
+      layout
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.97 }}
+      transition={{ duration: 0.16 }}
+      className={cardClassName}
+    >
+      {cardBody}
     </motion.li>
   );
 }

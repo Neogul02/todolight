@@ -283,6 +283,30 @@ export async function updateTodo(
   });
 }
 
+/**
+ * 순서 바꾸기 — 꾹 눌러 드래그로 옮긴 뒤 새 위치(double)만 반영한다.
+ * 어느 항목 사이에 끼워 넣을지는 클라이언트가 이미 계산해서 보낸다(두 이웃 position의 평균 등) —
+ * 서버는 그 값을 그대로 저장할 뿐, 같은 마감일 그룹인지 같은 건 여기서 다시 검증하지 않는다
+ * (position은 순전히 표시 순서일 뿐이라 잘못된 값이 들어와도 다른 사람 데이터를 해치지 않는다).
+ */
+export async function reorderTodo(todoId: string, position: number): Promise<ApiResponse<Todo>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    const todo = await loadTodoForMember(todoId, user.id);
+    const t = await getActionT();
+    const parsed = z.number().finite(t('invalidPosition')).parse(position);
+
+    const { data, error } = await getSupabaseAdmin()
+      .from('todos')
+      .update({ position: parsed })
+      .eq('id', todo.id)
+      .select(TODO_COLUMNS)
+      .single();
+    if (error) throw new Error(error.message);
+    return data as Todo;
+  });
+}
+
 /** 지우거나 되살릴 수 있는 사람: 할 일의 주인 · 그 할 일을 만든 사람 · 방장/관리자 */
 async function assertCanRemove(todo: Todo, userId: string): Promise<void> {
   if (todo.owner_id === userId || todo.created_by === userId) return;

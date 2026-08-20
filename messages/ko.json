@@ -320,6 +320,7 @@
     "noteRequired": "메모를 입력해 주세요.",
     "invalidDateFormat": "날짜 형식이 맞지 않아요.",
     "invalidId": "올바르지 않은 요청이에요.",
+    "invalidPosition": "순서 값이 올바르지 않아요.",
     "todoNotFound": "할 일을 찾을 수 없어요.",
     "cannotDeleteTodo": "본인 할 일이거나 방장만 지울 수 있어요.",
     "noteNotFound": "메모를 찾을 수 없어요.",

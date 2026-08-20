@@ -1,7 +1,7 @@
 'use client';
 
-import { forwardRef, useMemo, useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { forwardRef, useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, Reorder } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { useTodoMutations } from '@/hooks/useTodoMutations';
 import { showMsg } from '@/lib/toast';
@@ -66,7 +66,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
   const [showAllDone, setShowAllDone] = useState(false);
   // 마감은 오늘이 기본 — 대부분 오늘 할 일이고, 아니면 스테퍼로 하루씩 밀면 된다
   const [due, setDue] = useState<string | null>(todayKST());
-  const { create } = useTodoMutations(orgId);
+  const { create, reorder } = useTodoMutations(orgId);
 
   const isMine = member.user_id === currentUserId;
 
@@ -96,13 +96,59 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
   }, [todos]);
 
   /*
+    기본 정렬은 날짜순(open)이지만, 꾹 눌러 드래그하면 그 순간만은 이 손끝 순서가
+    진실이다 — 서버 값을 매 프레임 반영하면 드래그 중에 카드가 도로 튀어 돌아간다.
+    open의 id 구성이 바뀌면(새로 추가·삭제·마감일 변경) 그때만 다시 맞춘다.
+  */
+  const [order, setOrder] = useState<string[]>(() => open.map(t => t.id));
+  useEffect(() => {
+    setOrder(open.map(t => t.id));
+  }, [open]);
+
+  const todoById = useMemo(() => new Map(open.map(t => [t.id, t])), [open]);
+  const orderedOpen = useMemo(
+    () => order.map(id => todoById.get(id)).filter((t): t is Todo => Boolean(t)),
+    [order, todoById]
+  );
+
+  /*
+    프레이머가 드래그 중 계산한 새 순서를 그대로 받아들이지 않는다 — 같은 마감일 그룹
+    안에서 자리 하나만 바뀐 경우에만 받아들인다. 두 자리 이상이 한꺼번에 바뀌었거나
+    마감일이 다른 두 항목이 자리를 바꾸려 하면 무시해서, 드래그가 그 마감일 그룹의
+    경계를 넘지 못하게 막는다(넘어가려 해도 손끝을 따라 잠깐 움직일 뿐 자리는 안 바뀐다).
+  */
+  function handleReorder(newOrder: string[]) {
+    const changed: number[] = [];
+    for (let i = 0; i < newOrder.length; i += 1) {
+      if (newOrder[i] !== order[i]) changed.push(i);
+    }
+    if (changed.length !== 2) return;
+    const [i, j] = changed;
+    if (todoById.get(newOrder[i])?.due_date !== todoById.get(newOrder[j])?.due_date) return;
+    setOrder(newOrder);
+  }
+
+  /** 손을 놓았을 때 — 새 이웃 두 개의 position 평균으로 서버에 반영한다 */
+  function commitReorder(todoId: string) {
+    const idx = order.indexOf(todoId);
+    if (idx === -1) return;
+    const prevPos = order[idx - 1] ? todoById.get(order[idx - 1])?.position : undefined;
+    const nextPos = order[idx + 1] ? todoById.get(order[idx + 1])?.position : undefined;
+    if (prevPos === undefined && nextPos === undefined) return;
+    const position =
+      prevPos === undefined ? nextPos! - 1 : nextPos === undefined ? prevPos + 1 : (prevPos + nextPos) / 2;
+    if (todoById.get(todoId)?.position === position) return;
+    reorder.mutate({ todoId, position });
+  }
+
+  /*
     완료가 쌓이면 컬럼을 통째로 잠식해서 남은 일이 스크롤 밖으로 밀린다.
     최근 끝낸 몇 개만 두고 나머지는 접는다 — 지우는 게 아니라 접는 것이라 언제든 펼 수 있다.
   */
   const hiddenDone = showDone && !showAllDone ? Math.max(0, done.length - VISIBLE_DONE) : 0;
   const visible = showDone
-    ? [...open, ...(showAllDone ? done : done.slice(0, VISIBLE_DONE))]
-    : open;
+    ? [...orderedOpen, ...(showAllDone ? done : done.slice(0, VISIBLE_DONE))]
+    : orderedOpen;
 
   /*
     입력칸은 서버를 기다리지 않고 바로 비운다. 카드는 낙관적으로 이미 컬럼 맨 위에 있고,
@@ -208,27 +254,37 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
           stacked ? 'pb-3' : 'overflow-y-auto overscroll-contain pb-tabbar'
         )}
       >
-        <AnimatePresence initial={false}>
-          {visible.map(todo => (
-            <TodoCard
-              key={todo.id}
-              todo={todo}
-              // 컬럼 소속(isMine)과 실제 소유권은 다르다 — 같이하기로 참여한 할 일은
-              // 내 컬럼에 뜨지만 주인은 따로 있다. 여길 컬럼 기준으로 두면 참여자가
-              // 남의 할 일을 수정·삭제할 수 있는 권한 버그가 생긴다.
-              isMine={todo.owner_id === currentUserId}
-              members={members}
-              currentUserId={currentUserId}
-              isManager={isManager}
-              open={openTodoId === todo.id}
-              onToggleOpen={() => onToggleOpen(todo.id)}
-              onHandoff={onHandoff}
-              typingUsers={typingByTodoId.get(todo.id)}
-              onTyping={onTyping}
-              focusUsers={focusByTodoId.get(todo.id)}
-            />
-          ))}
-        </AnimatePresence>
+        {/*
+          Reorder.Group은 이 안의 Reorder.Item(드래그 가능한 카드)에게 컨텍스트만 대 준다 —
+          AnimatePresence의 직접 자식은 여전히 TodoCard 하나하나라서, 할 일을 지울 때의
+          퇴장 애니메이션이 그대로 유지된다. 완료 항목은 Reorder.Item이 아니므로
+          values에 넣지 않는다(대시보드에서는 draggable 자체를 꺼서 아예 관여하지 않는다).
+        */}
+        <Reorder.Group as="div" axis="y" className="contents" values={order} onReorder={handleReorder}>
+          <AnimatePresence initial={false}>
+            {visible.map(todo => (
+              <TodoCard
+                key={todo.id}
+                todo={todo}
+                // 컬럼 소속(isMine)과 실제 소유권은 다르다 — 같이하기로 참여한 할 일은
+                // 내 컬럼에 뜨지만 주인은 따로 있다. 여길 컬럼 기준으로 두면 참여자가
+                // 남의 할 일을 수정·삭제할 수 있는 권한 버그가 생긴다.
+                isMine={todo.owner_id === currentUserId}
+                members={members}
+                currentUserId={currentUserId}
+                isManager={isManager}
+                open={openTodoId === todo.id}
+                onToggleOpen={() => onToggleOpen(todo.id)}
+                onHandoff={onHandoff}
+                typingUsers={typingByTodoId.get(todo.id)}
+                onTyping={onTyping}
+                focusUsers={focusByTodoId.get(todo.id)}
+                draggable={!stacked && todo.status !== 'done'}
+                onReorderCommit={() => commitReorder(todo.id)}
+              />
+            ))}
+          </AnimatePresence>
+        </Reorder.Group>
 
         {hiddenDone > 0 && (
           <li>
