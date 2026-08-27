@@ -105,13 +105,18 @@ export async function createOrg(name: string): Promise<ApiResponse<Organization>
 export async function fetchOrgMembers(orgId: string): Promise<ApiResponse<MemberSummary[]>> {
   return wrap(async () => {
     const user = await requireAuth();
-    await requireMembership(orgId, user.id);
 
-    const { data, error } = await getSupabaseAdmin()
-      .from('org_members')
-      .select('user_id, role, joined_at, profiles!inner (display_name, avatar_color, avatar_url, email)')
-      .eq('org_id', orgId)
-      .order('joined_at', { ascending: true });
+    // 멤버 검사와 조회를 같이 보내되 함께 await한다 — fetchOrgTodos와 같은 패턴.
+    // 멤버가 아니면 Promise.all이 그대로 거절되고 읽어 온 건 한 줄도 돌려주지 않는다.
+    const [, membersRes] = await Promise.all([
+      requireMembership(orgId, user.id),
+      getSupabaseAdmin()
+        .from('org_members')
+        .select('user_id, role, joined_at, profiles!inner (display_name, avatar_color, avatar_url, email)')
+        .eq('org_id', orgId)
+        .order('joined_at', { ascending: true }),
+    ]);
+    const { data, error } = membersRes;
     if (error) throw new Error(error.message);
 
     return ((data ?? []) as unknown as {

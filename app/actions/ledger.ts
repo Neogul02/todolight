@@ -40,18 +40,23 @@ export async function fetchLedgerEntries(
   return wrap(async () => {
     const user = await requireAuth();
     const t = await getActionT();
-    await assertMember(orgId, user.id);
-
     const { start, end } = monthRange(monthSchema(t).parse(month));
-    const { data, error } = await getSupabaseAdmin()
-      .from('ledger_entries')
-      .select(LEDGER_COLUMNS)
-      .eq('org_id', orgId)
-      .is('deleted_at', null)
-      .gte('spent_on', start)
-      .lte('spent_on', end)
-      .order('spent_on', { ascending: false })
-      .order('created_at', { ascending: false });
+
+    // 멤버 검사와 조회를 같이 보내되 함께 await한다 — fetchOrgTodos와 같은 패턴.
+    // 멤버가 아니면 Promise.all이 그대로 거절되고 읽어 온 건 한 줄도 돌려주지 않는다.
+    const [, entriesRes] = await Promise.all([
+      assertMember(orgId, user.id),
+      getSupabaseAdmin()
+        .from('ledger_entries')
+        .select(LEDGER_COLUMNS)
+        .eq('org_id', orgId)
+        .is('deleted_at', null)
+        .gte('spent_on', start)
+        .lte('spent_on', end)
+        .order('spent_on', { ascending: false })
+        .order('created_at', { ascending: false }),
+    ]);
+    const { data, error } = entriesRes;
     if (error) throw new Error(error.message);
 
     return (data ?? []) as LedgerEntry[];

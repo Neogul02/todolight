@@ -26,14 +26,19 @@ function normalizeRange(t: ActionT, start: string, end: string): { start: string
 export async function fetchOrgEvents(orgId: string): Promise<ApiResponse<OrgEvent[]>> {
   return wrap(async () => {
     const user = await requireAuth();
-    await assertMember(orgId, user.id);
 
-    const { data, error } = await getSupabaseAdmin()
-      .from('org_events')
-      .select(COLUMNS)
-      .eq('org_id', orgId)
-      .is('deleted_at', null)
-      .order('start_date', { ascending: true });
+    // 멤버 검사와 조회를 같이 보내되 함께 await한다 — fetchOrgTodos와 같은 패턴.
+    // 멤버가 아니면 Promise.all이 그대로 거절되고 읽어 온 건 한 줄도 돌려주지 않는다.
+    const [, eventsRes] = await Promise.all([
+      assertMember(orgId, user.id),
+      getSupabaseAdmin()
+        .from('org_events')
+        .select(COLUMNS)
+        .eq('org_id', orgId)
+        .is('deleted_at', null)
+        .order('start_date', { ascending: true }),
+    ]);
+    const { data, error } = eventsRes;
     if (error) throw new Error(error.message);
     return (data ?? []) as OrgEvent[];
   });

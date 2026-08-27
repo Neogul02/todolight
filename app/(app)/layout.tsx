@@ -38,13 +38,18 @@ async function AppShellData({
   /*
     오래 쉬었다 다시 들어오면(모바일 백그라운드 장시간 후 재진입) 서버리스 콜드 스타트와
     Supabase 커넥션 풀러가 겹쳐 이 첫 조회가 일시적으로 실패하는 경우가 있었다.
-    실패를 곧장 빈 배열로 떨어뜨리면 조직이 있는데도 "조직이 없다" 화면이 한 번 번쩍인다 —
-    한 번 더 시도해서 진짜로 조직이 없는 경우와 구분한다.
+    한 번 더 시도해서 흔한 경우는 여기서 넘긴다.
+
+    그래도 두 번 다 실패하면 예전엔 빈 배열로 떨어뜨렸다 — 그러면 조직이 있는데도
+    "조직이 없다" 화면이 뜨고, 이 레이아웃은 라우트가 아니라 패널 트랙(ViewPager) 위에서
+    딱 한 번만 실행되므로(재실행 계기가 없다) 그 빈 배열이 앱을 켜 두는 내내 얼어붙었다.
+    그래서 여기서는 실패를 **null로 구분해서 넘긴다** — AppShell이 이걸 초기값 삼아
+    클라이언트 쿼리로 다시 들고, 실패했을 땐 곧장 한 번 더 불러온다(orgsFailed 참고).
   */
   let orgs = orgsRes.success ? orgsRes.data : null;
   if (orgs === null) {
     const retryRes = await fetchMyOrgs();
-    orgs = retryRes.success ? retryRes.data : [];
+    orgs = retryRes.success ? retryRes.data : null;
   }
   const profile = profileRes.success ? profileRes.data : null;
 

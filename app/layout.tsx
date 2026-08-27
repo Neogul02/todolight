@@ -48,10 +48,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // 테마와 달리 로케일은 쿠키로 매 요청마다 서버에서 정해진다(app/../i18n/request.ts) —
   // 텍스트는 SSR된 HTML에 바로 박히므로 클라이언트 스크립트로 사후 교정할 수 없다.
   const locale = await getLocale();
+  // 서버 액션은 Next 서버가 Supabase를 부르니 여기 대상이 아니다 — 브라우저가 직접 여는
+  // 두 경로(로그인의 auth REST 호출, 보드 진입 시 realtime 웹소켓)만 최초 연결이 느리다.
+  // DNS·TCP·TLS 핸드셰이크를 앱 진입 시점에 미리 데워 두면 그 첫 요청이 왕복 하나만큼 빨라진다.
+  const supabaseOrigin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
 
   return (
     <html lang={locale} data-theme="ink" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href={supabaseOrigin} />
         {/*
           홈 화면 앱의 실행 화면.
 

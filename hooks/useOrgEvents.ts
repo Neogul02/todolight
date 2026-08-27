@@ -25,6 +25,12 @@ export function useOrgEvents(orgId: string | null) {
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
+    // useOrgBoard.ts의 useOrgTodos와 같은 이유 — 모바일 백그라운드 복귀 안전망.
+    // 전역 기본값(refetchOnWindowFocus: false, staleTime: 60초)을 여기서만 오버라이드한다 —
+    // staleTime을 30초로 낮춘 것도 완화가 아니라 포커스 복귀 시 재조회가 반드시 걸리게 하려는 쪽이다.
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 }
 

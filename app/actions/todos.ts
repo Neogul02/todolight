@@ -380,18 +380,20 @@ export async function addTodoNote(todoId: string, content: string): Promise<ApiR
     const t = await getActionT();
     const parsed = noteSchema(t).parse(content);
 
-    const { data, error } = await getSupabaseAdmin()
-      .from('todo_notes')
-      .insert({ todo_id: todo.id, author_id: user.id, content: parsed })
-      .select('id, todo_id, author_id, content, created_at')
-      .single();
+    // insert와 프로필 조회는 서로의 결과를 기다릴 이유가 없다 — 둘 다 todo.id/user.id만 있으면 된다.
+    const [{ data, error }, { data: profile }] = await Promise.all([
+      getSupabaseAdmin()
+        .from('todo_notes')
+        .insert({ todo_id: todo.id, author_id: user.id, content: parsed })
+        .select('id, todo_id, author_id, content, created_at')
+        .single(),
+      getSupabaseAdmin()
+        .from('profiles')
+        .select('display_name, avatar_color, avatar_url')
+        .eq('id', user.id)
+        .maybeSingle(),
+    ]);
     if (error) throw new Error(error.message);
-
-    const { data: profile } = await getSupabaseAdmin()
-      .from('profiles')
-      .select('display_name, avatar_color, avatar_url')
-      .eq('id', user.id)
-      .maybeSingle();
 
     return {
       ...(data as TodoNote),
@@ -439,30 +441,36 @@ export async function handleForMember(
     const t = await getActionT();
     const parsedNote = noteSchema(t).parse(note);
 
-    const { data: updated, error } = await getSupabaseAdmin()
-      .from('todos')
-      .update({
-        status: 'done',
-        completed_at: new Date().toISOString(),
-        handled_by: user.id,
-      })
-      .eq('id', todo.id)
-      .select(TODO_COLUMNS)
-      .single();
+    // 완료 처리 · 메모 insert · 프로필 조회는 서로의 결과를 기다릴 이유가 없다 —
+    // 셋 다 todo.id/user.id/parsedNote만으로 끝난다(fetchOrgTodos와 같은 이유).
+    const [
+      { data: updated, error },
+      { data: noteRow, error: noteError },
+      { data: profile },
+    ] = await Promise.all([
+      getSupabaseAdmin()
+        .from('todos')
+        .update({
+          status: 'done',
+          completed_at: new Date().toISOString(),
+          handled_by: user.id,
+        })
+        .eq('id', todo.id)
+        .select(TODO_COLUMNS)
+        .single(),
+      getSupabaseAdmin()
+        .from('todo_notes')
+        .insert({ todo_id: todo.id, author_id: user.id, content: parsedNote })
+        .select('id, todo_id, author_id, content, created_at')
+        .single(),
+      getSupabaseAdmin()
+        .from('profiles')
+        .select('display_name, avatar_color, avatar_url')
+        .eq('id', user.id)
+        .maybeSingle(),
+    ]);
     if (error) throw new Error(error.message);
-
-    const { data: noteRow, error: noteError } = await getSupabaseAdmin()
-      .from('todo_notes')
-      .insert({ todo_id: todo.id, author_id: user.id, content: parsedNote })
-      .select('id, todo_id, author_id, content, created_at')
-      .single();
     if (noteError) throw new Error(noteError.message);
-
-    const { data: profile } = await getSupabaseAdmin()
-      .from('profiles')
-      .select('display_name, avatar_color, avatar_url')
-      .eq('id', user.id)
-      .maybeSingle();
 
     after(async () => {
       const { orgName, webhook, nameOf } = await loadNotifyContext(todo.org_id, [

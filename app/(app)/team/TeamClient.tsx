@@ -43,7 +43,8 @@ export default function TeamClient() {
   const tToast = useTranslations('toast');
   const tRole = useTranslations('appshell');
   const tCommon = useTranslations('common');
-  const { activeOrgId, activeOrg, userId, isManager } = useApp();
+  const tBoard = useTranslations('board');
+  const { activeOrgId, activeOrg, userId, isManager, orgsStatus, retryOrgs } = useApp();
 
   const ROLE_LABEL = {
     owner: tRole('roleOwner'),
@@ -210,6 +211,28 @@ export default function TeamClient() {
     if (nameChanged) await rename.mutateAsync(orgName.trim());
     if (webhookChanged) await saveWebhook.mutateAsync(webhook!);
     showMsg(tCommon('saved'), 'success');
+  }
+
+  // 조직 쿼리가 아직 진행 중이거나 실패했을 때는 "조직 없음"이 아니다 —
+  // 안 가리면 오래 백그라운드에 뒀다 돌아왔을 때 여기도 얼어붙은 것처럼 보인다.
+  if (orgsStatus === 'pending') {
+    return (
+      <main className="mx-auto max-w-[560px] px-6 py-20 text-center">
+        <div className="mx-auto h-6 w-40 animate-pulse-soft rounded-md bg-hairline" />
+      </main>
+    );
+  }
+
+  if (orgsStatus === 'error') {
+    return (
+      <main className="mx-auto max-w-[560px] px-6 py-20 text-center">
+        <h1 className="text-heading-1 text-ink">{tBoard('orgLoadErrorTitle')}</h1>
+        <p className="mt-2 text-body-sm text-ink-muted">{tBoard('orgLoadErrorDescription')}</p>
+        <Button size="lg" className="mt-6" onClick={retryOrgs}>
+          {tBoard('retry')}
+        </Button>
+      </main>
+    );
   }
 
   if (!activeOrgId || !activeOrg) {

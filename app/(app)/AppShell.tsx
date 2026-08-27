@@ -7,7 +7,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
-import { fetchMyInvites, respondToInvite } from '@/app/actions/orgs';
+import { fetchMyInvites, fetchMyOrgs, respondToInvite } from '@/app/actions/orgs';
+import { fetchMyProfile } from '@/app/actions/profile';
 import { useActiveOrg } from '@/hooks/useActiveOrg';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { applyTheme } from '@/app/providers';
@@ -36,13 +37,14 @@ function hrefOf(view: AppView): string {
 export default function AppShell({
   userId,
   email,
-  orgs,
-  profile,
+  orgs: initialOrgs,
+  profile: initialProfile,
   children,
 }: {
   userId: string;
   email: string | null;
-  orgs: OrgWithRole[];
+  /** 서버에서 못 읽었으면(콜드 스타트 등) null — 빈 배열([])과 구분해야 진짜 "조직 없음"과 안 헷갈린다 */
+  orgs: OrgWithRole[] | null;
   profile: Profile | null;
   children: React.ReactNode;
 }) {
@@ -53,6 +55,56 @@ export default function AppShell({
   const locale = useLocale() as Locale;
   const t = useTranslations('appshell');
   const tToast = useTranslations('toast');
+
+  /*
+    조직 목록·내 프로필을 클라이언트 쿼리로 들고 있는다.
+
+    `(app)/layout.tsx`는 라우트가 아니라 패널 트랙(ViewPager) 위에서 딱 한 번만 실행된다 —
+    보드·달력·가계부 전환은 `history.replaceState`라 서버 컴포넌트가 다시 돌 계기가 없다.
+    예전엔 orgs·profile을 그 한 번의 서버 렌더 값 그대로 프롭으로 물고 살았는데, 그러면
+    모바일에서 앱을 오래 백그라운드에 뒀다 돌아왔을 때(서버리스 콜드 스타트가 겹치기 쉬운
+    타이밍) 그 한 번의 조회가 실패해도 다시 시도할 방법이 없어 "조직이 없다" 화면이
+    앱을 새로 켤 때까지 그대로 얼어붙었다.
+
+    이제는 react-query가 들고 있어서 (1) 서버 렌더가 실패했으면(orgs===null) 마운트 즉시
+    한 번 더 불러오고 (2) `refetchOnWindowFocus`를 켜서 앱을 오래 그냥 두다 다시 열 때도
+    (모바일 탭 전환·화면 꺼짐도 visibilitychange를 낸다) 자동으로 새로고침한다.
+    전역 QueryClient 기본값은 `refetchOnWindowFocus: false`라(할 일 체크 같은 잦은 재조회를
+    막으려고) 이 두 쿼리에서만 따로 켠다 — 여기가 얼어붙으면 앱 전체가 먹통이라 값이 다르다.
+  */
+  const orgsQuery = useQuery({
+    queryKey: ['my-orgs'],
+    queryFn: async () => {
+      const res = await fetchMyOrgs();
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    initialData: initialOrgs ?? undefined,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+  const orgs = useMemo(() => orgsQuery.data ?? [], [orgsQuery.data]);
+  const orgsStatus: 'pending' | 'error' | 'success' = orgsQuery.data
+    ? 'success'
+    : orgsQuery.isError
+      ? 'error'
+      : 'pending';
+
+  const profileQuery = useQuery({
+    queryKey: ['my-profile'],
+    queryFn: async () => {
+      const res = await fetchMyProfile();
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    initialData: initialProfile ?? undefined,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+  const profile = profileQuery.data ?? null;
+
   const orgIds = useMemo(() => orgs.map(o => o.id), [orgs]);
   const [activeOrgId, selectOrg] = useActiveOrg(orgIds);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -228,6 +280,8 @@ export default function AppShell({
         activeOrgId,
         activeOrg,
         selectOrg,
+        orgsStatus,
+        retryOrgs: () => orgsQuery.refetch(),
         openMenu: () => setMenuOpen(true),
         pendingInvites: pendingCount,
         isManager: activeOrg?.role === 'owner' || activeOrg?.role === 'admin',

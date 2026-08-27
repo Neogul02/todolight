@@ -6,8 +6,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { boardKeys, useBoardRealtime, useOrgMembers, useOrgPresence } from '@/hooks/useOrgBoard';
+import { Button, Card } from '@/components/ui';
 import type { Todo } from '@/types/db';
 import { APP_VIEWS, useApp, type AppView } from './OrgContext';
+import { BoardSkeleton } from './board/BoardSkeleton';
 import BoardClient from './board/BoardClient';
 import HandoffModal from './board/HandoffModal';
 import CalendarClient from './calendar/CalendarClient';
@@ -31,7 +33,8 @@ const SLIDE_MS = 240;
  * 전환은 헤더 세그먼트(PC)와 하단 탭바(모바일)가 한다.
  */
 export default function ViewPager() {
-  const { activeOrgId, userId, orgs, openMenu, pendingInvites, view } = useApp();
+  const { activeOrgId, userId, orgs, orgsStatus, retryOrgs, openMenu, pendingInvites, view } =
+    useApp();
   const queryClient = useQueryClient();
   const reduceMotion = useReducedMotion();
   const t = useTranslations('board');
@@ -67,6 +70,38 @@ export default function ViewPager() {
 
   function refresh() {
     if (activeOrgId) queryClient.invalidateQueries({ queryKey: boardKeys.todos(activeOrgId) });
+  }
+
+  /*
+    조직 목록을 아직 못 불러왔다 — AppShellSkeleton과 같은 스켈레톤을 재사용한다.
+    이 상태를 빼먹으면 첫 렌더나 포커스 복귀 재조회 도중 `orgs`가 잠깐 비어 있는 걸
+    "조직이 없다"로 오인해서 진짜 조직이 있는 사람한테도 그 화면이 번쩍인다.
+  */
+  if (orgsStatus === 'pending') {
+    return (
+      <div className="min-h-0 flex-1">
+        <BoardSkeleton />
+      </div>
+    );
+  }
+
+  /*
+    포커스 복귀 재조회를 포함해 조회 자체가 실패한 경우 — 오래 백그라운드에 뒀다 돌아왔을 때
+    콜드 스타트·일시적 네트워크 장애로 흔히 난다. "조직이 없다"로 떨어뜨리지 않고 다시 시도
+    버튼을 준다 — 예전엔 이 구분이 없어서 앱을 아예 껐다 켜야만 벗어날 수 있었다.
+  */
+  if (orgsStatus === 'error') {
+    return (
+      <main className="mx-auto flex max-w-[520px] flex-col items-center px-6 py-16 pb-tabbar text-center">
+        <Card className="w-full p-6">
+          <h1 className="text-heading-1 text-ink">{t('orgLoadErrorTitle')}</h1>
+          <p className="mt-2 text-body-sm text-ink-muted">{t('orgLoadErrorDescription')}</p>
+          <Button className="mt-5 w-full" onClick={retryOrgs}>
+            {t('retry')}
+          </Button>
+        </Card>
+      </main>
+    );
   }
 
   /*

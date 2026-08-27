@@ -41,6 +41,14 @@ interface AppContextValue {
   activeOrgId: string | null;
   activeOrg: OrgWithRole | null;
   selectOrg: (id: string) => void;
+  /**
+   * 조직 목록 쿼리 상태. `orgs.length === 0`만으로는 "진짜 조직이 없음"과
+   * "아직 못 불러옴(pending)" · "불러오다 실패함(error)"을 구분할 수 없다 —
+   * 구분 안 하면 로딩 중이거나 일시적으로 실패했을 때도 "조직이 없다" 화면이 뜬다.
+   */
+  orgsStatus: 'pending' | 'error' | 'success';
+  /** orgsStatus === 'error'일 때 다시 불러오기 */
+  retryOrgs: () => void;
   /** 프로필 메뉴 시트 열기 — 조직 전환과 받은 초대가 그 안에 있다 */
   openMenu: () => void;
   /** 받은 초대 수 */

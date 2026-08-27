@@ -14,6 +14,17 @@ export const boardKeys = {
   members: (orgId: string) => ['members', orgId] as const,
 };
 
+/*
+  둘 다 staleTime을 짧게 두고 refetchOnWindowFocus·refetchOnReconnect를 켠다
+  (전역 QueryClient 기본값은 refetchOnWindowFocus: false).
+
+  실시간 채널이 웹소켓으로 최신 상태를 밀어주지만, 모바일에서 앱을 오래 백그라운드에
+  두면 그 채널이 조용히 끊긴 채로 돌아올 수 있다 — AppShell의 my-orgs 쿼리를 고칠 때와
+  같은 문제다. 포커스가 돌아올 때(visibilitychange) 이 안전망이 한 번 더 불러와 준다.
+  staleTime을 전역 기본값(60초, app/providers.tsx)보다 짧은 30초로 낮춘 이유는 그 반대다 —
+  포커스가 돌아왔을 때 반드시 재조회가 걸리게 하려는 쪽이다. 60초 그대로 두면 방금 전에
+  포커스를 잃었다 돌아온 흔한 경우에 재조회가 걸리지 않는다.
+*/
 export function useOrgMembers(orgId: string | null) {
   return useQuery({
     queryKey: boardKeys.members(orgId ?? ''),
@@ -23,6 +34,9 @@ export function useOrgMembers(orgId: string | null) {
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 }
 
@@ -35,6 +49,9 @@ export function useOrgTodos(orgId: string | null) {
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 }
 

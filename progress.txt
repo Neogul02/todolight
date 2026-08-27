@@ -195,3 +195,57 @@ US-107 토스트를 작고 가운데로 — 완료
   메모는 resyncNow라 즉시 작성자·아바타까지 붙어 나타난다.
 - 패널 전환은 여전히 요청 0건, 트랙 transition 240ms 그대로.
 - 측정 중 바꾼 데이터는 전부 원복(9 left · 14 done). 임시 할 일은 소프트 삭제로 남는다.
+[ralph] 반응속도 및 사용자 편의성 개선 (2026-08-27, 세션 209a03be)
+US-201~203: fetchOrgMembers(orgs.ts)·fetchLedgerEntries(ledger.ts)·fetchOrgEvents(events.ts)의
+  멤버 검사→조회 순차 왕복을 Promise.all로 묶음 — fetchOrgTodos에서 이미 검증된 패턴 그대로
+  이식(멤버가 아니면 Promise.all이 거절되어 데이터가 한 줄도 안 샌다).
+US-204: useOrgTodos·useOrgMembers(useOrgBoard.ts)·useOrgEvents·useLedgerEntries에
+  staleTime 30s + refetchOnWindowFocus/refetchOnReconnect: true 추가.
+  전역 QueryClient 기본값(refetchOnWindowFocus: false)을 이 네 쿼리만 오버라이드.
+  이번 세션 앞부분에서 고친 AppShell의 my-orgs/my-profile 쿼리(모바일 백그라운드 장시간 후
+  "조직 없음"으로 얼어붙던 버그 — layout.tsx가 라우트가 아니라 패널 트랙 위에서 한 번만
+  실행돼 재조회 계기가 없던 문제)와 같은 안전망을 보드·달력·가계부 데이터에도 확장.
+검증: yarn tsc --noEmit / yarn lint(경고 0) / yarn build 전부 통과(구현 직후, 디슬롭 후 재검증
+  포함 총 2회). architect 리뷰어 승인(APPROVED) — Promise.all 패턴의 멤버십 검사 우회 가능성,
+  refetchOnWindowFocus와 낙관적 뮤테이션(useTodoMutations의 cancelQueries) 간 경합 가능성을
+  포함해 검토.
+학습: 이 리포는 read 액션이 "멤버 검사 await → 조회 await" 순차 패턴을 아직 3곳(members/
+  ledger/events) 더 갖고 있었다 — fetchOrgTodos 하나만 고치고 나머지는 안 건드린 채 남아있던
+  것. 같은 파일(orgs.ts)의 mutation들(inviteMember 등)은 일부러 그대로 뒀다 — 쓰기 전에
+  검사가 끝나야 하는 순서 의존이라 병렬화 대상이 아니다(fetchOrgInvites도 read지만 방장만
+  쓰는 저빈도 화면이라 이번 스코프에서 제외).
+[ralph] 반응속도 및 사용자 편의성 개선 2차 — 대신 처리/메모 쓰기 병렬화 (2026-08-27, 세션 209a03be)
+US-301: addTodoNote(todos.ts) — todo_notes insert와 profiles select가 서로 결과를 안 기다려도
+  되는데 순차였다. Promise.all로 묶음.
+US-302: handleForMember(todos.ts, "대신 처리" — CLAUDE.md가 핵심 기능으로 명시) — todos update
+  (완료 처리) · todo_notes insert · profiles select 세 개가 전부 todo.id/user.id/parsedNote만
+  필요해 서로 독립인데 순차 3왕복이었다. Promise.all 하나로 묶어 3왕복 -> 1왕복.
+  에러 처리는 Promise.all 해체 후 각각 if(error) throw로 그대로 유지 — Supabase 클라이언트는
+  DB 에러를 reject가 아니라 {data,error}로 돌려주므로 이 순서가 곧 "부분 성공으로 응답 안 함"을
+  보장한다(profile 조회 실패를 무시하는 것은 이 변경 전부터 있던 동작, 이번에 안 건드림).
+  todo_notes.todo_id FK는 이미 존재하는 todos.id를 참조하고 update는 그 행을 지우지 않으므로
+  동시 실행 순서 문제 없음.
+검증: yarn tsc --noEmit / yarn lint(경고 0) / yarn build 전부 통과(구현 직후 + 디슬롭 후 재검증).
+학습(도구 이슈): architect 리뷰 서브에이전트가 이번 라운드에서 완료 알림·재개(SendMessage) 응답
+  모두 "Idle."만 반환하고 실제 검토 내용을 못 돌려주는 문제가 3회 연속 재현됨(1차 라운드에서는
+  포크로 한 번 재개하니 "APPROVED"가 돌아왔었는데 이번엔 안 됨) — SendFeedback으로 보고함.
+  대신 architect에게 요청했던 5개 검증 항목(diff 일치 · 에러 처리 순서 · FK/트리거 경합 위험 ·
+  더 단순한 대안 여부 · tsc/lint/build)을 직접 재현해 확인하고 진행함.
+[ralph] 반응속도 및 사용자 편의성 개선 3차 — Supabase 오리진 preconnect (2026-08-27, 세션 209a03be)
+US-401: app/layout.tsx의 RootLayout <head>에
+  <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous">와
+  <link rel="dns-prefetch" href={supabaseOrigin}> 추가. supabaseOrigin은
+  new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin으로 계산(하드코딩 안 함).
+  서버 액션은 Next 서버가 Supabase를 부르므로 대상이 아니다 — 브라우저가 직접 여는
+  두 경로(로그인의 auth REST, 보드/달력/가계부 진입 시 realtime 웹소켓)만 최초
+  DNS+TCP+TLS 핸드셰이크 지연의 영향을 받는다. 모든 페이지가 이 layout을 쓰므로
+  로그인 화면부터 혜택을 본다.
+검증: yarn tsc --noEmit / yarn lint(경고 0) / yarn build 전부 통과(구현 직후 + 디슬롭 후
+  재검증). architect 승인(APPROVED) — diff 일치, 빌드 타임 env 안전성(다른 파일도 이미
+  같은 non-null assert 패턴을 무조건 쓰고 있어 이 레이아웃도 같은 가정이 안전함, 실제 라우트가
+  전부 dynamic(ƒ)이라 RootLayout이 빌드 타임에 정적 평가되지 않음), crossOrigin="anonymous"가
+  Supabase 클라이언트의 비인증(non-credentialed) cross-origin 요청 방식과 맞는지 확인.
+1~3차 정리: 1차(read 액션 병렬화 3곳 + 포커스 복귀 재조회 4곳) · 2차(쓰기 액션 병렬화 2곳) ·
+  3차(Supabase 오리진 preconnect) — "반응속도 및 사용자 편의성" 테마에서 서버 액션 왕복 줄이기는
+  이제 훑을 만큼 훑었다. 다음에 같은 테마로 또 들어오면 서버 왕복이 아니라 클라이언트 렌더
+  성능(불필요 리렌더, 메모이제이션)이나 낙관적 UI 커버리지 확장 쪽을 먼저 살펴볼 것.
