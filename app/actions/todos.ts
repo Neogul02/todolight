@@ -5,11 +5,11 @@ import { after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { notifyDiscord, truncate } from '@/lib/discord';
 import { requireAuth, wrap } from './_base';
-import { assertMember, assertMembers } from '@/lib/guards';
+import { assertMember, assertMembers, requireMembership } from '@/lib/guards';
 import { formatRelativeDay } from '@/lib/utils';
 import { type ActionT, getActionT } from '@/lib/server-i18n';
 import type { ApiResponse } from '@/types/api';
-import type { Todo, TodoNote, TodoStatus } from '@/types/db';
+import type { MemberRole, Todo, TodoNote, TodoStatus } from '@/types/db';
 
 const titleSchema = (t: ActionT) => z.string().trim().min(1, t('todoTitleRequired')).max(500);
 const noteSchema = (t: ActionT) => z.string().trim().min(1, t('noteRequired')).max(1000);
@@ -23,23 +23,31 @@ const dueSchema = (t: ActionT) =>
     .nullable()
     .optional();
 
-/** todo id로 조직을 되짚어 멤버 여부를 확인하고 해당 todo를 돌려준다. */
-async function loadTodoForMember(todoId: string, userId: string): Promise<Todo> {
+const TODO_COLUMNS =
+  'id, org_id, owner_id, title, status, due_date, position, created_by, handled_by, completed_at, created_at, updated_at, deleted_at';
+
+/**
+ * todo id로 조직을 되짚어 멤버 여부를 확인하고 해당 todo를 돌려준다.
+ * role도 함께 돌려준다 — 삭제/복구 경로(assertCanRemove)가 이미 여기서 읽은 role을
+ * 재사용하면 같은 조직-유저 쌍을 다시 조회하지 않아도 된다.
+ */
+async function loadTodoForMember(
+  todoId: string,
+  userId: string
+): Promise<{ todo: Todo; role: MemberRole }> {
   const t = await getActionT();
   const { data, error } = await getSupabaseAdmin()
     .from('todos')
-    .select('*')
+    .select(TODO_COLUMNS)
     .eq('id', todoId)
     .is('deleted_at', null)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error(t('todoNotFound'));
-  await assertMember(data.org_id, userId);
-  return data as Todo;
+  const todo = data as Todo;
+  const role = await requireMembership(todo.org_id, userId);
+  return { todo, role };
 }
-
-const TODO_COLUMNS =
-  'id, org_id, owner_id, title, status, due_date, position, created_by, handled_by, completed_at, created_at, updated_at, deleted_at';
 
 /** 알림 문구에 쓸 이름들과 조직 웹훅을 한 번에 읽는다 */
 async function loadNotifyContext(orgId: string, userIds: string[]) {
@@ -230,7 +238,7 @@ export async function setTodoStatus(
 ): Promise<ApiResponse<Todo>> {
   return wrap(async () => {
     const user = await requireAuth();
-    const todo = await loadTodoForMember(todoId, user.id);
+    const { todo } = await loadTodoForMember(todoId, user.id);
     const next = statusSchema.parse(status);
 
     const patch: Record<string, unknown> = { status: next };
@@ -260,7 +268,7 @@ export async function updateTodo(
 ): Promise<ApiResponse<Todo>> {
   return wrap(async () => {
     const user = await requireAuth();
-    const todo = await loadTodoForMember(todoId, user.id);
+    const { todo } = await loadTodoForMember(todoId, user.id);
     const t = await getActionT();
 
     const update: Record<string, unknown> = {};
@@ -292,7 +300,7 @@ export async function updateTodo(
 export async function reorderTodo(todoId: string, position: number): Promise<ApiResponse<Todo>> {
   return wrap(async () => {
     const user = await requireAuth();
-    const todo = await loadTodoForMember(todoId, user.id);
+    const { todo } = await loadTodoForMember(todoId, user.id);
     const t = await getActionT();
     const parsed = z.number().finite(t('invalidPosition')).parse(position);
 
@@ -308,16 +316,9 @@ export async function reorderTodo(todoId: string, position: number): Promise<Api
 }
 
 /** 지우거나 되살릴 수 있는 사람: 할 일의 주인 · 그 할 일을 만든 사람 · 방장/관리자 */
-async function assertCanRemove(todo: Todo, userId: string): Promise<void> {
+async function assertCanRemove(todo: Todo, userId: string, role: MemberRole): Promise<void> {
   if (todo.owner_id === userId || todo.created_by === userId) return;
-
-  const { data: me } = await getSupabaseAdmin()
-    .from('org_members')
-    .select('role')
-    .eq('org_id', todo.org_id)
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (!me || (me.role !== 'owner' && me.role !== 'admin')) {
+  if (role !== 'owner' && role !== 'admin') {
     const t = await getActionT();
     throw new Error(t('cannotDeleteTodo'));
   }
@@ -330,8 +331,8 @@ async function assertCanRemove(todo: Todo, userId: string): Promise<void> {
 export async function deleteTodo(todoId: string): Promise<ApiResponse<null>> {
   return wrap(async () => {
     const user = await requireAuth();
-    const todo = await loadTodoForMember(todoId, user.id);
-    await assertCanRemove(todo, user.id);
+    const { todo, role } = await loadTodoForMember(todoId, user.id);
+    await assertCanRemove(todo, user.id, role);
 
     const { error } = await getSupabaseAdmin()
       .from('todos')
@@ -353,15 +354,15 @@ export async function restoreTodo(todoId: string): Promise<ApiResponse<null>> {
 
     const { data, error } = await getSupabaseAdmin()
       .from('todos')
-      .select('*')
+      .select(TODO_COLUMNS)
       .eq('id', todoId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) throw new Error(t('todoNotFound'));
 
     const todo = data as Todo;
-    await assertMember(todo.org_id, user.id);
-    await assertCanRemove(todo, user.id);
+    const role = await requireMembership(todo.org_id, user.id);
+    await assertCanRemove(todo, user.id, role);
 
     const { error: restoreError } = await getSupabaseAdmin()
       .from('todos')
@@ -376,7 +377,7 @@ export async function restoreTodo(todoId: string): Promise<ApiResponse<null>> {
 export async function addTodoNote(todoId: string, content: string): Promise<ApiResponse<TodoNote>> {
   return wrap(async () => {
     const user = await requireAuth();
-    const todo = await loadTodoForMember(todoId, user.id);
+    const { todo } = await loadTodoForMember(todoId, user.id);
     const t = await getActionT();
     const parsed = noteSchema(t).parse(content);
 
@@ -437,7 +438,7 @@ export async function handleForMember(
 ): Promise<ApiResponse<{ todo: Todo; note: TodoNote }>> {
   return wrap(async () => {
     const user = await requireAuth();
-    const todo = await loadTodoForMember(todoId, user.id);
+    const { todo } = await loadTodoForMember(todoId, user.id);
     const t = await getActionT();
     const parsedNote = noteSchema(t).parse(note);
 

@@ -150,10 +150,10 @@ export async function updateMemberOrder(
 ): Promise<ApiResponse<null>> {
   return wrap(async () => {
     const user = await requireAuth();
-    await requireMembership(orgId, user.id);
-    // 넘어온 id가 전부 실제 이 조직 멤버인지 한 번에 확인 — 아니면 다른 조직 사람 id를
-    // 순서에 끼워 넣어 fetchOrgMembers와 어긋난 데이터를 만들 수 있다.
-    await assertMembers(orgId, orderedUserIds);
+    // 호출자가 멤버인지 확인하는 것과, 넘어온 id가 전부 실제 이 조직 멤버인지(다른 조직
+    // 사람 id가 섞여 fetchOrgMembers와 어긋나지 않도록) 확인하는 것은 서로 결과를 기다릴
+    // 이유가 없다 — 함께 보낸다.
+    await Promise.all([requireMembership(orgId, user.id), assertMembers(orgId, orderedUserIds)]);
 
     const db = getSupabaseAdmin();
     const { data: profile, error: readError } = await db

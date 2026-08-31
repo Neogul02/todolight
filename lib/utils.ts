@@ -17,7 +17,7 @@ export function safeNextPath(raw: string | null | undefined, fallback = '/board'
 const KST_OFFSET_MINUTES = 9 * 60;
 
 /** UTC ISO 문자열 → KST 기준 YYYY-MM-DD */
-export function toKSTDateString(iso: string | Date): string {
+function toKSTDateString(iso: string | Date): string {
   const d = typeof iso === 'string' ? new Date(iso) : iso;
   const kst = new Date(d.getTime() + KST_OFFSET_MINUTES * 60_000);
   return kst.toISOString().slice(0, 10);

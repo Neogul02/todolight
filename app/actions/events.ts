@@ -4,10 +4,10 @@ import { z } from 'zod';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { isValidEventColor } from '@/lib/event-colors';
 import { requireAuth, wrap } from './_base';
-import { assertMember } from '@/lib/guards';
+import { assertMember, requireMembership } from '@/lib/guards';
 import { type ActionT, getActionT } from '@/lib/server-i18n';
 import type { ApiResponse } from '@/types/api';
-import type { OrgEvent } from '@/types/db';
+import type { MemberRole, OrgEvent } from '@/types/db';
 
 const titleSchema = (t: ActionT) => z.string().trim().min(1, t('eventTitleRequired')).max(200);
 const dateSchema = (t: ActionT) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, t('invalidDateFormat'));
@@ -77,8 +77,14 @@ export async function createOrgEvent(input: {
   });
 }
 
-/** 일정 id로 조직을 되짚어 멤버 여부를 확인한다 */
-async function loadEventForMember(eventId: string, userId: string): Promise<OrgEvent> {
+/**
+ * 일정 id로 조직을 되짚어 멤버 여부를 확인한다. role도 함께 돌려준다 — 삭제/복구 경로
+ * (assertCanRemoveEvent)가 여기서 읽은 role을 재사용하면 같은 조회를 반복하지 않는다.
+ */
+async function loadEventForMember(
+  eventId: string,
+  userId: string
+): Promise<{ event: OrgEvent; role: MemberRole }> {
   const t = await getActionT();
   const { data, error } = await getSupabaseAdmin()
     .from('org_events')
@@ -89,8 +95,8 @@ async function loadEventForMember(eventId: string, userId: string): Promise<OrgE
   if (error) throw new Error(error.message);
   if (!data) throw new Error(t('eventNotFound'));
   const event = data as OrgEvent;
-  await assertMember(event.org_id, userId);
-  return event;
+  const role = await requireMembership(event.org_id, userId);
+  return { event, role };
 }
 
 export async function updateOrgEvent(
@@ -99,7 +105,7 @@ export async function updateOrgEvent(
 ): Promise<ApiResponse<OrgEvent>> {
   return wrap(async () => {
     const user = await requireAuth();
-    const event = await loadEventForMember(eventId, user.id);
+    const { event } = await loadEventForMember(eventId, user.id);
     const t = await getActionT();
 
     const update: Record<string, unknown> = {};
@@ -131,16 +137,9 @@ export async function updateOrgEvent(
 }
 
 /** 지우거나 되살릴 수 있는 사람: 일정을 만든 사람 · 방장/관리자 */
-async function assertCanRemoveEvent(event: OrgEvent, userId: string): Promise<void> {
+async function assertCanRemoveEvent(event: OrgEvent, userId: string, role: MemberRole): Promise<void> {
   if (event.created_by === userId) return;
-
-  const { data: me } = await getSupabaseAdmin()
-    .from('org_members')
-    .select('role')
-    .eq('org_id', event.org_id)
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (!me || (me.role !== 'owner' && me.role !== 'admin')) {
+  if (role !== 'owner' && role !== 'admin') {
     const t = await getActionT();
     throw new Error(t('cannotDeleteEvent'));
   }
@@ -150,8 +149,8 @@ async function assertCanRemoveEvent(event: OrgEvent, userId: string): Promise<vo
 export async function deleteOrgEvent(eventId: string): Promise<ApiResponse<null>> {
   return wrap(async () => {
     const user = await requireAuth();
-    const event = await loadEventForMember(eventId, user.id);
-    await assertCanRemoveEvent(event, user.id);
+    const { event, role } = await loadEventForMember(eventId, user.id);
+    await assertCanRemoveEvent(event, user.id, role);
 
     const { error } = await getSupabaseAdmin()
       .from('org_events')
@@ -180,8 +179,8 @@ export async function restoreOrgEvent(eventId: string): Promise<ApiResponse<null
     if (!data) throw new Error(t('eventNotFound'));
 
     const event = data as OrgEvent;
-    await assertMember(event.org_id, user.id);
-    await assertCanRemoveEvent(event, user.id);
+    const role = await requireMembership(event.org_id, user.id);
+    await assertCanRemoveEvent(event, user.id, role);
 
     const { error: restoreError } = await getSupabaseAdmin()
       .from('org_events')
