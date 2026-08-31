@@ -6,7 +6,7 @@ import { after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { notifyDiscord } from '@/lib/discord';
 import { requireAuth, wrap } from './_base';
-import { requireManager, requireMembership } from '@/lib/guards';
+import { assertMembers, requireManager, requireMembership } from '@/lib/guards';
 import { isOwnStorageUrl } from '@/lib/storage-url';
 import { type ActionT, getActionT } from '@/lib/server-i18n';
 import type { ApiResponse } from '@/types/api';
@@ -136,6 +136,41 @@ export async function fetchOrgMembers(orgId: string): Promise<ApiResponse<Member
       avatar_url: r.profiles.avatar_url,
       email: r.profiles.email,
     }));
+  });
+}
+
+/**
+ * 보드에서 나 다음에 나올 팀원 순서를 정한다(개인 취향, 조직 전체에 영향 없음).
+ * profiles.member_order는 `{ [orgId]: string[] }` 모양이라 다른 조직 값을 건드리지 않도록
+ * 먼저 읽어서 머지한다.
+ */
+export async function updateMemberOrder(
+  orgId: string,
+  orderedUserIds: string[]
+): Promise<ApiResponse<null>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    await requireMembership(orgId, user.id);
+    // 넘어온 id가 전부 실제 이 조직 멤버인지 한 번에 확인 — 아니면 다른 조직 사람 id를
+    // 순서에 끼워 넣어 fetchOrgMembers와 어긋난 데이터를 만들 수 있다.
+    await assertMembers(orgId, orderedUserIds);
+
+    const db = getSupabaseAdmin();
+    const { data: profile, error: readError } = await db
+      .from('profiles')
+      .select('member_order')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (readError) throw new Error(readError.message);
+
+    const current = (profile?.member_order ?? {}) as Record<string, string[]>;
+    const { error } = await db
+      .from('profiles')
+      .update({ member_order: { ...current, [orgId]: orderedUserIds } })
+      .eq('id', user.id);
+    if (error) throw new Error(error.message);
+
+    return null;
   });
 }
 

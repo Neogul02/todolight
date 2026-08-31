@@ -7,12 +7,10 @@ import { getRealtimeClient } from '@/lib/supabase-realtime';
 import { isTodoPending } from '@/lib/pending-todos';
 import { fetchOrgMembers } from '@/app/actions/orgs';
 import { fetchOrgTodos } from '@/app/actions/todos';
+import { boardKeys } from '@/lib/query-keys';
 import type { MemberSummary, Todo } from '@/types/db';
 
-export const boardKeys = {
-  todos: (orgId: string) => ['todos', orgId] as const,
-  members: (orgId: string) => ['members', orgId] as const,
-};
+export { boardKeys };
 
 /*
   둘 다 staleTime을 짧게 두고 refetchOnWindowFocus·refetchOnReconnect를 켠다

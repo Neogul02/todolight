@@ -1,21 +1,30 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import Link from 'next/link';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, Reorder, useDragControls, useReducedMotion } from 'framer-motion';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { useOrgMembers, useOrgTodos } from '@/hooks/useOrgBoard';
 import { useTypingPresence } from '@/hooks/useTypingPresence';
 import { useFocusPresence } from '@/hooks/useFocusPresence';
 import { useCarousel } from '@/hooks/useCarousel';
 import { useApp } from '../OrgContext';
+import { updateMemberOrder } from '@/app/actions/orgs';
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/ui';
+import { vibrateTick } from '@/lib/haptics';
+import { showMsg } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import type { Locale } from '@/lib/locales';
-import type { MemberSummary, Todo } from '@/types/db';
+import type { MemberSummary, Profile, Todo } from '@/types/db';
 import MemberColumn from './MemberColumn';
 import { BoardSkeleton } from './BoardSkeleton';
+
+/** 팀원 칩을 꾹 누르고 있으면 탭이 아니라 순서 바꾸기로 친다 — TodoCard.tsx와 같은 값 */
+const LONG_PRESS_MS = 450;
+/** 이보다 더 움직이면 누른 게 아니라 스크롤하려는 것 — 순서 바꾸기를 취소한다 */
+const PRESS_SLOP_PX = 6;
 
 /**
  * 보드 패널 — 멤버별 컬럼을 가로 캐러셀(모바일)이나 격자(PC 대시보드)로 그린다.
@@ -28,6 +37,7 @@ export default function BoardClient({ onHandoff }: { onHandoff: (todo: Todo) => 
   const { activeOrgId, userId, isManager, profile, boardMode: mode } = useApp();
   const locale = useLocale() as Locale;
   const t = useTranslations('board');
+  const queryClient = useQueryClient();
 
   const members = useOrgMembers(activeOrgId);
   const todos = useOrgTodos(activeOrgId);
@@ -78,15 +88,74 @@ export default function BoardClient({ onHandoff }: { onHandoff: (todo: Todo) => 
     setOpenTodo(null);
   }
 
-  // 내 컬럼을 항상 맨 앞으로 — 내 할 일을 먼저 보게 한다.
+  /*
+    내 컬럼을 항상 맨 앞으로 — 내 할 일을 먼저 보게 한다.
+    나머지("다른 사람들")는 이 조직에서 내가 마지막으로 정한 순서(profile.member_order[orgId])를
+    따르고, 그 목록에 없는(새로 들어온) 멤버는 이름순으로 끝에 붙인다. 정한 적이 없으면
+    지금까지처럼 통째로 이름순이다.
+  */
   const orderedMembers = useMemo(() => {
     const list = members.data ?? [];
-    return [...list].sort((a, b) => {
-      if (a.user_id === userId) return -1;
-      if (b.user_id === userId) return 1;
-      return a.display_name.localeCompare(b.display_name, locale);
-    });
-  }, [members.data, userId, locale]);
+    const self = list.find(m => m.user_id === userId);
+    const others = list.filter(m => m.user_id !== userId);
+    const savedOrder = (activeOrgId && profile?.member_order?.[activeOrgId]) || [];
+    const otherById = new Map(others.map(m => [m.user_id, m]));
+    const inSavedOrder = savedOrder
+      .map(id => otherById.get(id))
+      .filter((m): m is MemberSummary => Boolean(m));
+    const savedIds = new Set(inSavedOrder.map(m => m.user_id));
+    const rest = others
+      .filter(m => !savedIds.has(m.user_id))
+      .sort((a, b) => a.display_name.localeCompare(b.display_name, locale));
+    return self ? [self, ...inSavedOrder, ...rest] : [...inSavedOrder, ...rest];
+  }, [members.data, userId, locale, activeOrgId, profile?.member_order]);
+
+  /*
+    칩 줄의 드래그 상태 — "다른 사람들"만 대상이다(나는 늘 맨 앞 고정).
+    드래그하는 동안은 이 손끝 순서가 화면의 진실이고, 놓았을 때만 서버에 반영한다 —
+    MemberColumn.tsx의 할 일 순서 바꾸기와 같은 모양이다.
+  */
+  const otherMembers = useMemo(
+    () => orderedMembers.filter(m => m.user_id !== userId),
+    [orderedMembers, userId]
+  );
+  const otherIds = useMemo(() => otherMembers.map(m => m.user_id), [otherMembers]);
+  const [chipOrder, setChipOrder] = useState<string[]>(otherIds);
+  /*
+    otherIds가 바뀌면(멤버 변동·저장된 순서 갱신 등) chipOrder를 다시 맞춘다.
+    useEffect로 하면 "effect 안에서 setState"로 걸리는 캐스케이드 렌더라 렌더 중에
+    바로 조정한다 — React가 권장하는 "prop이 바뀌면 state를 맞추는" 패턴이다.
+  */
+  const [syncedIds, setSyncedIds] = useState(otherIds);
+  if (otherIds !== syncedIds) {
+    setSyncedIds(otherIds);
+    setChipOrder(otherIds);
+  }
+  const otherById = useMemo(
+    () => new Map(otherMembers.map(m => [m.user_id, m])),
+    [otherMembers]
+  );
+
+  const memberOrderMutation = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      const res = await updateMemberOrder(activeOrgId!, orderedIds);
+      if (!res.success) throw new Error(res.error);
+    },
+    onMutate: async orderedIds => {
+      await queryClient.cancelQueries({ queryKey: ['my-profile'] });
+      const snapshot = queryClient.getQueryData<Profile>(['my-profile']);
+      queryClient.setQueryData<Profile>(['my-profile'], old =>
+        old
+          ? { ...old, member_order: { ...old.member_order, [activeOrgId!]: orderedIds } }
+          : old
+      );
+      return { snapshot };
+    },
+    onError: (error: Error, _orderedIds, context) => {
+      if (context?.snapshot) queryClient.setQueryData(['my-profile'], context.snapshot);
+      showMsg(error.message, 'error');
+    },
+  });
 
   // 같이하기로 참여한 할 일은 주인 컬럼뿐 아니라 참여자 컬럼에도 똑같이 뜬다 —
   // 같은 Todo 객체 참조를 여러 컬럼 목록에 넣어도 각 컬럼은 독립적으로 렌더링되니 문제없다.
@@ -170,20 +239,48 @@ export default function BoardClient({ onHandoff }: { onHandoff: (todo: Todo) => 
         // 헤더가 없어 이 칩 줄이 모바일 화면의 맨 위다 — pt-safe로 노치를 피하고,
         // 우측은 그 위에 뜬 아바타 버튼(size-11)만큼 비워 칩이 아바타 밑에 깔리지 않게 한다.
         <div className="flex h-[var(--board-toolbar-h)] shrink-0 items-center px-3 pt-safe sm:hidden">
-          <div className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-1 pr-12">
-            {orderedMembers.map((m, i) => (
+          {/*
+            나는 Reorder.Group 밖에 고정으로 그린다 — "다른 사람들의 순서"만 정하는 기능이라
+            내 컬럼이 늘 맨 앞이라는 원칙과 같은 이유로 나는 드래그 대상에서 뺀다.
+          */}
+          <Reorder.Group
+            as="div"
+            axis="x"
+            values={chipOrder}
+            onReorder={setChipOrder}
+            className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-1 pr-12"
+          >
+            {orderedMembers[0]?.user_id === userId && (
               <MemberChip
-                key={m.user_id}
-                member={m}
-                isMe={m.user_id === userId}
-                active={i === activeIndex}
+                key={orderedMembers[0].user_id}
+                member={orderedMembers[0]}
+                isMe
+                active={0 === activeIndex}
                 remaining={
-                  (todosByOwner.get(m.user_id) ?? []).filter(t => t.status !== 'done').length
+                  (todosByOwner.get(orderedMembers[0].user_id) ?? []).filter(
+                    t => t.status !== 'done'
+                  ).length
                 }
-                onClick={() => goToMember(i)}
+                onClick={() => goToMember(0)}
               />
-            ))}
-          </div>
+            )}
+            {chipOrder.map((id, i) => {
+              const m = otherById.get(id);
+              if (!m) return null;
+              return (
+                <DraggableMemberChip
+                  key={id}
+                  member={m}
+                  active={i + 1 === activeIndex}
+                  remaining={
+                    (todosByOwner.get(id) ?? []).filter(t => t.status !== 'done').length
+                  }
+                  onTap={() => goToMember(i + 1)}
+                  onReorderCommit={() => memberOrderMutation.mutate(chipOrder)}
+                />
+              );
+            })}
+          </Reorder.Group>
         </div>
       )}
 
@@ -321,20 +418,38 @@ function MemberChip({
   active,
   remaining,
   onClick,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+  draggable = false,
 }: {
   member: MemberSummary;
   isMe: boolean;
   active: boolean;
   remaining: number;
   onClick: () => void;
+  onPointerDown?: (e: ReactPointerEvent) => void;
+  onPointerMove?: (e: ReactPointerEvent) => void;
+  onPointerUp?: () => void;
+  onPointerCancel?: () => void;
+  /** 꾹 눌러 순서를 바꿀 수 있는 손잡이인지 — 나(self) 칩은 늘 고정이라 이게 없다 */
+  draggable?: boolean;
 }) {
   const t = useTranslations('board');
   return (
     <button
       type="button"
       onClick={onClick}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
       className={cn(
         'flex h-10 shrink-0 items-center gap-1.5 rounded-full border pl-1 pr-2.5 no-select transition-colors active:scale-[0.97]',
+        // 손끝으로 꾹 누르는 동안에도 옆으로는 자연스럽게 스크롤되게 둔다(TodoCard.tsx의
+        // touch-pan-y와 같은 이유, 여긴 가로 목록이라 축만 다르다).
+        draggable && 'touch-pan-x',
         active
           ? 'border-hairline-strong bg-surface text-ink'
           : 'border-transparent bg-canvas-soft text-ink-muted'
@@ -361,5 +476,94 @@ function MemberChip({
         </span>
       )}
     </button>
+  );
+}
+
+/**
+ * 다른 팀원 칩 하나 — 꾹 누르면 순서 바꾸기, 짧게 누르면 그 사람 컬럼으로 이동한다.
+ * TodoCard.tsx의 "제목 칸 꾹 눌러 순서 바꾸기"와 같은 손잡이 패턴이다: dragListener를 꺼 두고
+ * 누른 지 450ms가 지나야 dragControls.start()로 드래그를 연다 — 그 전까지는 이 칩 줄의
+ * 가로 스크롤과 탭 이동이 평소대로 동작한다.
+ */
+function DraggableMemberChip({
+  member,
+  active,
+  remaining,
+  onTap,
+  onReorderCommit,
+}: {
+  member: MemberSummary;
+  active: boolean;
+  remaining: number;
+  onTap: () => void;
+  onReorderCommit: () => void;
+}) {
+  const dragControls = useDragControls();
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressOrigin = useRef<{ x: number; y: number } | null>(null);
+  const suppressClickRef = useRef(false);
+
+  function clearPressTimer() {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+  }
+
+  function handleDown(e: ReactPointerEvent) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    pressOrigin.current = { x: e.clientX, y: e.clientY };
+    clearPressTimer();
+    pressTimer.current = setTimeout(() => {
+      pressTimer.current = null;
+      suppressClickRef.current = true;
+      vibrateTick(20);
+      dragControls.start(e);
+    }, LONG_PRESS_MS);
+  }
+
+  function handleMove(e: ReactPointerEvent) {
+    const origin = pressOrigin.current;
+    if (!origin || !pressTimer.current) return;
+    if (Math.hypot(e.clientX - origin.x, e.clientY - origin.y) > PRESS_SLOP_PX) clearPressTimer();
+  }
+
+  function handleUp() {
+    clearPressTimer();
+    pressOrigin.current = null;
+  }
+
+  function handleClick() {
+    // 꾹 눌러 순서를 바꾼 직후에는 손을 뗀 자리에서 클릭이 한 번 더 온다 — 그건 이동이 아니다.
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    onTap();
+  }
+
+  return (
+    <Reorder.Item
+      value={member.user_id}
+      as="div"
+      layout
+      dragListener={false}
+      dragControls={dragControls}
+      onDragEnd={onReorderCommit}
+      className="flex shrink-0"
+    >
+      <MemberChip
+        member={member}
+        isMe={false}
+        active={active}
+        remaining={remaining}
+        onClick={handleClick}
+        onPointerDown={handleDown}
+        onPointerMove={handleMove}
+        onPointerUp={handleUp}
+        onPointerCancel={handleUp}
+        draggable
+      />
+    </Reorder.Item>
   );
 }

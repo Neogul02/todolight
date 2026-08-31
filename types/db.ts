@@ -16,6 +16,11 @@ export interface Profile {
   show_done: boolean;
   /** 가계부를 쓸지. 끄면 헤더의 가계부 버튼이 사라진다 */
   show_ledger: boolean;
+  /**
+   * 조직별로 정한, 보드 캐러셀·대시보드에서 나 다음에 나올 팀원 순서(나를 뺀 user_id 배열).
+   * 기기를 옮겨도 같아야 해서 계정에 붙였다. 정한 적 없는 조직은 키 자체가 없다(이름순으로 떨어진다).
+   */
+  member_order: Record<string, string[]>;
   created_at: string;
 }
 

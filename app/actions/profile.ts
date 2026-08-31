@@ -14,7 +14,7 @@ import type { Profile } from '@/types/db';
 const nameSchema = (t: ActionT) => z.string().trim().min(1, t('nameRequired')).max(30);
 
 const PROFILE_COLUMNS =
-  'id, email, display_name, avatar_color, avatar_url, theme, locale, show_done, show_ledger, created_at';
+  'id, email, display_name, avatar_color, avatar_url, theme, locale, show_done, show_ledger, member_order, created_at';
 
 export async function fetchMyProfile(): Promise<ApiResponse<Profile>> {
   return wrap(async () => {

@@ -246,9 +246,18 @@ export default function AppShell({
       if (!res.success) throw new Error(res.error);
       return { ...res.data, accept: input.accept };
     },
-    onSuccess: data => {
+    onSuccess: async data => {
       showMsg(data.accept ? tToast('inviteAccepted') : tToast('inviteDeclined'), 'success');
-      queryClient.invalidateQueries({ queryKey: ['my-invites'] });
+      /*
+        my-invites만 invalidate하면 방금 들어간 조직이 orgs 목록 캐시엔 여전히 없어서,
+        바로 아래에서 selectOrg로 activeOrgId만 바뀌고 헤더 조직명·아이콘 등 activeOrg를
+        참조하는 곳은 새로고침(앱 재시작) 전까지 빈 채로 남았다 — my-orgs도 같이 기다렸다가
+        조직 목록이 새 조직을 포함한 뒤에 화면을 넘긴다.
+      */
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['my-invites'] }),
+        queryClient.invalidateQueries({ queryKey: ['my-orgs'] }),
+      ]);
       // 수락한 조직으로 바로 넘어간다 — 수락하고 또 고르게 하면 한 단계가 남는다
       if (data.accept && data.orgId) {
         selectOrg(data.orgId);

@@ -10,11 +10,10 @@ import {
   updateOrgEvent,
 } from '@/app/actions/events';
 import { showMsg, showUndo } from '@/lib/toast';
+import { eventKeys } from '@/lib/query-keys';
 import type { OrgEvent } from '@/types/db';
 
-export const eventKeys = {
-  all: (orgId: string) => ['org-events', orgId] as const,
-};
+export { eventKeys };
 
 export function useOrgEvents(orgId: string | null) {
   return useQuery({
