@@ -234,7 +234,24 @@ ledger_entries  id, org_id, payer_id, amount(bigint, 원 단위), title, spent_o
 
 ### 실시간
 
-`lib/supabase-realtime.ts` 싱글턴 클라이언트로 채널을 만든다:
+`lib/supabase-realtime.ts` 싱글턴 클라이언트로 채널을 만든다.
+
+**웹소켓은 쿠키로 인증되지 않는다.** HTTP 요청은 브라우저가 세션 쿠키를 자동으로 붙이지만
+웹소켓은 별개 연결이라 JWT를 명시로 넘겨야 한다. 한때 publishable 키만 들고 붙어서 서버
+입장에서 이 연결이 늘 익명(anon)이었고, `todos`의 RLS(`is_org_member(org_id)`)를 통과하지
+못해 **아무 행도 오지 않았다** — 실시간이 죽은 채로 `useOrgBoard`의 staleTime 30초와
+포커스 재조회가 그걸 가려서, 창을 다시 클릭할 때 맞춰지는 걸 실시간이라고 믿고 있었다.
+
+그래서 `setAuth()`를 로그인 시점에 부르지 않고 **`accessToken` 콜백**을 준다 —
+realtime-js가 하트비트마다 토큰을 다시 물어본다. 로그인·갱신 시점을 붙잡아 `setAuth()`를
+다시 부르는 방식은 한 번이라도 놓치면(1시간 뒤 갱신) 그때부터 조용해지는데, 이 방식엔
+그 실패 모드가 없다. 로그아웃 상태에서는 publishable 키로 떨어진다 — `null`이나 빈
+문자열을 주면 서버가 잘못된 토큰으로 보고 채널을 끊는다.
+
+이 클라이언트에는 `persistSession: false`를 준다. 채널 전용인데 세션까지 저장하게 두면
+로그인을 담당하는 `@supabase/ssr` 클라이언트와 같은 저장소를 두고 다툰다.
+
+채널은 둘이다:
 
 - `board-{orgId}` — `todos` 변경을 `org_id` 필터로 구독. INSERT/UPDATE는 TanStack Query
   캐시에 직접 병합하고, `todo_notes` 변경은 작성자 이름 조인이 필요해서 invalidate로 처리한다.
