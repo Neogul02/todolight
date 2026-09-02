@@ -703,4 +703,7 @@ bg-accent / text-accent-ink
 
 - 유료 테마 결제 연동 (현재 `THEMES`의 `free: false` 항목이 자리만 잡아 둔 상태)
 - 할 일 드래그 정렬 UI (`position`이 double이라 서버 액션만 새로 만들면 된다)
-- Swift iOS 앱 — 웹앱 안정화 후 검토. 서버 액션 대신 쓸 REST/Edge Function 레이어가 필요해진다.
+- Swift iOS 앱 + 잠금화면 위젯 — 계획은 **`docs/ios-app-plan.md`**에 있다.
+  요지: 같은 repo의 `ios/` 폴더, 백엔드는 새로 만들지 않고 `getAuthUser()`에 Bearer 경로만
+  더해 서버 액션을 `/api/v1` 어댑터로 노출한다. 착수 전에 끝내야 할 것 셋(실시간 채널 인증 ·
+  계정 삭제 · Apple 개발자 등록)이 그 문서 §1에 있다.
