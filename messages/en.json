@@ -180,12 +180,13 @@
     "gridLabel": "{month} calendar",
     "remainingCount": "{count} left",
     "eventsList": "events {list}",
-    "newEvent": "+ Event",
+    "newEvent": "Add event",
     "emptyDay": "Nothing on this day",
     "noDueDate": "No due date · {count}",
-    "selectedSummary": "{date} · {events} events · {todos} to-dos",
+    "selectedSummary": "{date}",
     "resizePanel": "Resize the list",
-    "loadingAria": "Loading the calendar"
+    "loadingAria": "Loading the calendar",
+    "selectedCounts": "{events} events · {todos} to-dos"
   },
   "event": {
     "editTitle": "Edit event",
@@ -263,7 +264,8 @@
     "noDue": "No due date",
     "today": "Today",
     "tomorrow": "Tomorrow",
-    "yesterday": "Yesterday"
+    "yesterday": "Yesterday",
+    "changeDue": "Due {date} — tap to change"
   },
   "toast": {
     "todoDeleted": "Deleted the to-do",

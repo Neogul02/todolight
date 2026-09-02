@@ -316,7 +316,7 @@ export default function AppShell({
         */}
         <header
           className={cn(
-            'sticky top-0 z-30 border-b border-hairline bg-canvas/85 pt-safe backdrop-blur-md sm:pt-0',
+            'sticky top-0 z-30 glass-bar pt-safe sm:pt-0',
             onBoard && 'hidden sm:block'
           )}
         >
@@ -481,7 +481,7 @@ export default function AppShell({
         */}
         {showViewSwitch && (
           <nav className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+12px)] z-40 flex justify-center sm:hidden">
-            <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-hairline/60 bg-surface/55 p-1.5 no-select shadow-md backdrop-blur-xl">
+            <div className="pointer-events-auto flex items-center gap-1 rounded-full glass p-1.5 no-select">
               <TabBarButton
                 active={view === 'board'}
                 label={t('viewBoard')}
@@ -656,7 +656,14 @@ function ViewSegmentButton({
   );
 }
 
-/** 하단 탭바(모바일) 항목 — 위와 같은 이유로 전부 버튼이다 */
+/**
+ * 하단 탭바(모바일) 항목 — 위와 같은 이유로 전부 버튼이다.
+ *
+ * 고른 항목 뒤의 판은 항목마다 따로 그리지 않고 **하나를 공유해서 옮긴다**(layoutId).
+ * 켜고 끄면 판이 제자리에서 나타났다 사라지는데, 그러면 "지금 어디에서 어디로 갔는지"가
+ * 안 남는다 — 유리 위를 미끄러지는 판 하나가 그 경로를 보여 준다.
+ * 이 앱에서 모션을 쓰는 자리는 여기와 마감일 알약 둘뿐이다.
+ */
 function TabBarButton({
   active,
   label,
@@ -668,18 +675,31 @@ function TabBarButton({
   onClick: () => void;
   Icon: (p: { className?: string }) => React.ReactElement;
 }) {
+  const reduceMotion = useReducedMotion();
+
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'flex w-16 flex-col items-center gap-0.5 rounded-full py-1.5 transition-colors',
+        'relative flex w-16 flex-col items-center gap-0.5 rounded-full py-1.5 transition-colors',
         active ? 'text-accent' : 'text-ink-muted'
       )}
     >
-      <Icon className="size-[22px]" />
-      <span className="text-[10px] font-medium">{label}</span>
+      {active && (
+        <motion.span
+          layoutId="tabbar-active"
+          transition={
+            reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }
+          }
+          className="absolute inset-0 rounded-full bg-accent-soft"
+          aria-hidden
+        />
+      )}
+      {/* 판은 배경이라 글자·아이콘이 그 위에 와야 한다 */}
+      <Icon className="relative size-[22px]" />
+      <span className="relative text-[10px] font-medium">{label}</span>
     </button>
   );
 }

@@ -65,6 +65,23 @@
   --danger-soft: #f7e6e4;
   --danger-ink: #ffffff;
 
+  /*
+    ── 유리(Liquid Glass) ──
+    떠 있는 것에만 쓴다: 헤더 · 하단 탭바 · 시트 · 콘텐츠 위에 뜬 버튼.
+    카드와 목록 행은 불투명하게 둔다 — 글자 뒤로 콘텐츠가 비치면 6개 테마 중 어딘가에서
+    반드시 읽히지 않는 조합이 나온다. 유리는 층을 나타내는 신호지 장식이 아니다.
+
+    strong은 시트용이다. 시트는 화면의 절반을 덮고 그 안에서 글을 읽고 입력까지 하므로
+    바(bar)보다 훨씬 불투명해야 한다.
+    sheen은 위쪽 모서리에 얹는 1px 하이라이트 — 유리의 두께가 여기서 보인다.
+  */
+  --glass-bg: rgba(255, 255, 255, 0.52);
+  --glass-bg-strong: rgba(255, 255, 255, 0.86);
+  --glass-border: rgba(20, 18, 15, 0.08);
+  --glass-sheen: rgba(255, 255, 255, 0.9);
+  --glass-shade: rgba(20, 18, 15, 0.05);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.08);
+
   /* 흰 배경에서는 아주 옅은 그림자로 층만 만든다 */
   --shadow-1:
     rgba(0, 0, 0, 0.012) 0 0.175px 1.041px, rgba(0, 0, 0, 0.022) 0 0.8px 2.925px,
@@ -83,6 +100,13 @@
 :root[data-theme="nord"],
 :root[data-theme="dracula"] {
   color-scheme: dark;
+
+  /* 어두운 배경에서 유리는 "밝아지는" 게 아니라 "덜 어두워진다" — 배경색을 옅게 깔고
+     하이라이트만 흰색으로 얹는다. 흰 유리를 그대로 쓰면 밤에 화면이 찢어진다. */
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-sheen: rgba(255, 255, 255, 0.12);
+  --glass-shade: rgba(0, 0, 0, 0.3);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 30px rgba(0, 0, 0, 0.45);
 
   --shadow-1: rgba(0, 0, 0, 0.5) 0 1px 2px, rgba(0, 0, 0, 0.42) 0 4px 14px;
   --shadow-2:
@@ -115,6 +139,9 @@
   --accent-soft: #2d2c2a;
   --accent-ink: #101010;
 
+  --glass-bg: rgba(32, 32, 32, 0.58);
+  --glass-bg-strong: rgba(26, 26, 26, 0.88);
+
   --success: #86cfa2;
   --success-soft: #1a3226;
   --warning: #e2ba6a;
@@ -145,6 +172,12 @@
   --accent-soft: #eee8d5;
   --accent-ink: #fdf6e3;
 
+  --glass-bg: rgba(253, 246, 227, 0.56);
+  --glass-bg-strong: rgba(253, 246, 227, 0.9);
+  --glass-border: rgba(7, 54, 66, 0.09);
+  --glass-sheen: rgba(255, 255, 255, 0.8);
+  --glass-shade: rgba(7, 54, 66, 0.06);
+
   --success: #4f7a1f; /* green을 배경 대비에 맞게 낮춤 */
   --success-soft: #e8ecd2;
   --warning: #97690b; /* yellow 계열 */
@@ -174,6 +207,9 @@
   --accent-soft: #434c5e;
   --accent-ink: #2e3440;
 
+  --glass-bg: rgba(59, 66, 82, 0.6);
+  --glass-bg-strong: rgba(46, 52, 64, 0.9);
+
   --success: #a3be8c; /* nord14 */
   --success-soft: #333f31;
   --warning: #ebcb8b; /* nord13 */
@@ -202,6 +238,9 @@
   --accent: #bd93f9; /* purple */
   --accent-soft: #44475a;
   --accent-ink: #282a36;
+
+  --glass-bg: rgba(52, 55, 70, 0.6);
+  --glass-bg-strong: rgba(40, 42, 54, 0.9);
 
   --success: #50fa7b;
   --success-soft: #1f3a29;
@@ -376,6 +415,84 @@ select:focus-visible {
  */
 @utility app-viewport {
   height: calc(100dvh - var(--header-h) - env(safe-area-inset-bottom));
+}
+
+/* ──────────────────────────────────────────────────────────────
+   유리(Liquid Glass)
+
+   테두리를 `border`가 아니라 inset box-shadow로 준다 — border를 쓰면 1px이 요소 크기에
+   더해져서, 유리 알약을 정확한 높이(44px)로 맞춰 놓은 자리가 46px이 된다. 그림자로 그리면
+   레이아웃이 그대로다. 겸사겸사 컴포넌트가 rounded-*를 자유롭게 바꿔도 따라온다.
+
+   그림자 세 겹의 역할이 각각 다르다:
+     inset 0 1px 0   sheen  — 위쪽 모서리의 반사. 유리의 두께가 여기서 보인다
+     inset 0 0 0 1px border — 배경과 유리의 경계
+     바깥 그림자            — 콘텐츠 위에 떠 있다는 신호
+
+   backdrop-filter는 조상에 걸린 filter/transform 안에서도 동작하지만, **부모가
+   `overflow: hidden`이면 흐림의 재료가 잘려 나가** 유리가 단색판이 된다. 유리를 붙일
+   요소는 잘리는 컨테이너 밖(대개 fixed/sticky)에 두어야 한다.
+
+   **"안 비친다"는 대개 버그가 아니다.** 흰 테마에서 흰 카드 위에 얹힌 흰 유리는 흐려 봐야
+   흰색이고, 알약 뒤가 마침 빈 배경이면 비칠 것 자체가 없다. 그래서 이 앱의 유리는
+   투명도가 아니라 **가장자리**로 읽히게 만들었다 — 위쪽 sheen(반사), 아래쪽 shade(두께),
+   1px 경계, 바깥 그림자. 투명도를 더 올리는 건 답이 아니다. 글자만 읽기 어려워진다.
+   (기기 설정에서 "투명도 줄이기"를 켜 두면 흐림이 아예 꺼진다 — 아래 미디어 쿼리 참고.)
+   ────────────────────────────────────────────────────────────── */
+@utility glass {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-sheen),
+    inset 0 -1px 0 0 var(--glass-shade),
+    inset 0 0 0 1px var(--glass-border),
+    var(--glass-shadow);
+}
+
+/* 시트처럼 그 위에서 글을 읽고 입력까지 하는 면 — 훨씬 불투명하고 더 세게 흐린다 */
+@utility glass-strong {
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-sheen),
+    inset 0 -1px 0 0 var(--glass-shade),
+    inset 0 0 0 1px var(--glass-border),
+    var(--glass-shadow);
+}
+
+/* 화면 폭을 꽉 채우는 상단 바 — 떠 있는 게 아니라 얹혀 있으므로 바깥 그림자 없이
+   아래쪽 경계선만 남긴다. 그림자를 주면 가로로 긴 회색 띠가 콘텐츠 위에 드리운다. */
+@utility glass-bar {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: inset 0 -1px 0 0 var(--glass-border);
+}
+
+/*
+  backdrop-filter를 못 쓰는 환경에서는 흐림 없이 반투명만 남아 글자 뒤로 콘텐츠가
+  그대로 비친다 — 읽을 수 없는 상태라 불투명한 면으로 떨어뜨린다.
+  투명도를 줄이도록 설정한 사용자(prefers-reduced-transparency)에게도 같은 처리를 한다:
+  움직임과 마찬가지로 이건 취향이 아니라 접근성 요구다.
+*/
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass,
+  .glass-strong,
+  .glass-bar {
+    background: var(--surface);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-strong,
+  .glass-bar {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 /* ── Elevation ── 실제 값은 테마 블록의 --shadow-1/2에 있다 */

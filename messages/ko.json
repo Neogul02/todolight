@@ -180,12 +180,13 @@
     "gridLabel": "{month} 달력",
     "remainingCount": "남은 할 일 {count}개",
     "eventsList": "일정 {list}",
-    "newEvent": "+ 일정",
+    "newEvent": "일정 추가",
     "emptyDay": "이 날은 비어 있어요",
     "noDueDate": "마감 없음 · {count}건",
-    "selectedSummary": "{date} · 일정 {events} · 할 일 {todos}",
+    "selectedSummary": "{date}",
     "resizePanel": "목록 크기 조절",
-    "loadingAria": "달력을 불러오는 중"
+    "loadingAria": "달력을 불러오는 중",
+    "selectedCounts": "일정 {events} · 할 일 {todos}"
   },
   "event": {
     "editTitle": "일정 고치기",
@@ -263,7 +264,8 @@
     "noDue": "마감 없음",
     "today": "오늘",
     "tomorrow": "내일",
-    "yesterday": "어제"
+    "yesterday": "어제",
+    "changeDue": "마감 {date} · 눌러서 바꾸기"
   },
   "toast": {
     "todoDeleted": "할 일을 지웠어요",

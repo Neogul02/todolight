@@ -9,10 +9,11 @@ import { useResizablePanel } from '@/hooks/useResizablePanel';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/ui';
 import { getEventColor } from '@/lib/event-colors';
+import { getAvatarColor } from '@/lib/avatar';
 import { useOrgEvents } from '@/hooks/useOrgEvents';
 import { useTodoMutations } from '@/hooks/useTodoMutations';
 import { vibrateTick } from '@/lib/haptics';
-import { addDays, cn, todayKST } from '@/lib/utils';
+import { addDays, cn, daysFromToday, formatRelativeDay, todayKST } from '@/lib/utils';
 import type { Locale } from '@/lib/locales';
 import type { MemberSummary, OrgEvent, Todo } from '@/types/db';
 import { EventSheet } from './EventSheet';
@@ -23,6 +24,16 @@ const MAX_LANES = 3;
 const CELL_GAP_PX = 4;
 /** 점 모드(칸이 좁을 때)에서 한 칸에 찍는 점의 최대 개수 — 넘치면 +N */
 const MAX_DOTS = 4;
+/**
+ * 날짜 칸에 찍는 담당자 점의 최대 개수.
+ *
+ * 예전에는 남은 할 일 **개수**를 작은 회색 알약으로 숫자만 찍었다. 그런데 이 앱에서
+ * "3"이라는 숫자는 거의 아무것도 말해 주지 않는다 — 보드가 답하는 질문이 "누가 무엇을
+ * 들고 있나"인데 달력만 사람을 지워 버린 셈이었다. 같은 자리에 **담당자 색 점**을 찍으면
+ * 개수도 그대로 읽히면서(점이 몇 개인지) 누구에게 몰렸는지까지 한눈에 온다.
+ * 색은 아바타와 같은 팔레트라 새로 배울 것이 없다.
+ */
+const MAX_OWNER_DOTS = 3;
 /**
  * 목록 패널이 차지하는 화면 비율. "살짝 보임"과 "반반" **두 단계뿐이다.**
  *
@@ -184,6 +195,25 @@ export function CalendarView({
     return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(Date.UTC(2023, 0, 1 + i))));
   }, [locale]);
 
+  /**
+   * 목록 제목에 쓰는 날짜 — "9월 2일 (화)", 오늘·내일·어제면 뒤에 그 말을 붙인다.
+   *
+   * 예전에는 `selected`(YYYY-MM-DD)를 그대로 찍어서 목록 머리에 "2026-09-02"가 떴다.
+   * 화면 어디에도 그런 표기가 없는데 여기만 데이터베이스 문법으로 말하고 있었다.
+   * UTC 자정 문자열을 UTC로 포매팅한다 — 기기 시간대에 따라 하루가 밀리는 걸 막는다.
+   */
+  const selectedLabel = useMemo(() => {
+    const base = new Intl.DateTimeFormat(locale, {
+      month: 'long',
+      day: 'numeric',
+      weekday: 'short',
+      timeZone: 'UTC',
+    }).format(new Date(`${selected}T00:00:00Z`));
+    // 오늘·어제·내일만 덧붙인다. 그 밖의 날에 "3일 후"까지 붙이면 제목이 길어지기만 한다.
+    if (Math.abs(daysFromToday(selected)) > 1) return base;
+    return `${base} · ${formatRelativeDay(`${selected}T00:00:00Z`, locale)}`;
+  }, [selected, locale]);
+
   /** 스크린리더가 읽을 하루 요약 — "8월 15일, 남은 할 일 2개, 일정 팝업 준비 기간" */
   const describeDay = useCallback(
     (date: string, remaining: number, dayEvents: OrgEvent[]): string => {
@@ -305,6 +335,21 @@ export function CalendarView({
     setSelected(date);
   }
 
+  /**
+   * 그 날 남은 할 일의 주인 색 — 같은 사람이 여러 개면 점도 여러 개다.
+   * "누구에게 몰렸나"를 보는 자리라 사람을 합치면 안 된다(3개 든 사람과 1개씩 든 세 사람은
+   * 다른 상황이고, 달력에서 알고 싶은 건 대개 앞쪽이다).
+   */
+  function ownerDots(dayTodos: Todo[]) {
+    return dayTodos
+      .filter(td => td.status !== 'done')
+      .slice(0, MAX_OWNER_DOTS)
+      .map((td, i) => {
+        const owner = memberOf(td.owner_id);
+        return { key: `${td.id}-${i}`, color: getAvatarColor(owner?.avatar_color, td.owner_id).bg };
+      });
+  }
+
   return (
     <div
       ref={rootRef}
@@ -355,12 +400,20 @@ export function CalendarView({
         </button>
       </div>
 
+      {/*
+        일요일만 붉게 둔다. 한국 달력에서 빨간 일요일은 배우지 않아도 읽히는 관습이라
+        "이거 주말인데?"를 색 하나로 끝낸다. 토요일까지 색을 나누면(파랑) 새 토큰이 필요하고,
+        여섯 테마 중 어딘가에서는 반드시 배경과 싸운다 — 관습이 가장 센 하나만 쓴다.
+      */}
       <div className="grid grid-cols-7" role="row">
-        {weekdays.map(w => (
+        {weekdays.map((w, i) => (
           <span
             key={w}
             role="columnheader"
-            className="py-1 text-center text-[11px] font-medium text-ink-faint"
+            className={cn(
+              'py-1 text-center text-[11px] font-medium',
+              i === 0 ? 'text-danger/70' : 'text-ink-faint'
+            )}
           >
             {w}
           </span>
@@ -422,26 +475,57 @@ export function CalendarView({
                   남고 나머지 날은 빈칸이 된다(기간 일정이 중간중간 끊겨 보인다).
                   세로로 넘치는 건 칸이 납작해질 때의 문제인데, 그건 점 모드로 따로 해결한다.
                 */
-                'flex min-h-0 flex-col items-stretch gap-1 rounded-xl border pt-1.5 pb-1 transition-colors sm:aspect-[6/7]',
-                isSelected
-                  ? 'border-accent bg-accent-soft text-ink'
-                  : 'border-transparent text-ink active:bg-canvas-soft'
+                'flex min-h-0 flex-col items-stretch gap-1 rounded-xl pt-1.5 pb-1 transition-colors sm:aspect-[6/7]',
+                isSelected ? 'bg-accent-soft' : 'active:bg-canvas-soft'
               )}
             >
               {/*
-                날짜는 칸 한가운데 고정한다. 배지를 같은 흐름에 두면 할 일이 있는 날만
-                숫자가 옆으로 밀려서 줄이 들쭉날쭉해진다 — 배지는 띄워서 옆에 붙인다.
+                **오늘과 고른 날은 다른 방식으로 표시한다.**
+                예전엔 오늘=굵은 숫자, 고른 날=칸 테두리라 둘의 세기가 비슷해서, 오늘이 아닌
+                날을 골라 두면 어느 쪽이 오늘인지 한 박자 늦게 찾았다.
+                지금은 고른 날만 숫자를 채운 원으로 감싼다(iOS 달력과 같은 규칙) —
+                칸 하나에 채워진 원은 언제나 하나뿐이라 헷갈릴 여지가 없고,
+                오늘은 색과 굵기로만 말한다.
+
+                숫자는 칸 한가운데 고정한다. 담당자 점을 같은 흐름에 두면 할 일이 있는 날만
+                숫자가 옆으로 밀려 줄이 들쭉날쭉해진다 — 점은 아래 줄에 따로 놓는다.
               */}
-              <span className="relative flex items-center justify-center px-1">
-                <span className={cn('text-[13px] tabular-nums', isToday && 'font-bold')}>
+              <span className="flex items-center justify-center px-1">
+                <span
+                  className={cn(
+                    'grid h-[20px] min-w-[20px] place-items-center rounded-full px-1 text-[13px] tabular-nums transition-colors',
+                    isSelected && 'bg-accent font-semibold text-accent-ink',
+                    !isSelected && isToday && 'font-bold text-accent',
+                    !isSelected && !isToday && weekdayOf(date) === 0 && 'text-danger/80',
+                    !isSelected && !isToday && weekdayOf(date) !== 0 && 'text-ink'
+                  )}
+                >
                   {Number(date.slice(-2))}
                 </span>
-                {remaining > 0 && (
-                  <span className="absolute right-0 top-1/2 grid min-w-[14px] -translate-y-1/2 rounded-full bg-canvas-soft px-1 text-[9px] leading-[14px] font-semibold text-ink-secondary">
-                    {remaining}
-                  </span>
-                )}
               </span>
+
+              {/*
+                남은 할 일을 **담당자 색 점**으로 찍는다. 점이 몇 개인지가 곧 개수이고,
+                색이 곧 누구인지다 — 아바타와 같은 팔레트라 새로 배울 것이 없다.
+                점이 없는 날은 이 줄이 아예 자리를 차지하지 않는다(칸 높이가 흔들리지 않게
+                min-h를 주지 않는다 — 어차피 아래 띠/점 영역이 높이를 잡는다).
+              */}
+              {remaining > 0 && (
+                <span className="pointer-events-none flex items-center justify-center gap-[3px] px-1">
+                  {ownerDots(dayTodos).map(({ key, color }) => (
+                    <span
+                      key={key}
+                      className="size-[5px] shrink-0 rounded-full"
+                      style={{ background: color }}
+                    />
+                  ))}
+                  {remaining > MAX_OWNER_DOTS && (
+                    <span className="text-[8px] leading-none font-semibold text-ink-faint">
+                      +{remaining - MAX_OWNER_DOTS}
+                    </span>
+                  )}
+                </span>
+              )}
 
               {/*
                 일정 띠.
@@ -595,19 +679,39 @@ export function CalendarView({
           {...panel.handleProps}
           className="grid h-11 shrink-0 touch-none place-items-center no-select sm:hidden"
         >
-          <span className="h-1 w-10 rounded-full bg-hairline-strong" />
+          {/*
+            막대 하나만 있을 때는 "여기 뭔가 있다"까지만 읽히고 잡아 끌 수 있다는 건
+            안 읽혔다. 잡는 자리를 알약으로 만들어 손가락이 닿을 넓이를 보여 준다.
+            보이는 알약은 작고 버튼은 여전히 44px이라 터치 타깃은 줄지 않는다.
+
+            여기에 유리를 쓰지 않는다 — 이 패널은 달력 **아래**에 나란히 있지 그 위에
+            떠 있지 않다. 뒤에 비칠 것이 없는 자리의 유리는 층을 나타내는 게 아니라
+            그냥 무늬다.
+          */}
+          <span className="grid h-[18px] w-14 place-items-center rounded-full border border-hairline bg-canvas-soft">
+            <span className="h-[3px] w-7 rounded-full bg-ink-faint/60" />
+          </span>
         </button>
 
         <div className="flex min-h-0 flex-1 flex-col border-t border-hairline pt-3 sm:mt-4 sm:min-h-0 sm:flex-none">
-          <div className="flex shrink-0 items-center justify-between pb-2">
-            <h2 className="text-caption font-semibold text-ink-secondary">
-              {t('selectedSummary', {
-                date: selected,
-                events: selectedEvents.length,
-                todos: selectedTodos.length,
-              })}
-            </h2>
-            <Button size="sm" variant="outline" onClick={openNewEvent}>
+          {/*
+            날짜가 제목이고 개수는 그 밑의 부연이다. 한 줄에 "2026-09-02 · 일정 0 · 할 일 3"처럼
+            늘어놓으면 셋 다 같은 크기라 무엇이 제목인지 알 수 없었고, 정작 제일 자주 읽는
+            날짜가 데이터베이스 표기로 적혀 있었다.
+          */}
+          <div className="flex shrink-0 items-start justify-between gap-2 pb-2">
+            <div className="min-w-0">
+              <h2 className="truncate text-[15px] font-semibold text-ink" aria-live="polite">
+                {t('selectedSummary', { date: selectedLabel })}
+              </h2>
+              <p className="text-[11px] text-ink-faint">
+                {t('selectedCounts', {
+                  events: selectedEvents.length,
+                  todos: selectedTodos.length,
+                })}
+              </p>
+            </div>
+            <Button size="sm" variant="outline" onClick={openNewEvent} className="shrink-0">
               {t('newEvent')}
             </Button>
           </div>

@@ -104,7 +104,7 @@ export function BottomSheet({
           onMouseDown={e => {
             if (e.target === e.currentTarget) onClose();
           }}
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 backdrop-blur-[2px] sm:items-center sm:p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 backdrop-blur-[3px] sm:items-center sm:p-4"
         >
           <motion.div
             key="sheet"
@@ -134,8 +134,14 @@ export function BottomSheet({
               focusedOnEnterRef.current = true;
               focusables()[0]?.focus();
             }}
+            /*
+              유리다. 시트는 화면 절반을 덮고 그 안에서 읽고 입력까지 하므로 바(bar)보다
+              훨씬 불투명한 glass-strong을 쓴다 — 여기서 투명도를 욕심내면 뒤에 있는 보드
+              카드의 글자가 시트 글자와 겹쳐 둘 다 못 읽는 상태가 된다.
+              테두리는 유틸리티가 inset 그림자로 그리므로 border 클래스를 붙이지 않는다.
+            */
             className={cn(
-              'w-full max-w-[480px] rounded-t-3xl border border-hairline bg-surface pb-safe shadow-level-2',
+              'w-full max-w-[480px] rounded-t-3xl glass-strong pb-safe',
               'sm:rounded-2xl sm:pb-0',
               className
             )}

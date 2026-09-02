@@ -6,9 +6,9 @@ import { useTranslations } from 'next-intl';
 import { useTodoMutations } from '@/hooks/useTodoMutations';
 import { showMsg } from '@/lib/toast';
 import { cn, todayKST } from '@/lib/utils';
-import { DuePicker } from '@/components/DuePicker';
+import { DuePill } from '@/components/DuePill';
 import { Avatar } from '@/components/Avatar';
-import { Badge, Button, Input } from '@/components/ui';
+import { Badge, Input } from '@/components/ui';
 import type { MemberSummary, Todo } from '@/types/db';
 import type { TypingUser } from '@/hooks/useTypingPresence';
 import type { FocusUser } from '@/hooks/useFocusPresence';
@@ -64,8 +64,9 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
   const tToast = useTranslations('toast');
   const [title, setTitle] = useState('');
   const [showAllDone, setShowAllDone] = useState(false);
-  // 마감은 오늘이 기본 — 대부분 오늘 할 일이고, 아니면 스테퍼로 하루씩 밀면 된다
+  // 마감은 오늘이 기본 — 대부분 오늘 할 일이다. 기본값이 무엇인지는 알약에 늘 적혀 있다.
   const [due, setDue] = useState<string | null>(todayKST());
+  const [dueOpen, setDueOpen] = useState(false);
   const { create, reorder } = useTodoMutations(orgId);
 
   const isMine = member.user_id === currentUserId;
@@ -186,6 +187,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
 
     setTitle('');
     setDue(todayKST());
+    setDueOpen(false);
     if (!isMine) showMsg(tToast('addedToMemberList', { name: member.display_name }), 'success');
   }
 
@@ -223,24 +225,55 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
         )}
       </header>
 
+      {/*
+        추가 칸은 **높이가 변하지 않는다.**
+
+        예전에는 글자를 넣는 순간 날짜 레일과 [추가] 버튼이 아래에서 솟아나 목록을 100px쯤
+        밀어냈다. 한 글자 치는 동작에 화면이 그만큼 움직이니 방금 보던 카드를 매번 다시
+        찾아야 했다. 지금은 보내기 버튼이 입력칸 **안에** 있어서 글자가 있든 없든 줄 수가
+        같고, 마감일은 그 아래 알약 한 줄이 늘 지키고 있다(눌렀을 때만 레일이 열린다).
+
+        추가하는 데 드는 손은 "치고 Enter" 한 번이다. 날짜를 바꿀 때만 두 번 더 든다.
+      */}
       <form onSubmit={add} className="flex flex-col gap-1.5 px-3 pb-2.5">
-        <Input
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          placeholder={isMine ? t('addPlaceholderMine') : t('addPlaceholderOther', { name: member.display_name })}
-          maxLength={500}
-          enterKeyHint="done"
-          className="h-11 sm:h-9"
+        <div className="relative">
+          <Input
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder={isMine ? t('addPlaceholderMine') : t('addPlaceholderOther', { name: member.display_name })}
+            maxLength={500}
+            enterKeyHint="done"
+            className="h-11 pr-11 sm:h-9 sm:pr-10"
+          />
+          {/*
+            비어 있을 때도 자리를 지킨다(숨기면 다시 줄 높이가 흔들린다).
+            대신 눌러도 아무 일이 없다는 걸 흐린 색과 disabled로 알린다.
+          */}
+          <button
+            type="submit"
+            disabled={!title.trim()}
+            aria-label={t('addButton')}
+            className={cn(
+              'absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg sm:size-7',
+              'transition-[background-color,color,transform] active:scale-90',
+              title.trim()
+                ? 'bg-accent text-accent-ink'
+                : 'bg-transparent text-ink-faint'
+            )}
+          >
+            <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M8 13V3.5M8 3.5 4 7.5M8 3.5l4 4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+
+        <DuePill
+          value={due}
+          onChange={setDue}
+          open={dueOpen}
+          onOpenChange={setDueOpen}
+          railClassName="-mx-3 px-3"
         />
-        {title.trim() && (
-          <>
-            {/* 컬럼 패딩까지 스크롤 영역을 넓혀 가장자리에서 잘린 것처럼 보이지 않게 한다 */}
-            <DuePicker value={due} onChange={setDue} className="-mx-3 px-3" />
-            <Button type="submit" className="h-11 sm:h-9">
-              {t('addButton')}
-            </Button>
-          </>
-        )}
       </form>
 
       {/*

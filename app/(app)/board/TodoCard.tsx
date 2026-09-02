@@ -9,7 +9,7 @@ import { cn, dueState, formatKSTTime, formatRelativeDay, subjectParticle } from 
 import { getAvatarColor } from '@/lib/avatar';
 import { vibrateTick } from '@/lib/haptics';
 import { Avatar } from '@/components/Avatar';
-import { DuePicker } from '@/components/DuePicker';
+import { DuePill } from '@/components/DuePill';
 import { Linkify } from '@/components/Linkify';
 import { Badge, Button, Input } from '@/components/ui';
 import type { Locale } from '@/lib/locales';
@@ -488,6 +488,7 @@ function TodoCardOpenContent({
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(todo.title);
   const [draftDue, setDraftDue] = useState<string | null>(todo.due_date);
+  const [dueOpen, setDueOpen] = useState(false);
   // 편집을 시작한 순간의 값. "안 바뀜" 판정의 기준이 된다.
   const editBase = useRef({ title: todo.title, due: todo.due_date });
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -501,6 +502,7 @@ function TodoCardOpenContent({
     setDraftTitle(todo.title);
     setDraftDue(todo.due_date);
     editBase.current = { title: todo.title, due: todo.due_date };
+    setDueOpen(false);
     setEditing(true);
   }
 
@@ -563,8 +565,18 @@ function TodoCardOpenContent({
             autoFocus
             className="h-10 w-full sm:h-9"
           />
-          {/* 컬럼 패딩까지 스크롤 영역을 넓혀 가장자리에서 잘린 것처럼 보이지 않게 한다 */}
-          <DuePicker value={draftDue} onChange={setDraftDue} className="-mx-3 px-3" />
+          {/*
+            추가 칸과 같은 알약이다. 예전에는 레일이 늘 펼쳐진 채였는데, 제목의 오타 하나를
+            고치러 들어와도 날짜 90칸이 함께 열려서 폼이 카드 두 개 높이를 먹었다.
+            대부분의 수정은 제목만 건드린다 — 날짜는 바꿀 사람만 편다.
+          */}
+          <DuePill
+            value={draftDue}
+            onChange={setDraftDue}
+            open={dueOpen}
+            onOpenChange={setDueOpen}
+            railClassName="-mx-3 px-3"
+          />
           <div className="flex gap-1.5">
             <Button
               type="button"
