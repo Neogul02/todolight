@@ -2,10 +2,9 @@
 
 import { useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
-import { notifyLoggedIn, notifySignedUp } from '@/app/actions/auth-notify';
 import { showMsg } from '@/lib/toast';
 import { Button, Card, Input, Spinner } from '@/components/ui';
 import { focusNextOnEnter } from '@/lib/forms';
@@ -13,8 +12,22 @@ import { cn, safeNextPath } from '@/lib/utils';
 
 type Mode = 'signin' | 'signup';
 
+/**
+ * 로그인·가입 알림 핑.
+ *
+ * 서버 액션으로 부르면 안 된다 — App Router는 서버 액션과 네비게이션을 같은 큐에서 처리해서,
+ * `.catch()`로 던져 놓아도 라우터가 액션이 끝날 때까지 다음 이동을 미룬다. 시크릿 창처럼
+ * 콜드 스타트가 겹치면 로그인 직후 화면이 몇 초 동안 안 넘어갔다.
+ * sendBeacon은 그 큐 밖이고 페이지가 떠난 뒤에도 전송이 보장된다.
+ */
+function pingAuthNotify(body: Record<string, string>) {
+  const blob = new Blob([JSON.stringify(body)], { type: 'application/json' });
+  if (navigator.sendBeacon?.('/api/auth-notify', blob)) return;
+  // sendBeacon이 없거나 큐가 가득 찬 경우의 대비. keepalive라 이동 중에도 살아남는다.
+  fetch('/api/auth-notify', { method: 'POST', body: blob, keepalive: true }).catch(() => {});
+}
+
 export default function LoginForm() {
-  const router = useRouter();
   const params = useSearchParams();
   const locale = useLocale();
   const t = useTranslations('auth.login');
@@ -50,12 +63,12 @@ export default function LoginForm() {
           },
         });
         if (error) throw error;
-        // 알림 실패가 가입 흐름을 막으면 안 되므로 fire-and-forget으로만 부른다.
-        notifySignedUp(email.trim()).catch(() => {});
+        pingAuthNotify({ type: 'signup', email: email.trim() });
         // 이메일 확인이 켜져 있으면 session이 비어서 온다 — 이 경우 바로 들어갈 수 없다.
         if (!data.session) {
           showMsg(tToast('confirmEmailSent'), 'info');
           setMode('signin');
+          setBusy(false);
           return;
         }
       } else {
@@ -64,19 +77,27 @@ export default function LoginForm() {
           password,
         });
         if (error) throw error;
-        // 알림 실패가 로그인 흐름을 막으면 안 되므로 fire-and-forget으로만 부른다.
-        notifyLoggedIn().catch(() => {});
+        pingAuthNotify({ type: 'login' });
       }
 
-      router.replace(nextPath);
-      router.refresh();
+      /*
+        하드 내비게이션으로 간다. `router.replace()`는 라우터 캐시에 남아 있는 목적지 항목을
+        다시 그리는데, /board로 들어왔다가 proxy가 /login으로 돌려보낸 흐름에서는 그 자리에
+        **로그인 화면 결과**가 들어앉아 있다 — 그래서 주소만 /board로 바뀌고 화면은 로그인
+        폼에 머물렀다(새로고침해야 들어가짐). 뒤따르던 router.refresh()는 replace가 커밋되기
+        전에 돌아 헛돌았다.
+
+        로그인 직후는 쿠키가 방금 바뀌어 어차피 트리 전체를 서버에서 새로 받아야 하는
+        시점이라, 클라이언트 네비게이션으로 아낄 것이 없다. busy도 여기서 풀지 않는다 —
+        새 문서가 뜨기 전에 버튼이 되살아나면 한 번 더 눌리게 된다.
+      */
+      window.location.assign(nextPath);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       showMsg(
         message.includes('Invalid login credentials') ? tToast('invalidCredentials') : message,
         'error'
       );
-    } finally {
       setBusy(false);
     }
   }
