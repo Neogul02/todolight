@@ -707,12 +707,13 @@ Group 확정, `ios/` 스캐폴딩). 그리고 Supabase의 **이메일 확인이 
 - [x] `getAuthUser()`에 Bearer 경로 추가 (§3-1) — **이거 하나가 41개 액션을 다 연다**
       · 2026-09-08 완료. `lib/supabase-bearer.ts`의 `getClaims(jwt)`로 JWKS 로컬 검증
       (이 프로젝트는 ES256 비대칭 키라 왕복이 없다)
-- [~] `/api/v1/*` route handler 생성 — `lib/api-v1.ts`의 `apiRoute` + 첫 4개
-      (`profile/me`, `todos/list`, `todos/create`, `todos/setStatus`). 나머지는 같은 모양
+- [x] `/api/v1/*` route handler 생성 — `lib/api-v1.ts`의 `apiRoute` + **엔드포인트 42개**
+      (액션 전부. 어댑터는 세 줄이다)
 - [x] `Accept-Language` 전달 — `getActionT()`가 쿠키 없이 헤더만으로 동작하는 것 실측 확인
-- [ ] rate limit — `/api/v1/*`에 IP+user 상한 (서버리스라 인메모리는 소용없다, 저장소 필요)
-- [ ] `docs/api-v1.md` 작성
-- [ ] curl로 전 엔드포인트 스모크 테스트 (vitest에 넣는다)
+- [x] rate limit — 계정 단위 분당 120회, Postgres 고정 창
+      (`20260908130018_api_rate_limit.sql`). 서버리스라 인메모리는 아무것도 세지 못한다
+- [x] `docs/api-v1.md` 작성 — 라우트 42개와 문서 항목이 1:1로 대조됨
+- [ ] curl로 전 엔드포인트 스모크 테스트 (vitest에 넣는다) — 지금은 수동 확인만 했다
 
 ✅ **완료 기준**: `curl -H "Authorization: Bearer $TOKEN"`으로 할 일을 만들고 지우고 되살릴 수 있다.
 웹은 아무것도 안 바뀐 채 그대로 동작한다.

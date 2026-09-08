@@ -389,7 +389,8 @@
     "ownerOnly": "Only the owner can do that.",
     "orgNotFound": "That organization no longer exists.",
     "alreadyOwner": "You are already the owner.",
-    "invalidRequestBody": "The request body is not valid."
+    "invalidRequestBody": "The request body is not valid.",
+    "tooManyRequests": "Too many requests. Please try again in a moment."
   },
   "legal": {
     "backHome": "Home",
