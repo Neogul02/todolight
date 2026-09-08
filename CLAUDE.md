@@ -375,6 +375,43 @@ Postgres가 **검사하는 행마다** 다시 부르고, 감싸면 InitPlan이 �
   알아서 떨어진다(`stored && orgIds.includes(stored) ? stored : orgIds[0]`). 어디로 갈지
   직접 고르지 않는다.
 
+### /api/v1 — 네이티브 앱이 같은 서버 액션을 쓴다
+
+iOS 앱(`docs/ios-app-plan.md`)은 백엔드를 새로 만들지 않는다. 서버 액션을 그대로 두고
+그 위에 얇은 어댑터만 얹는다. 열쇠는 **`getAuthUser()` 한 함수**다.
+
+- 웹은 `@supabase/ssr` 쿠키로, 앱은 `Authorization: Bearer <access_token>`으로 온다.
+  `getAuthUser()`가 두 경로를 다 보므로 **액션 41개가 전부 그대로 앱에서도 동작한다** —
+  가드도 zod 검증도 Discord 알림도 `position` 계산도 다시 만들지 않는다.
+- **Bearer가 쿠키보다 먼저다.** 웹 요청에는 Authorization 헤더가 실릴 일이 없어 웹 동작은
+  바뀌지 않고, 앱 요청에는 쿠키가 없어 서로 섞이지 않는다. 헤더는 브라우저가 교차 출처로
+  자동으로 싣지 않으므로 CSRF 표면도 넓어지지 않는다.
+- **`getUser(jwt)`가 아니라 `getClaims(jwt)`**(`lib/supabase-bearer.ts`). 이 프로젝트의 JWT는
+  ES256 비대칭 키라 JWKS로 **로컬 검증**된다 — `getUser`는 요청마다 Supabase Auth로 왕복이
+  붙어서, 잠금화면 위젯 갱신처럼 짧게 여러 번 부르는 경로에서 그게 그대로 지연이 된다.
+
+어댑터(`lib/api-v1.ts`의 `apiRoute`)는 세 줄이어야 한다:
+
+```ts
+export const POST = apiRoute<{ todoId: string; status: TodoStatus }>(b =>
+  setTodoStatus(b.todoId, b.status)
+);
+```
+
+- **어댑터가 두꺼워지면 웹과 앱의 규칙이 갈라지기 시작한 것이다.** 그때는 여기가 아니라
+  액션을 고친다.
+- 조회도 전부 **POST**다. `/api/v1` 전체가 한 모양이면 Swift 클라이언트가 메서드 분기 없이
+  한 함수로 끝난다.
+- 응답은 `ApiResponse<T>` 그대로, 업무 오류도 **HTTP 200**이다(웹이 이미 그렇다).
+  Swift 디코더가 상태 코드만 보면 에러를 통째로 놓치므로 반드시 판별 유니온으로 읽을 것.
+- **예외는 미인증 401 하나.** 그건 업무 오류가 아니라 "토큰을 다시 받아 오라"는 신호라
+  앱이 상태 코드로 알아채야 한다. 액션이 던지는 문구를 문자열로 맞춰 보면 로케일마다
+  깨지므로, `apiRoute`가 액션에 넘기기 **전에** `getAuthUser()`로 직접 확인한다.
+  액션 안의 `requireAuth()`는 그대로 둔다 — 요청 범위 캐시라 두 번째 확인은 공짜이고,
+  어댑터를 안 거치는 웹 경로에서는 그게 유일한 방어선이다.
+- 에러 문구의 언어는 `Accept-Language`가 정한다(`getActionT()` → `negotiate-locale`).
+  쿠키가 없어도 동작한다 — 앱은 이 헤더만 보내면 된다.
+
 ### 초대는 메일로 가지 않는다 — 그 사실을 화면이 말한다
 
 `inviteMember`는 `org_invites` 행만 만든다. 초대받은 사람은 **앱을 열 때** 아바타 메뉴에서

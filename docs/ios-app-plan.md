@@ -704,14 +704,23 @@ Group 확정, `ios/` 스캐폴딩). 그리고 Supabase의 **이메일 확인이 
 
 ### M1 — API 레이어 · 1주
 
-- [ ] `getAuthUser()`에 Bearer 경로 추가 (§3-1) — **이거 하나가 41개 액션을 다 연다**
-- [ ] `/api/v1/*` route handler 생성 (스크립트로 찍어도 된다, 어댑터가 3줄이다)
-- [ ] `Accept-Language` 전달, rate limit
+- [x] `getAuthUser()`에 Bearer 경로 추가 (§3-1) — **이거 하나가 41개 액션을 다 연다**
+      · 2026-09-08 완료. `lib/supabase-bearer.ts`의 `getClaims(jwt)`로 JWKS 로컬 검증
+      (이 프로젝트는 ES256 비대칭 키라 왕복이 없다)
+- [~] `/api/v1/*` route handler 생성 — `lib/api-v1.ts`의 `apiRoute` + 첫 4개
+      (`profile/me`, `todos/list`, `todos/create`, `todos/setStatus`). 나머지는 같은 모양
+- [x] `Accept-Language` 전달 — `getActionT()`가 쿠키 없이 헤더만으로 동작하는 것 실측 확인
+- [ ] rate limit — `/api/v1/*`에 IP+user 상한 (서버리스라 인메모리는 소용없다, 저장소 필요)
 - [ ] `docs/api-v1.md` 작성
 - [ ] curl로 전 엔드포인트 스모크 테스트 (vitest에 넣는다)
 
 ✅ **완료 기준**: `curl -H "Authorization: Bearer $TOKEN"`으로 할 일을 만들고 지우고 되살릴 수 있다.
 웹은 아무것도 안 바뀐 채 그대로 동작한다.
+
+2026-09-08 실측(임시 계정으로 만들고 지움): 토큰 없음 → 401 · 위조 토큰 → 401 ·
+정상 토큰 → 200 + 프로필 · 깨진 본문 → 400 · `Accept-Language: en/ko`로 같은 에러가
+영어/한국어로 갈림(즉 쿠키 없이 로케일이 정해진다) · 조직 비멤버 요청은 액션의
+`requireMembership`이 그대로 막음.
 
 ### M2 — 앱 껍데기 · 2~3주
 
