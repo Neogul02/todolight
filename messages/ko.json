@@ -29,7 +29,20 @@
     },
     "viewTitle": "화면",
     "showDone": "완료한 할 일도 보기",
-    "showLedger": "가계부 쓰기"
+    "showLedger": "가계부 쓰기",
+    "legalTitle": "약관",
+    "terms": "이용약관",
+    "privacy": "개인정보 처리방침",
+    "deleteAccountTitle": "계정 삭제",
+    "deleteAccountDescription": "계정과 로그인 정보를 지워요. 되돌릴 수 없어요.",
+    "deleteAccount": "계정 삭제",
+    "deleteAccountConfirm": "삭제할래요",
+    "deletingAccount": "지우는 중…",
+    "deleteEffectLogin": "로그인 정보와 이름·이메일·프로필 사진을 지워요. 다시 로그인할 수 없어요.",
+    "deleteEffectOwnedOrg": "방장으로 있는 조직은 남은 멤버 중 먼저 들어온 관리자에게 방장을 넘겨요.",
+    "deleteEffectSoloOrg": "나 혼자인 조직은 그 조직의 할 일·일정·가계부와 함께 지워요.",
+    "deleteEffectRecords": "팀에 남긴 할 일과 메모, 가계부 기록은 이름 없이 남아요 — 팀의 장부가 나 때문에 바뀌면 안 되니까요.",
+    "deleteIrreversible": "이 동작은 되돌릴 수 없어요."
   },
   "appshell": {
     "boardBack": "보드로",
@@ -150,7 +163,8 @@
       "showMoreDone": "완료 {count}개 더 보기",
       "collapseDone": "완료 접기",
       "emptyMine": "할 일이 비어 있어요",
-      "emptyOther": "남은 할 일이 없어요"
+      "emptyOther": "남은 할 일이 없어요",
+      "olderDoneNotLoaded": "그 전에 끝낸 {count}개는 여기 안 실려요"
     }
   },
   "ledger": {
@@ -233,7 +247,23 @@
     "kickConfirmDescription": "{name}님을 이 조직에서 내보내요.",
     "kickConfirmDetail": "내보내면 이 조직의 보드를 더 이상 볼 수 없어요. 그동안 쌓인 할 일과 메모는 그대로 남아요. 다시 부르려면 초대를 새로 보내야 해요.",
     "loadingMembers": "멤버를 불러오는 중",
-    "orgSettingsTitle": "조직 설정"
+    "orgSettingsTitle": "조직 설정",
+    "transferOwner": "방장 넘기기",
+    "transferConfirmDescription": "{name}님에게 방장을 넘겨요.",
+    "transferConfirmDetail": "넘기면 나는 관리자가 돼요. 되돌리려면 새 방장이 다시 넘겨 줘야 해요.",
+    "transferConfirm": "넘길래요",
+    "deleteOrgTitle": "조직 삭제",
+    "deleteOrgDescription": "이 조직과 안에 있는 모든 것을 지워요. 되돌릴 수 없어요.",
+    "deleteOrg": "조직 삭제",
+    "deleteOrgConfirm": "삭제할래요",
+    "deletingOrg": "지우는 중…",
+    "deleteOrgEffectAll": "이 조직의 할 일·메모·일정·가계부가 전부 사라져요. 할 일 지우기와 달리 되살릴 수 없어요.",
+    "deleteOrgEffectMembers": "멤버 {count}명이 이 조직에서 나가게 돼요. 다시 모으려면 조직을 새로 만들어 초대해야 해요.",
+    "deleteOrgIrreversible": "이 동작은 되돌릴 수 없어요.",
+    "inviteNoEmailNotice": "초대 메일은 따로 가지 않아요. 아직 가입하지 않은 사람에게는 직접 알려 줘야 해요.",
+    "inviteUnregisteredHint": "아직 가입하지 않았어요",
+    "inviteShare": "알려 주기",
+    "inviteShareMessage": "{org}에 초대했어요.\n{email} 주소로 가입하면 초대장이 떠요.\n{url}"
   },
   "landing": {
     "login": "로그인",
@@ -246,7 +276,9 @@
     "pointSimpleTitle": "간단하게",
     "pointSimpleBody": "간단하지만 강력하게, 우리 조직의 할 일을 파악해요",
     "pointFastTitle": "빠르게",
-    "pointFastBody": "체크하는 순간 화면에 반영돼요"
+    "pointFastBody": "체크하는 순간 화면에 반영돼요",
+    "terms": "이용약관",
+    "privacy": "개인정보 처리방침"
   },
   "errorPage": {
     "title": "문제가 생겼어요",
@@ -292,7 +324,13 @@
     "passwordMismatch": "두 비밀번호가 서로 달라요.",
     "passwordChanged": "비밀번호를 바꿨어요.",
     "confirmEmailSent": "확인 메일을 보냈어요. 메일함에서 인증을 마쳐 주세요.",
-    "invalidCredentials": "이메일이나 비밀번호가 맞지 않아요."
+    "invalidCredentials": "이메일이나 비밀번호가 맞지 않아요.",
+    "accountDeleted": "계정을 삭제했어요.",
+    "ownerTransferred": "방장을 넘겼어요.",
+    "orgDeleted": "조직을 지웠어요.",
+    "inviteSentUnregistered": "초대했어요. 아직 가입하지 않은 분이라 직접 알려 주셔야 해요.",
+    "inviteCopied": "초대 문구를 복사했어요.",
+    "inviteCopyFailed": "복사하지 못했어요. 직접 알려 주세요."
   },
   "common": {
     "save": "저장",
@@ -346,6 +384,20 @@
     "ledgerAmountRequired": "금액을 0원보다 큰 정수로 적어 주세요.",
     "ledgerAmountTooLarge": "금액이 너무 커요.",
     "ledgerEntryNotFound": "지출 내역을 찾을 수 없어요.",
-    "cannotDeleteLedgerEntry": "본인이 적었거나 본인이 낸 지출, 또는 방장만 지울 수 있어요."
+    "cannotDeleteLedgerEntry": "본인이 적었거나 본인이 낸 지출, 또는 방장만 지울 수 있어요.",
+    "deletedUserName": "탈퇴한 사용자",
+    "ownerOnly": "방장만 할 수 있어요.",
+    "orgNotFound": "조직을 찾을 수 없어요.",
+    "alreadyOwner": "이미 방장이에요."
+  },
+  "legal": {
+    "backHome": "홈으로",
+    "lastUpdated": "최종 수정: {date}",
+    "terms": {
+      "title": "이용약관"
+    },
+    "privacy": {
+      "title": "개인정보 처리방침"
+    }
   }
 }

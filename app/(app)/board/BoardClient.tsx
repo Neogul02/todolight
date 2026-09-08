@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { AnimatePresence, motion, Reorder, useDragControls, useReducedMotion } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
-import { useOrgMembers, useOrgTodos } from '@/hooks/useOrgBoard';
+import { useOrgDoneTotals, useOrgMembers, useOrgTodos } from '@/hooks/useOrgBoard';
 import { useTypingPresence } from '@/hooks/useTypingPresence';
 import { useFocusPresence } from '@/hooks/useFocusPresence';
 import { useCarousel } from '@/hooks/useCarousel';
@@ -41,6 +41,12 @@ export default function BoardClient({ onHandoff }: { onHandoff: (todo: Todo) => 
 
   const members = useOrgMembers(activeOrgId);
   const todos = useOrgTodos(activeOrgId);
+  /*
+    주인별 완료 할 일 **총** 개수. 서버는 완료를 사람당 최근 20개까지만 실어 보내므로
+    `todosByOwner`로 센 개수는 "받은 만큼"이지 "끝낸 만큼"이 아니다 —
+    컬럼 머리의 "완료 N" 같은 숫자는 이 값으로 말해야 맞는다.
+  */
+  const doneTotals = useOrgDoneTotals(activeOrgId);
   const { typingByTodoId, broadcastTyping } = useTypingPresence(
     activeOrgId,
     userId,
@@ -236,8 +242,9 @@ export default function BoardClient({ onHandoff }: { onHandoff: (todo: Todo) => 
         빈 띠가 화면 위를 먹는다. (뷰 전환은 헤더로, 완료 보기는 설정으로 옮겼다)
       */}
       {showChips && (
-        // 헤더가 없어 이 칩 줄이 모바일 화면의 맨 위다 — pt-safe로 노치를 피하고,
-        // 우측은 그 위에 뜬 아바타 버튼(size-11)만큼 비워 칩이 아바타 밑에 깔리지 않게 한다.
+        // 헤더가 없어 이 칩 줄이 모바일 화면의 맨 위다 — pt-safe로 노치를 피한다.
+        // 한때는 우상단에 뜬 아바타 버튼만큼 오른쪽을 비워 뒀는데(pr-12), 아바타가
+        // 하단 탭바로 내려가면서 그 예약이 필요 없어졌다 — 칩 줄이 화면 폭을 다 쓴다.
         <div className="flex h-[var(--board-toolbar-h)] shrink-0 items-center px-3 pt-safe sm:hidden">
           {/*
             나는 Reorder.Group 밖에 고정으로 그린다 — "다른 사람들의 순서"만 정하는 기능이라
@@ -248,7 +255,7 @@ export default function BoardClient({ onHandoff }: { onHandoff: (todo: Todo) => 
             axis="x"
             values={chipOrder}
             onReorder={setChipOrder}
-            className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-1 pr-12"
+            className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 py-1"
           >
             {orderedMembers[0]?.user_id === userId && (
               <MemberChip
@@ -324,6 +331,7 @@ export default function BoardClient({ onHandoff }: { onHandoff: (todo: Todo) => 
                   isManager={isManager}
                   members={orderedMembers}
                   showDone={showDone}
+                  doneTotal={doneTotals[m.user_id] ?? 0}
                   openTodoId={openTodoId}
                   onToggleOpen={toggleOpenTodo}
                   onHandoff={onHandoff}
@@ -367,6 +375,7 @@ export default function BoardClient({ onHandoff }: { onHandoff: (todo: Todo) => 
                 isManager={isManager}
                 members={orderedMembers}
                 showDone={showDone}
+                doneTotal={doneTotals[m.user_id] ?? 0}
                 stacked
                 openTodoId={openTodoId}
                 onToggleOpen={toggleOpenTodo}

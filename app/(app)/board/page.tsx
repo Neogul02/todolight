@@ -42,8 +42,11 @@ export default async function BoardPage() {
 
   if (membersRes.status === 'fulfilled' && membersRes.value.success)
     queryClient.setQueryData(boardKeys.members(orgId), membersRes.value.data);
-  if (todosRes.status === 'fulfilled' && todosRes.value.success)
-    queryClient.setQueryData(boardKeys.todos(orgId), todosRes.value.data);
+  if (todosRes.status === 'fulfilled' && todosRes.value.success) {
+    // 한 응답에서 두 캐시로 — 클라이언트의 useOrgTodos가 하는 것과 같은 분배다
+    queryClient.setQueryData(boardKeys.todos(orgId), todosRes.value.data.todos);
+    queryClient.setQueryData(boardKeys.doneTotals(orgId), todosRes.value.data.doneTotals);
+  }
   if (eventsRes.status === 'fulfilled' && eventsRes.value.success)
     queryClient.setQueryData(eventKeys.all(orgId), eventsRes.value.data);
 

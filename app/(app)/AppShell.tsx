@@ -432,52 +432,19 @@ export default function AppShell({
         </header>
 
         {/*
-          콘텐츠 위에 뜨는 아바타 — **보드에서만.**
-
-          팀·내 설정·새 조직에는 상단 바가 있고 그 안에 같은 아바타가 이미 있다.
-          둘 다 띄우면 아바타가 두 개 보이고, 위에 뜬 쪽이 상단 바의 아바타를 덮는다.
-          프로필 메뉴로 들어가는 문은 어느 화면에서든 하나씩 있어야 하되, 두 개면 안 된다.
-
-          **배경 원판을 깔지 않는다.** 44px 원판 안에 24px 아바타를 넣으면 사진 둘레로
-          20px짜리 테가 둘리는데, 사진이 이미 원이라 원이 두 겹으로 보인다.
-          사진 크기는 그대로 두고 판만 없앴다 — 버튼은 여전히 44px이라 손가락이 닿는 넓이는
-          줄지 않는다(보이는 것만 작아진 것이지 터치 타깃이 작아진 게 아니다).
-        */}
-        <button
-          type="button"
-          onClick={() => setMenuOpen(true)}
-          aria-label={t('menu')}
-          className={cn(
-            'fixed right-3 top-[calc(env(safe-area-inset-top)+8px)] z-40 grid size-11 place-items-center rounded-full no-select transition-transform active:scale-95 sm:hidden',
-            !onBoard && 'hidden'
-          )}
-        >
-          {/* 빨간 점은 버튼(44px)이 아니라 사진(24px) 가장자리에 붙어야 한다 —
-              버튼 모서리에 두면 사진에서 한참 떨어져 혼자 떠 보인다 */}
-          <span className="relative">
-            <Avatar
-              name={profile?.display_name ?? email ?? '나'}
-              color={profile?.avatar_color}
-              imageUrl={profile?.avatar_url}
-              seed={userId}
-              size="sm"
-            />
-            {pendingCount > 0 && (
-              <span
-                className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-canvas bg-danger"
-                aria-label={t('pendingInvitesAria', { count: pendingCount })}
-              />
-            )}
-          </span>
-        </button>
-
-        {/*
           하단 탭바 — 헤더의 뷰 세그먼트를 그대로 옮긴 것이라 조건도 같다: 보드 라우트에서만.
 
           알약만 뜨고 그 좌우로는 화면이 그대로 보인다. 감싸는 nav는 가로로 꽉 차 있지만
           **`pointer-events-none`이라 투명한 띠가 아니라 없는 것과 같다** — 안 그러면 알약
           옆의 빈 자리를 눌렀을 때 밑에 있는 카드가 아니라 이 띠가 탭을 먹는다.
           누를 것은 알약뿐이라 거기만 `pointer-events-auto`로 되살린다.
+
+          **프로필도 여기 있다.** 한때는 콘텐츠 위 우상단에 따로 띄웠는데, 그러면 세 패널이
+          전부 그 자리를 피해 여백을 예약해야 했다 — 보드 칩 줄의 `pr-12`, 달력·가계부 월
+          이동 줄의 `px-12`. 게다가 달 이름을 화면 가운데에 두려면 아무것도 없는 왼쪽 48px까지
+          같이 비워야 했다. 예약을 걷어내니 상단이 통째로 콘텐츠가 됐다.
+          6.7" 화면에서 우상단은 한 손으로 가장 닿기 어려운 자리이기도 하다 —
+          초대 수락·조직 전환·로그아웃이 전부 그 안에 있는데.
         */}
         {showViewSwitch && (
           <nav className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+12px)] z-40 flex justify-center sm:hidden">
@@ -502,6 +469,48 @@ export default function AppShell({
                   Icon={LedgerIcon}
                 />
               )}
+
+              {/*
+                앞의 셋은 패널을 바꾸고 프로필은 시트를 연다 — 같은 알약에 있어도 하는 일이
+                다르므로 얇은 선으로 갈라 둔다. 헤더의 뷰 세그먼트가 보드·대시보드와
+                달력·가계부를 가르는 방식과 같다.
+              */}
+              <span aria-hidden className="mx-0.5 h-7 w-px shrink-0 bg-hairline-strong" />
+
+              {/*
+                **`active` 판(layoutId)이 붙지 않는다.** 저 판은 "지금 보고 있는 패널"을
+                가리키는 표시인데 프로필은 패널이 아니라 시트라, 눌러도 보고 있는 화면은
+                그대로다. 판이 여기로 미끄러지면 보드에서 벗어난 것처럼 보인다.
+              */}
+              <button
+                type="button"
+                onClick={() => setMenuOpen(true)}
+                aria-label={t('menu')}
+                aria-haspopup="dialog"
+                className="relative flex w-16 flex-col items-center gap-0.5 rounded-full py-1.5 text-ink-muted transition-transform active:scale-95"
+              >
+                {/*
+                  아바타(24px)는 옆 아이콘(22px)보다 2px 크다. 높이 22px 상자 안에서
+                  가운데 정렬해 1px씩 흘려보낸다 — 잘라내지 않고 중심선만 맞춘다.
+                  빨간 점은 버튼이 아니라 **사진 가장자리**에 붙인다.
+                */}
+                <span className="relative grid h-[22px] place-items-center">
+                  <Avatar
+                    name={profile?.display_name ?? email ?? '나'}
+                    color={profile?.avatar_color}
+                    imageUrl={profile?.avatar_url}
+                    seed={userId}
+                    size="sm"
+                  />
+                  {pendingCount > 0 && (
+                    <span
+                      className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-canvas bg-danger"
+                      aria-label={t('pendingInvitesAria', { count: pendingCount })}
+                    />
+                  )}
+                </span>
+                <span className="text-[10px] font-medium">{t('menu')}</span>
+              </button>
             </div>
           </nav>
         )}

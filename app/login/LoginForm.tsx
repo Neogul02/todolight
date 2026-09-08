@@ -60,6 +60,14 @@ export default function LoginForm() {
           // 그 'ko'를 다시 진실로 취급해 모처럼 맞은 언어를 되돌려 버린다.
           options: {
             data: { display_name: displayName.trim() || email.split('@')[0], locale },
+            /*
+              **이메일 확인을 켜면 이 링크로 돌아온다.** 지금은 Supabase에서 확인이 꺼져
+              있어(가입 즉시 세션이 나온다) 이 값이 쓰이지 않지만, 없는 채로 확인을 켜면
+              메일 링크가 Site URL로 떨어져 PKCE 코드가 교환되지 않는다 — 눌러도 로그인이
+              안 되는 링크가 된다. 비밀번호 재설정이 이미 같은 경로를 쓴다
+              (`ResetRequestForm`의 `redirectTo`).
+            */
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
           },
         });
         if (error) throw error;

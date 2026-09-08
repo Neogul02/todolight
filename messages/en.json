@@ -29,7 +29,20 @@
     },
     "viewTitle": "What to show",
     "showDone": "Show completed to-dos",
-    "showLedger": "Use the ledger"
+    "showLedger": "Use the ledger",
+    "legalTitle": "Legal",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "deleteAccountTitle": "Delete account",
+    "deleteAccountDescription": "Deletes your account and sign-in details. This cannot be undone.",
+    "deleteAccount": "Delete account",
+    "deleteAccountConfirm": "Delete",
+    "deletingAccount": "Deleting…",
+    "deleteEffectLogin": "Your sign-in details, name, email, and profile photo are deleted. You will not be able to sign in again.",
+    "deleteEffectOwnedOrg": "Organizations you own are handed to the longest-standing admin among the remaining members.",
+    "deleteEffectSoloOrg": "Organizations where you are the only member are deleted, along with their todos, events, and ledger.",
+    "deleteEffectRecords": "Todos, notes, and ledger entries you left with your team stay, without your name — your team’s books should not change because you left.",
+    "deleteIrreversible": "This cannot be undone."
   },
   "appshell": {
     "boardBack": "Back to board",
@@ -150,7 +163,8 @@
       "showMoreDone": "Show {count} more done",
       "collapseDone": "Collapse done",
       "emptyMine": "Nothing here",
-      "emptyOther": "Nothing left to do"
+      "emptyOther": "Nothing left to do",
+      "olderDoneNotLoaded": "{count} finished earlier are not loaded here"
     }
   },
   "ledger": {
@@ -233,7 +247,23 @@
     "kickConfirmDescription": "This removes {name} from the org.",
     "kickConfirmDetail": "They'll lose access to this org's board. Their to-dos and notes stay as they are. You'd need to send a new invite to bring them back.",
     "loadingMembers": "Loading members",
-    "orgSettingsTitle": "Org settings"
+    "orgSettingsTitle": "Org settings",
+    "transferOwner": "Transfer ownership",
+    "transferConfirmDescription": "Make {name} the owner of this organization.",
+    "transferConfirmDetail": "You become an admin. To undo it, the new owner has to transfer it back.",
+    "transferConfirm": "Transfer",
+    "deleteOrgTitle": "Delete organization",
+    "deleteOrgDescription": "Deletes this organization and everything in it. This cannot be undone.",
+    "deleteOrg": "Delete organization",
+    "deleteOrgConfirm": "Delete",
+    "deletingOrg": "Deleting…",
+    "deleteOrgEffectAll": "Every todo, note, event, and ledger entry in this organization is gone. Unlike deleting a todo, this cannot be restored.",
+    "deleteOrgEffectMembers": "All {count} members lose access. Bringing them back means creating a new organization and inviting them again.",
+    "deleteOrgIrreversible": "This cannot be undone.",
+    "inviteNoEmailNotice": "No invitation email is sent. You will need to tell anyone who has not signed up yet.",
+    "inviteUnregisteredHint": "Has not signed up yet",
+    "inviteShare": "Send it yourself",
+    "inviteShareMessage": "You are invited to {org}.\nSign up with {email} and the invitation will be waiting.\n{url}"
   },
   "landing": {
     "login": "Log in",
@@ -246,7 +276,9 @@
     "pointSimpleTitle": "Simple",
     "pointSimpleBody": "Simple but powerful — see what your org needs to do",
     "pointFastTitle": "Fast",
-    "pointFastBody": "Checking a box updates the screen instantly"
+    "pointFastBody": "Checking a box updates the screen instantly",
+    "terms": "Terms",
+    "privacy": "Privacy"
   },
   "errorPage": {
     "title": "Something went wrong",
@@ -292,7 +324,13 @@
     "passwordMismatch": "Those two passwords don't match.",
     "passwordChanged": "Password updated.",
     "confirmEmailSent": "We sent a confirmation email — please verify to finish.",
-    "invalidCredentials": "That email or password isn't right."
+    "invalidCredentials": "That email or password isn't right.",
+    "accountDeleted": "Your account has been deleted.",
+    "ownerTransferred": "Ownership transferred.",
+    "orgDeleted": "Organization deleted.",
+    "inviteSentUnregistered": "Invited. They have not signed up yet, so you will need to tell them.",
+    "inviteCopied": "Invitation message copied.",
+    "inviteCopyFailed": "Could not copy. Please tell them directly."
   },
   "common": {
     "save": "Save",
@@ -346,6 +384,20 @@
     "ledgerAmountRequired": "Enter a whole amount greater than zero.",
     "ledgerAmountTooLarge": "That amount is too large.",
     "ledgerEntryNotFound": "That entry no longer exists.",
-    "cannotDeleteLedgerEntry": "Only the person who logged or paid it, or an owner, can remove it."
+    "cannotDeleteLedgerEntry": "Only the person who logged or paid it, or an owner, can remove it.",
+    "deletedUserName": "Deleted user",
+    "ownerOnly": "Only the owner can do that.",
+    "orgNotFound": "That organization no longer exists.",
+    "alreadyOwner": "You are already the owner."
+  },
+  "legal": {
+    "backHome": "Home",
+    "lastUpdated": "Last updated: {date}",
+    "terms": {
+      "title": "Terms of Service"
+    },
+    "privacy": {
+      "title": "Privacy Policy"
+    }
   }
 }

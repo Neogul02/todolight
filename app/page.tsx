@@ -62,8 +62,19 @@ export default async function LandingPage() {
         ))}
       </section>
 
-      <footer className="mt-auto pt-16 pb-safe text-caption text-ink-faint">
-        © {new Date().getFullYear()} todolight
+      {/*
+        약관 링크는 **로그인하지 않아도 닿는 자리**에 있어야 한다 — App Store 심사자는
+        계정을 만들기 전에 개인정보 처리방침 URL을 열어 본다. 앱 안(설정 → 약관)에도
+        같은 문서가 있지만, 거기는 이미 쓰고 있는 사람만 갈 수 있다.
+      */}
+      <footer className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-16 pb-safe text-caption text-ink-faint">
+        <span>© {new Date().getFullYear()} todolight</span>
+        <Link href="/legal/terms" className="transition-colors sm:hover:text-ink-muted">
+          {t('terms')}
+        </Link>
+        <Link href="/legal/privacy" className="transition-colors sm:hover:text-ink-muted">
+          {t('privacy')}
+        </Link>
       </footer>
     </main>
   );

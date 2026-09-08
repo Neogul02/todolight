@@ -22,6 +22,14 @@ interface Props {
   isManager: boolean;
   members: MemberSummary[];
   showDone: boolean;
+  /**
+   * 이 사람이 완료한 할 일의 **총** 개수.
+   *
+   * `todos`에는 서버가 최근 20개까지만 실어 보낸다(보드 조회를 유계로 두려고).
+   * 그래서 `todos`로 센 완료 개수는 "받은 만큼"이지 "끝낸 만큼"이 아니다 —
+   * 머리의 요약 숫자는 이 값으로 말해야 맞는다.
+   */
+  doneTotal: number;
   /** 대시보드 모드 — 가로 캐러셀이 아니라 세로로 쌓여서 페이지와 함께 스크롤된다 */
   stacked?: boolean;
   /** 지금 펼쳐 둔 할 일. 보드 전체에서 하나만 열린다 */
@@ -48,6 +56,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     isManager,
     members,
     showDone,
+    doneTotal,
     stacked = false,
     openTodoId,
     onToggleOpen,
@@ -146,6 +155,21 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     완료가 쌓이면 컬럼을 통째로 잠식해서 남은 일이 스크롤 밖으로 밀린다.
     최근 끝낸 몇 개만 두고 나머지는 접는다 — 지우는 게 아니라 접는 것이라 언제든 펼 수 있다.
   */
+  /*
+    **접힌 것과 안 받아 온 것을 섞지 않는다.**
+
+    `hiddenDone`은 이미 받아 둔 완료 중 접혀 있는 개수 — 버튼을 누르면 그 자리에서 펼쳐진다.
+    `notLoadedDone`은 서버가 아예 안 보낸 옛날 완료의 개수(사람당 최근 20개까지만 온다) —
+    펼칠 수 있는 것이 아니다. 둘을 더해 한 버튼에 적으면 눌러도 그만큼 안 나온다.
+    그래서 버튼은 펼칠 수 있는 것만 세고, 나머지는 눌리지 않는 한 줄로 사실만 적는다.
+  */
+  const notLoadedDone = Math.max(0, doneTotal - done.length);
+  /*
+    화면에 있는 것보다 적게 말하지 않는다. 내가 방금 체크한 할 일은 낙관적으로 이미
+    완료 목록에 들어가 있는데 `doneTotal`은 다음 재조회 때 따라온다 — 그동안 "완료 5"라고
+    적으면서 카드는 6장 보이는 순간이 생긴다.
+  */
+  const doneTotalShown = Math.max(doneTotal, done.length);
   const hiddenDone = showDone && !showAllDone ? Math.max(0, done.length - VISIBLE_DONE) : 0;
   const visible = showDone
     ? [...orderedOpen, ...(showAllDone ? done : done.slice(0, VISIBLE_DONE))]
@@ -217,7 +241,8 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
           </p>
           <p className="text-[12px] text-ink-faint">
             {t('summaryOpen', { count: open.length })}
-            {done.length > 0 && t('summaryDone', { count: done.length })}
+            {/* 받은 개수가 아니라 **끝낸 개수** — 상한에 걸려 안 온 것까지 센다 */}
+            {doneTotalShown > 0 && t('summaryDone', { count: doneTotalShown })}
           </p>
         </div>
         {member.role !== 'member' && (
@@ -328,6 +353,12 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
             >
               {t('showMoreDone', { count: hiddenDone })}
             </button>
+          </li>
+        )}
+
+        {showDone && showAllDone && notLoadedDone > 0 && (
+          <li className="px-1 pt-1 text-center text-caption text-ink-faint">
+            {t('olderDoneNotLoaded', { count: notLoadedDone })}
           </li>
         )}
 

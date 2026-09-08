@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { updateMyProfile } from '@/app/actions/profile';
+import Link from 'next/link';
+import { deleteMyAccount, updateMyProfile } from '@/app/actions/profile';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
+import { BottomSheet } from '@/components/BottomSheet';
 import { applyTheme } from '@/app/providers';
 import { applyLocale } from '@/lib/locale-client';
 import { THEMES } from '@/lib/themes';
@@ -41,6 +44,13 @@ export default function MeClient() {
   const [photo, setPhoto] = useState<string | null>(profile?.avatar_url ?? null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  /*
+    계정 삭제. 되돌릴 수 없는 유일한 동작이라 빨간 버튼 하나로 끝내지 않고, 무슨 일이
+    벌어지는지 적은 시트를 한 단계 더 둔다(멤버 내보내기와 같은 패턴).
+  */
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   /**
    * 한 항목만 서버로 보낸다.
@@ -147,6 +157,25 @@ export default function MeClient() {
     } finally {
       setUploading(false);
     }
+  }
+
+  /*
+    삭제가 끝나면 세션은 이미 서버에서 없어졌지만 **쿠키는 이 브라우저에 그대로 남아 있다.**
+    지우지 않으면 다음 요청이 죽은 세션으로 나가서, proxy.ts가 튕겨내기 전까지 화면이
+    로그인된 것처럼 보인다. signOut()으로 쿠키를 걷어내고 랜딩으로 보낸다.
+  */
+  async function runDelete() {
+    setDeleting(true);
+    const res = await deleteMyAccount();
+    if (!res.success) {
+      showMsg(res.error, 'error');
+      setDeleting(false);
+      return;
+    }
+    await createSupabaseBrowserClient().auth.signOut();
+    showMsg(tToast('accountDeleted'), 'success');
+    router.replace('/');
+    router.refresh();
   }
 
   return (
@@ -272,8 +301,87 @@ export default function MeClient() {
         </div>
       </Card>
 
+      {/*
+        약관·개인정보 처리방침. App Store는 심사 제출에 개인정보 처리방침 URL을 요구하고,
+        앱 안에서도 닿을 수 있어야 한다 — 가입 화면에만 두면 이미 쓰고 있는 사람은 다시
+        볼 길이 없다. 설정에 두는 게 흔한 자리이기도 하다.
+      */}
+      <Card className="p-5">
+        <h2 className="text-title text-ink">{t('legalTitle')}</h2>
+        <div className="mt-3 flex flex-col">
+          <LegalLink href="/legal/terms" label={t('terms')} />
+          <LegalLink href="/legal/privacy" label={t('privacy')} />
+        </div>
+      </Card>
+
+      {/*
+        계정 삭제 — App Store Review Guideline 5.1.1(v)는 **앱 안에서** 지울 수 있기를
+        요구한다(웹으로 링크를 보내는 것도 안 된다).
+
+        맨 아래에 둔다. 위쪽은 매일 만지는 설정이고 이건 평생 한 번 누르거나 안 누르는
+        버튼이라, 스크롤해 내려온 사람만 만나면 충분하다.
+      */}
+      {/* 테두리를 빨갛게 물들이지 않는다 — `cn`은 단순 join이라 Card의 `border-hairline`과
+          같이 남고, 둘 중 무엇이 이길지는 스타일시트 순서에 달린 문제가 된다.
+          위험하다는 신호는 빨간 버튼이 이미 준다. */}
+      <Card className="p-5">
+        <h2 className="text-title text-ink">{t('deleteAccountTitle')}</h2>
+        <p className="mt-1.5 text-caption text-ink-muted">{t('deleteAccountDescription')}</p>
+        <Button variant="danger" className="mt-4 w-full" onClick={() => setDeleteOpen(true)}>
+          {t('deleteAccount')}
+        </Button>
+      </Card>
+
       {/* 소속 조직 목록과 로그아웃은 아바타 메뉴에 있다 — 같은 것을 두 군데 두지 않는다 */}
+
+      {/*
+        확인 한 단계. **무슨 일이 벌어지는지 적는다** — "정말 삭제할까요?"만 묻는 창은
+        누르는 사람이 이미 알고 있는 것만 되풀이한다. 방장인 조직이 어떻게 되는지,
+        팀에 남긴 기록이 어떻게 되는지가 여기서 답해야 할 질문이다.
+      */}
+      <BottomSheet
+        open={deleteOpen}
+        onClose={() => !deleting && setDeleteOpen(false)}
+        title={t('deleteAccountTitle')}
+      >
+        <div className="flex flex-col gap-4">
+          <ul className="flex flex-col gap-2 rounded-xl bg-canvas-soft p-3.5">
+            <li className="text-body-sm text-ink">{t('deleteEffectLogin')}</li>
+            <li className="text-body-sm text-ink">{t('deleteEffectOwnedOrg')}</li>
+            <li className="text-body-sm text-ink">{t('deleteEffectSoloOrg')}</li>
+            <li className="text-body-sm text-ink">{t('deleteEffectRecords')}</li>
+          </ul>
+          <p className="text-caption text-danger">{t('deleteIrreversible')}</p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setDeleteOpen(false)}
+              disabled={deleting}
+            >
+              {tCommon('cancel')}
+            </Button>
+            <Button variant="danger" className="flex-1" onClick={runDelete} disabled={deleting}>
+              {deleting ? t('deletingAccount') : t('deleteAccountConfirm')}
+            </Button>
+          </div>
+        </div>
+      </BottomSheet>
     </main>
+  );
+}
+
+function LegalLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="-mx-2 flex h-11 items-center justify-between rounded-xl px-2 text-[15px] text-ink transition-colors active:bg-canvas-soft"
+    >
+      {label}
+      <span aria-hidden className="text-ink-faint">
+        ›
+      </span>
+    </Link>
   );
 }
 

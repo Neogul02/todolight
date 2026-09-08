@@ -27,6 +27,24 @@ const TODO_COLUMNS =
   'id, org_id, owner_id, title, status, due_date, position, created_by, handled_by, completed_at, created_at, updated_at, deleted_at';
 
 /**
+ * 한 사람의 컬럼에 실어 보낼 **완료한 할 일**의 최대 개수.
+ *
+ * 보드는 완료를 3개만 펼치고 나머지는 접는다(`MemberColumn`의 `VISIBLE_DONE`).
+ * 펼쳐 봤을 때 "최근에 뭘 끝냈나"를 훑기에 20이면 넉넉하고, 그 위로는 개수만 있으면 된다.
+ * **줄일 때 주의**: 3(VISIBLE_DONE)보다 작아지면 접기 버튼이 의미를 잃는다.
+ */
+const BOARD_DONE_LIMIT = 20;
+
+/** `fetch_org_board`가 돌려주는 jsonb의 모양 */
+type BoardPayload = {
+  todos: Todo[];
+  notes: TodoNote[];
+  participants: { todo_id: string; user_id: string }[];
+  /** 주인 id → 그 사람이 완료한 할 일의 **총** 개수(위 상한과 무관한 전체) */
+  done_totals: Record<string, number>;
+};
+
+/**
  * todo id로 조직을 되짚어 멤버 여부를 확인하고 해당 todo를 돌려준다.
  * role도 함께 돌려준다 — 삭제/복구 경로(assertCanRemove)가 이미 여기서 읽은 role을
  * 재사용하면 같은 조직-유저 쌍을 다시 조회하지 않아도 된다.
@@ -62,85 +80,70 @@ async function loadNotifyContext(orgId: string, userIds: string[]) {
 }
 
 /** 조직 전체의 할 일 + 메모를 한 번에 — 보드가 이걸로 모든 컬럼을 그린다 */
-export async function fetchOrgTodos(orgId: string): Promise<ApiResponse<Todo[]>> {
+/**
+ * 보드가 한 번에 필요한 모든 것 — 할 일 · 메모 · 참여자 · 주인별 완료 총 개수.
+ *
+ * **왕복 한 번이고 결과가 유계다.**
+ *
+ * 예전에는 네 가지(멤버 검사 · 할 일 · 메모 · 참여자)를 Promise.all로 함께 보냈다. 그건
+ * 순차 왕복 네 번보다 훨씬 나았지만 두 가지가 남아 있었다 — 요청이 여전히 네 개고,
+ * **조직의 모든 미삭제 할 일과 모든 메모를 통째로** 읽었다. 완료한 할 일은 영원히 쌓이기만
+ * 하므로 이 조회는 무한히 커진다. 실제 데이터로 재 보니 살아 있는 127건 중 미완료는
+ * 18건이었다 — 나머지 109건이 매번 실려 오지만 화면에는 사람당 3개만 펼쳐진다.
+ *
+ * 지금은 `fetch_org_board`가 한 번에 답한다:
+ * - **미완료는 전부.** "지금 해야 할 일"이라 사람이 감당할 만큼만 쌓여 자연히 유계이고,
+ *   컬럼 정렬(지난 마감 → 오늘 → 나중 → 마감 없음)이 전체를 봐야 성립한다.
+ * - **완료는 주인별 최근 20개만.** 그보다 오래된 것은 `doneTotals`의 개수로만 온다 —
+ *   보드는 원래 완료를 3개만 펼치고 나머지를 "+N개 더 보기"로 접고 있었다.
+ * - 메모·참여자는 **돌려주는 할 일의 것만.**
+ * - 멤버 검사는 함수 안에서 하고, 통과 못 하면 아무것도 만들지 않고 바로 예외다.
+ *
+ * 대가는 하나: 달력에서 **아주 오래전에 끝낸 할 일**은 그 날짜를 눌러도 안 나온다.
+ * 미완료는 전부 있으므로 월 격자의 "남은 개수"와 미완료 목록은 그대로다.
+ */
+export async function fetchOrgTodos(
+  orgId: string
+): Promise<ApiResponse<{ todos: Todo[]; doneTotals: Record<string, number> }>> {
   return wrap(async () => {
     const user = await requireAuth();
-    const db = getSupabaseAdmin();
+    const t = await getActionT();
 
-    /*
-      네 가지를 **한 묶음으로 보낸다.**
-
-      예전에는 멤버 검사 → 할 일 → 메모 → 참여자가 전부 순차라 왕복을 네 번 줄 세웠다.
-      이 화면이 굼뜬 이유는 DB가 일하는 시간이 아니다 — 행이 수십 개뿐이라 실행 시간은
-      사실상 0이고 비용은 오로지 왕복 횟수였다(메모를 할 일 id로 뒤따라 읽으면 105ms,
-      한 번에 읽으면 54ms로 실측).
-
-      메모와 참여자를 할 일 결과 없이도 읽을 수 있도록 조건을 **조직 기준**으로 바꿨다:
-      메모는 `todos`를 inner join해 조직과 "살아 있음"을 걸고, 참여자는 자기 org_id로 건다.
-      참여자에는 지워진 할 일의 행이 섞여 올 수 있지만 살아 있는 할 일 id로만 꺼내 쓰므로
-      결과에 새어 나가지 않는다.
-
-      **멤버 검사는 결과를 내주기 전에 반드시 통과해야 한다.** 같이 보내되 여기서 함께
-      await하므로, 멤버가 아니면 Promise.all이 그대로 거절되고 읽어 온 것은 한 줄도
-      돌려주지 않는다.
-    */
-    const [, todosRes, notesRes, participantsRes] = await Promise.all([
-      assertMember(orgId, user.id),
-      db
-        .from('todos')
-        .select(TODO_COLUMNS)
-        .eq('org_id', orgId)
-        .is('deleted_at', null)
-        .order('position', { ascending: true })
-        .order('created_at', { ascending: true }),
-      db
-        .from('todo_notes')
-        .select(
-          'id, todo_id, author_id, content, created_at, profiles!inner (display_name, avatar_color, avatar_url), todos!inner (org_id, deleted_at)'
-        )
-        .eq('todos.org_id', orgId)
-        .is('todos.deleted_at', null)
-        .order('created_at', { ascending: true }),
-      db.from('todo_participants').select('todo_id, user_id').eq('org_id', orgId),
-    ]);
-
-    if (todosRes.error) throw new Error(todosRes.error.message);
-    if (notesRes.error) throw new Error(notesRes.error.message);
-    if (participantsRes.error) throw new Error(participantsRes.error.message);
-
-    const todos = (todosRes.data ?? []) as Todo[];
-    if (todos.length === 0) return [];
+    const { data, error } = await getSupabaseAdmin()
+      .rpc('fetch_org_board', {
+        p_org: orgId,
+        p_actor: user.id,
+        p_done_limit: BOARD_DONE_LIMIT,
+      })
+      .single<BoardPayload>();
+    if (error) {
+      // 함수가 던지는 유일한 코드. 그대로 두면 raw 예외 문구가 토스트에 뜬다.
+      if (error.message.includes('NOT_A_MEMBER')) throw new Error(t('notAMember'));
+      throw new Error(error.message);
+    }
 
     const byTodo = new Map<string, TodoNote[]>();
-    ((notesRes.data ?? []) as unknown as (TodoNote & {
-      profiles: { display_name: string; avatar_color: string | null; avatar_url: string | null };
-    })[]).forEach(n => {
+    data.notes.forEach(n => {
       const list = byTodo.get(n.todo_id) ?? [];
-      list.push({
-        id: n.id,
-        todo_id: n.todo_id,
-        author_id: n.author_id,
-        content: n.content,
-        created_at: n.created_at,
-        author_name: n.profiles?.display_name,
-        author_color: n.profiles?.avatar_color ?? null,
-        author_avatar_url: n.profiles?.avatar_url ?? null,
-      });
+      list.push(n);
       byTodo.set(n.todo_id, list);
     });
 
     const participantsByTodo = new Map<string, string[]>();
-    (participantsRes.data ?? []).forEach(p => {
+    data.participants.forEach(p => {
       const list = participantsByTodo.get(p.todo_id) ?? [];
       list.push(p.user_id);
       participantsByTodo.set(p.todo_id, list);
     });
 
-    return todos.map(t => ({
-      ...t,
-      notes: byTodo.get(t.id) ?? [],
-      participant_ids: participantsByTodo.get(t.id) ?? [],
-    }));
+    return {
+      todos: data.todos.map(t => ({
+        ...t,
+        notes: byTodo.get(t.id) ?? [],
+        participant_ids: participantsByTodo.get(t.id) ?? [],
+      })),
+      doneTotals: data.done_totals,
+    };
   });
 }
 
@@ -169,41 +172,32 @@ export async function createTodo(input: {
     const ownerId = input.ownerId ?? user.id;
     const id = input.id ? idSchema(t).parse(input.id) : undefined;
 
+    // 남의 목록에 꽂는 경우 주인도 같은 조직인지 함께 본다(멤버 조회 한 번으로)
+    await assertMembers(input.orgId, ownerId === user.id ? [user.id] : [user.id, ownerId]);
+
     /*
-      소속 확인과 맨 위 position 조회는 서로를 기다릴 이유가 없다 —
-      직렬로 두면 왕복 하나가 통째로 응답 시간에 얹힌다.
-      남의 목록에 꽂는 경우 주인도 같은 조직인지 함께 본다(멤버 조회 한 번으로).
+      **position 계산과 삽입을 한 문장으로 한다.**
+
+      예전에는 "그 컬럼의 맨 위 position을 읽고 → 그보다 작은 값으로 insert"를 왕복 두 번에
+      나눠 했다. 그 사이에 다른 사람이 같은 컬럼에 넣으면 둘이 같은 값을 읽어 **같은
+      position으로 저장된다.** 지금 눈에 띄는 사고는 아니지만(정렬 동점은 created_at으로
+      갈린다), position이 double인 이유가 "사이에 끼워 넣기"라서 값이 겹치기 시작하면
+      앞으로 만들 드래그 정렬이 그 위에서 바로 무너진다.
+
+      `insert_todo_at_top`은 컬럼(조직 × 주인) 단위 advisory lock 안에서 min을 읽고 넣는다 —
+      같은 컬럼에 들어오는 삽입만 줄을 서고 다른 컬럼은 서로 기다리지 않는다.
+      왕복도 2회에서 1회로 준다.
     */
-    const [, top] = await Promise.all([
-      assertMembers(input.orgId, ownerId === user.id ? [user.id] : [user.id, ownerId]),
-      // 같은 컬럼 맨 위로 — position은 double이라 앞에 넣을 때 재정렬이 필요 없다.
-      getSupabaseAdmin()
-        .from('todos')
-        .select('position')
-        .eq('org_id', input.orgId)
-        .eq('owner_id', ownerId)
-        .is('deleted_at', null)
-        .order('position', { ascending: true })
-        .limit(1)
-        .maybeSingle()
-        .then(r => r.data),
-    ]);
-
-    const position = top ? top.position - 1 : 0;
-
     const { data, error } = await getSupabaseAdmin()
-      .from('todos')
-      .insert({
-        ...(id ? { id } : {}),
-        org_id: input.orgId,
-        owner_id: ownerId,
-        title,
-        due_date: dueDate,
-        position,
-        created_by: user.id,
+      .rpc('insert_todo_at_top', {
+        p_id: id ?? null,
+        p_org: input.orgId,
+        p_owner: ownerId,
+        p_title: title,
+        p_due: dueDate,
+        p_created_by: user.id,
       })
-      .select(TODO_COLUMNS)
-      .single();
+      .single<Todo>();
     if (error) throw new Error(error.message);
 
     // 알림은 응답 뒤에 보낸다 — 웹훅이 느려도 추가 자체는 즉시 끝나야 한다

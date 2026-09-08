@@ -362,12 +362,13 @@ export function CalendarView({
       className="mx-auto flex h-full w-full max-w-[720px] flex-col overflow-hidden px-3 pt-safe sm:h-auto sm:overflow-visible sm:px-4 sm:pt-2 sm:pb-safe"
     >
       {/*
-        헤더가 없는 모바일에서는 이 줄이 화면 맨 위다 — 우측은 그 위에 뜬 아바타 버튼만큼
-        비워 다음 달 버튼이 아바타 밑에 깔리지 않게 해야 하는데, **오른쪽만 비우면 달 이름이
-        화면 가운데가 아니라 왼쪽으로 밀린 자리에 놓인다.** 양쪽을 같은 만큼 비워 줄 전체가
-        화면 가운데를 기준으로 대칭이 되게 한다.
+        헤더가 없는 모바일에서는 이 줄이 화면 맨 위다.
+        한때는 우상단에 뜬 아바타 버튼을 피하려고 오른쪽을 비웠고, 그러면 달 이름이 가운데가
+        아니라 왼쪽으로 밀려서 **아무것도 없는 왼쪽 48px까지 같이 비워야** 대칭이 맞았다.
+        아바타가 하단 탭바로 내려가면서 그 예약이 통째로 사라졌다 — 달 이름이 예약칸 안이
+        아니라 화면의 진짜 가운데에 놓이고, 좌우 화살표도 손이 닿는 가장자리로 돌아온다.
       */}
-      <div className="flex items-center justify-between px-12 pb-2 sm:px-0">
+      <div className="flex items-center justify-between pb-2">
         <button
           type="button"
           onClick={() => shift(-1)}

@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import {
+  deleteOrg,
   fetchOrgInvites,
   fetchOrgWebhook,
   inviteMember,
   removeMember,
   renameOrg,
   revokeInvite,
+  transferOrgOwnership,
   updateMemberRole,
   updateOrgImage,
   updateOrgWebhook,
@@ -60,6 +62,10 @@ export default function TeamClient() {
   const [managing, setManaging] = useState<MemberSummary | null>(null);
   /** 내보내기는 되돌릴 수 없다 — 시트 안에서 한 번 더 확인받는다 */
   const [confirmKick, setConfirmKick] = useState(false);
+  /** 방장 넘기기도 마찬가지다. 넘기고 나면 되돌릴 권한이 나에게 없다 */
+  const [confirmTransfer, setConfirmTransfer] = useState(false);
+  /** 조직 삭제 — 이 앱에서 유일하게 소프트 삭제가 아닌 지우기라 별도 시트로 묻는다 */
+  const [deleteOrgOpen, setDeleteOrgOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const orgFileRef = useRef<HTMLInputElement | null>(null);
 
@@ -115,9 +121,18 @@ export default function TeamClient() {
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: invited => {
       setEmail('');
-      showMsg(tToast('inviteSent'), 'success');
+      /*
+        **가입한 사람과 아직 아닌 사람은 다른 말을 들어야 한다.**
+        이 앱은 초대 메일을 보내지 않는다 — 이미 쓰고 있는 사람은 앱을 열면 곧 보지만,
+        가입도 안 한 사람은 알려 주지 않으면 영영 모른다. 같은 "초대했어요"를 띄우면
+        방장은 상대가 곧 볼 거라고 믿고 기다리게 된다.
+      */
+      showMsg(
+        invited.registered ? tToast('inviteSent') : tToast('inviteSentUnregistered'),
+        invited.registered ? 'success' : 'info'
+      );
       queryClient.invalidateQueries({ queryKey: ['org-invites', activeOrgId] });
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
@@ -132,9 +147,43 @@ export default function TeamClient() {
     onError: (e: Error) => showMsg(e.message, 'error'),
   });
 
+  /*
+    초대를 **앱 밖에서** 전하는 길.
+
+    메일을 보내지 않으므로 초대장은 상대가 앱을 열기 전까지 아무 데도 나타나지 않는다.
+    그 한 칸을 사람이 메운다 — 보낼 문구와 가입 링크를 한 번에 만들어 준다.
+
+    `navigator.share`가 있으면 시스템 공유 시트를 연다(iOS Safari에 있다 — 카카오톡·문자로
+    바로 넘어간다). 없으면 클립보드에 넣는다. 둘 다 안 되면 조용히 실패하지 않고 알린다.
+
+    **링크에 이메일을 싣지 않는다.** 주소창·브라우저 기록·중간 로그에 남을 이유가 없고,
+    어차피 문구에 "이 주소로 가입하세요"라고 적혀 있다.
+  */
+  async function shareInvite(inviteEmail: string) {
+    const text = t('inviteShareMessage', {
+      org: activeOrg?.name ?? '',
+      email: inviteEmail,
+      url: `${window.location.origin}/login?mode=signup`,
+    });
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ text });
+        return;
+      }
+      await navigator.clipboard.writeText(text);
+      showMsg(tToast('inviteCopied'), 'success');
+    } catch (err) {
+      // 공유 시트를 사용자가 닫은 것은 실패가 아니다 — 토스트를 띄우면 시끄럽다
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      showMsg(tToast('inviteCopyFailed'), 'error');
+    }
+  }
+
   function closeManage() {
     setManaging(null);
     setConfirmKick(false);
+    setConfirmTransfer(false);
   }
 
   const kick = useMutation({
@@ -161,6 +210,49 @@ export default function TeamClient() {
       showMsg(tToast('roleChanged'), 'success');
       closeManage();
       queryClient.invalidateQueries({ queryKey: ['members', activeOrgId] });
+    },
+    onError: (e: Error) => showMsg(e.message, 'error'),
+  });
+
+  /*
+    방장 넘기기.
+
+    내 역할이 바뀌므로 멤버 목록만으로는 부족하고 **조직 목록(`my-orgs`)도 다시 읽어야**
+    한다 — 헤더·팀 화면의 "관리자만 보이는 것"이 전부 그 role을 본다.
+  */
+  const transfer = useMutation({
+    mutationFn: async (targetId: string) => {
+      const res = await transferOrgOwnership(activeOrgId!, targetId);
+      if (!res.success) throw new Error(res.error);
+    },
+    onSuccess: () => {
+      showMsg(tToast('ownerTransferred'), 'success');
+      closeManage();
+      queryClient.invalidateQueries({ queryKey: ['members', activeOrgId] });
+      queryClient.invalidateQueries({ queryKey: ['my-orgs'] });
+      router.refresh();
+    },
+    onError: (e: Error) => showMsg(e.message, 'error'),
+  });
+
+  /*
+    조직 삭제.
+
+    지우고 나면 지금 보고 있던 조직이 사라진다 — `my-orgs`를 다시 읽으면 `useActiveOrg`가
+    남은 조직의 첫 번째로 알아서 떨어진다(조직이 하나도 없으면 ViewPager의 안내 화면).
+    그래서 여기서 어떤 조직으로 갈지 직접 고르지 않는다.
+  */
+  const removeOrg = useMutation({
+    mutationFn: async () => {
+      const res = await deleteOrg(activeOrgId!);
+      if (!res.success) throw new Error(res.error);
+    },
+    onSuccess: async () => {
+      showMsg(tToast('orgDeleted'), 'success');
+      setDeleteOrgOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ['my-orgs'] });
+      router.replace('/board');
+      router.refresh();
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
   });
@@ -248,9 +340,12 @@ export default function TeamClient() {
 
   const canManage = (m: MemberSummary) => {
     const isSelf = m.user_id === userId;
-    const canChangeRole = activeOrg.role === 'owner' && !isSelf && m.role !== 'owner';
+    const isOwner = activeOrg.role === 'owner';
+    const canChangeRole = isOwner && !isSelf && m.role !== 'owner';
+    // 넘길 수 있는 조건은 역할을 바꿀 수 있는 조건과 같다 — 방장인 내가, 나 아닌 멤버에게.
+    const canTransfer = canChangeRole;
     const canRemove = isSelf ? m.role !== 'owner' : isManager && m.role !== 'owner';
-    return { isSelf, canChangeRole, canRemove, any: canChangeRole || canRemove };
+    return { isSelf, canChangeRole, canTransfer, canRemove, any: canChangeRole || canRemove };
   };
 
   const managed = managing ? canManage(managing) : null;
@@ -271,6 +366,8 @@ export default function TeamClient() {
         <Card className="p-5">
           <h2 className="text-title text-ink">{t('inviteTitle')}</h2>
           <p className="mt-1 text-caption text-ink-muted">{t('inviteDescription')}</p>
+          {/* 메일이 나가지 않는다는 사실을 초대하기 **전에** 말한다 — 보내고 나서 알면 늦다 */}
+          <p className="mt-1 text-caption text-ink-faint">{t('inviteNoEmailNotice')}</p>
           <form
             onSubmit={e => {
               e.preventDefault();
@@ -305,24 +402,39 @@ export default function TeamClient() {
           {(invites.data?.length ?? 0) > 0 && (
             <ul className="mt-4 flex flex-col gap-1.5">
               {invites.data!.map(inv => (
-                <li
-                  key={inv.id}
-                  className="flex items-center gap-2 rounded-xl bg-canvas-soft px-3 py-2"
-                >
-                  <span className="min-w-0 flex-1 truncate text-[14px] text-ink-secondary">
-                    {inv.email}
-                  </span>
-                  <span className="text-[11px] text-ink-faint">
-                    {formatRelativeDay(inv.created_at, locale)}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => revoke.mutate(inv.id)}
-                    disabled={revoke.isPending}
-                  >
-                    {t('cancelInvite')}
-                  </Button>
+                <li key={inv.id} className="rounded-xl bg-canvas-soft px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate text-[14px] text-ink-secondary">
+                      {inv.email}
+                    </span>
+                    <span className="shrink-0 text-[11px] text-ink-faint">
+                      {formatRelativeDay(inv.created_at, locale)}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => revoke.mutate(inv.id)}
+                      disabled={revoke.isPending}
+                    >
+                      {t('cancelInvite')}
+                    </Button>
+                  </div>
+
+                  {/*
+                    **아직 가입하지 않은 사람에게만 뜬다.** 이미 쓰고 있는 사람은 앱을 열면
+                    초대장을 보므로 방장이 따로 할 일이 없다 — 모든 줄에 공유 버튼을 달면
+                    정작 손이 필요한 줄이 묻힌다.
+                  */}
+                  {!inv.registered && (
+                    <div className="mt-1.5 flex items-center gap-2 border-t border-hairline pt-1.5">
+                      <span className="min-w-0 flex-1 text-[12px] text-ink-muted">
+                        {t('inviteUnregisteredHint')}
+                      </span>
+                      <Button size="sm" variant="outline" onClick={() => shareInvite(inv.email)}>
+                        {t('inviteShare')}
+                      </Button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -443,6 +555,23 @@ export default function TeamClient() {
         </Card>
       )}
 
+      {/*
+        조직 삭제 — **방장만.** 관리자에게도 보이면 안 된다(액션도 SQL도 막지만, 누를 수
+        없는 버튼을 띄워 두면 "왜 안 되지"를 눌러 보고서야 알게 된다).
+
+        맨 아래에 둔다. 위는 매일 만지는 설정이고 이건 평생 한 번 누르거나 안 누르는
+        버튼이라, 스크롤해 내려온 사람만 만나면 충분하다 — `/me`의 계정 삭제와 같은 자리다.
+      */}
+      {activeOrg.role === 'owner' && (
+        <Card className="p-5">
+          <h2 className="text-title text-ink">{t('deleteOrgTitle')}</h2>
+          <p className="mt-1.5 text-caption text-ink-muted">{t('deleteOrgDescription')}</p>
+          <Button variant="danger" className="mt-4 w-full" onClick={() => setDeleteOrgOpen(true)}>
+            {t('deleteOrg')}
+          </Button>
+        </Card>
+      )}
+
       {/* 멤버 관리 — 역할 변경과 내보내기. 내보내기는 여기서 한 번 더 확인받는다 */}
       <BottomSheet
         open={!!managing}
@@ -466,6 +595,42 @@ export default function TeamClient() {
                 {managing.role === 'admin' ? t('demoteAdmin') : t('promoteAdmin')}
               </Button>
             )}
+
+            {/*
+              방장 넘기기 — 역할 변경 바로 뒤, 내보내기 앞이다.
+              위 둘은 "이 사람을 어떻게 할까"이고 이건 "조직을 누구에게 맡길까"라 성격이
+              다르지만, 되돌릴 수 없는 정도로 줄을 세우면 이 자리가 맞다.
+              **넘기고 나면 되돌릴 권한이 나에게 없으므로** 내보내기와 같이 한 번 더 묻는다.
+            */}
+            {managed.canTransfer &&
+              (confirmTransfer ? (
+                <div className="rounded-xl border border-hairline bg-canvas-soft p-3">
+                  <p className="text-body-sm text-ink">
+                    {t('transferConfirmDescription', { name: managing.display_name })}
+                  </p>
+                  <p className="mt-1.5 text-caption text-ink-muted">{t('transferConfirmDetail')}</p>
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setConfirmTransfer(false)}
+                    >
+                      {t('cancelInvite')}
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      onClick={() => transfer.mutate(managing.user_id)}
+                      disabled={transfer.isPending}
+                    >
+                      {t('transferConfirm')}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button size="lg" variant="outline" onClick={() => setConfirmTransfer(true)}>
+                  {t('transferOwner')}
+                </Button>
+              ))}
 
             {managed.canRemove &&
               (confirmKick && !managed.isSelf ? (
@@ -502,6 +667,59 @@ export default function TeamClient() {
               ))}
           </div>
         )}
+      </BottomSheet>
+
+      {/*
+        조직 삭제 확인.
+
+        **무슨 일이 벌어지는지 적는다** — "정말 삭제할까요?"만 묻는 창은 누르는 사람이 이미
+        아는 것만 되풀이한다. 여기서 답해야 할 질문은 "안에 있던 것은 어떻게 되나"와
+        "다른 멤버는 어떻게 되나"다. 조직 이름을 그대로 보여 주는 것도 그 답의 일부다 —
+        조직 여러 개를 오가는 사람은 지금 어느 조직에 서 있는지 헷갈릴 수 있다.
+      */}
+      <BottomSheet
+        open={deleteOrgOpen}
+        onClose={() => !removeOrg.isPending && setDeleteOrgOpen(false)}
+        title={t('deleteOrgTitle')}
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3 rounded-xl bg-canvas-soft p-3.5">
+            <OrgIcon
+              name={activeOrg.name}
+              imageUrl={activeOrg.image_url}
+              seed={activeOrg.id}
+              size="sm"
+            />
+            <span className="min-w-0 truncate text-[15px] font-semibold text-ink">
+              {activeOrg.name}
+            </span>
+          </div>
+          <ul className="flex flex-col gap-2">
+            <li className="text-body-sm text-ink">{t('deleteOrgEffectAll')}</li>
+            <li className="text-body-sm text-ink">
+              {t('deleteOrgEffectMembers', { count: activeOrg.member_count })}
+            </li>
+          </ul>
+          <p className="text-caption text-danger">{t('deleteOrgIrreversible')}</p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setDeleteOrgOpen(false)}
+              disabled={removeOrg.isPending}
+            >
+              {tCommon('cancel')}
+            </Button>
+            <Button
+              variant="danger"
+              className="flex-1"
+              onClick={() => removeOrg.mutate()}
+              disabled={removeOrg.isPending}
+            >
+              {removeOrg.isPending ? t('deletingOrg') : t('deleteOrgConfirm')}
+            </Button>
+          </div>
+        </div>
       </BottomSheet>
     </main>
   );

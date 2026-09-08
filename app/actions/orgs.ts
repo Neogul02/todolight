@@ -58,21 +58,34 @@ export async function createOrg(name: string): Promise<ApiResponse<Organization>
     const t = await getActionT();
     const parsed = orgNameSchema(t).parse(name);
 
-    const { data: org, error } = await getSupabaseAdmin()
-      .from('organizations')
-      .insert({ name: parsed, owner_id: user.id })
-      .select('id, name, owner_id, image_url, created_at')
-      .single();
+    /*
+      조직 행과 방장 멤버 행이 **같이 생기거나 같이 안 생긴다.**
+
+      예전에는 둘을 따로 보내고, 두 번째가 실패하면 첫 번째를 지우는 보상 로직을 손으로
+      들고 있었다 — 그런데 그 보상 삭제도 실패할 수 있고(서버리스 인스턴스가 그 사이에
+      끝나는 것으로 충분하다), 그러면 **아무도 접근할 수 없는 유령 조직**이 남는다.
+      supabase-js에는 트랜잭션이 없으므로 두 문장을 함수 하나로 옮겼다.
+      왕복도 2회에서 1회로 준다.
+    */
+    const { data: row, error } = await getSupabaseAdmin()
+      .rpc('create_org_with_owner', { p_name: parsed, p_owner: user.id })
+      .single<Organization & { discord_webhook_url: string | null }>();
     if (error) throw new Error(error.message);
 
-    const { error: memberError } = await getSupabaseAdmin()
-      .from('org_members')
-      .insert({ org_id: org.id, user_id: user.id, role: 'owner' });
-    if (memberError) {
-      // 멤버 등록이 실패하면 아무도 접근할 수 없는 유령 조직이 남는다 — 되돌린다.
-      await getSupabaseAdmin().from('organizations').delete().eq('id', org.id);
-      throw new Error(memberError.message);
-    }
+    /*
+      **컬럼을 골라 담는다.** RPC는 `returns public.organizations`라 행 전체를 돌려주는데,
+      거기에는 `discord_webhook_url`이 들어 있다 — 그 URL을 아는 사람은 누구나 그 채널에
+      글을 쓸 수 있으므로 방장·관리자만 볼 값이고, 그래서 `fetchOrgWebhook`이 따로 있다.
+      새로 만든 조직에서는 늘 null이라 지금 새어 나갈 것은 없지만, 클라이언트로 가는
+      모양이 `Organization`과 어긋난 채로 두면 나중에 진짜로 새어 나간다.
+    */
+    const org: Organization = {
+      id: row.id,
+      name: row.name,
+      owner_id: row.owner_id,
+      image_url: row.image_url,
+      created_at: row.created_at,
+    };
 
     revalidatePath('/board');
 
@@ -97,7 +110,7 @@ export async function createOrg(name: string): Promise<ApiResponse<Organization>
       );
     });
 
-    return org as Organization;
+    return org;
   });
 }
 
@@ -175,7 +188,22 @@ export async function updateMemberOrder(
 }
 
 /** 방장이 이메일로 팀원 초대 */
-export async function inviteMember(orgId: string, email: string): Promise<ApiResponse<OrgInvite>> {
+/**
+ * 초대장에 붙는 한 가지 사실: **이 이메일로 가입한 계정이 있는가.**
+ *
+ * 이 앱은 초대 메일을 보내지 않는다 — `org_invites` 행만 만들고, 초대받은 사람이 앱을 열
+ * 때 메뉴에 뜬다. 이미 쓰고 있는 사람이면 곧 보게 되지만, **아직 가입도 안 한 사람이면
+ * 영영 모른다.** 초대한 쪽에서 따로 알려 줘야 하는데, 그걸 알려 줄 근거가 화면에 없었다.
+ *
+ * `inviteMember`는 "이미 멤버인가"를 보려고 `profiles`를 이미 읽고 있었다 — 같은 조회에서
+ * 나오는 이 사실을 버리지 않고 화면까지 들고 간다.
+ */
+export type OrgInviteView = OrgInvite & { registered: boolean };
+
+export async function inviteMember(
+  orgId: string,
+  email: string
+): Promise<ApiResponse<OrgInviteView>> {
   return wrap(async () => {
     const user = await requireAuth();
     await requireManager(orgId, user.id);
@@ -211,12 +239,13 @@ export async function inviteMember(orgId: string, email: string): Promise<ApiRes
       throw new Error(error.message);
     }
 
-    return data as OrgInvite;
+    // 위에서 이미 읽은 값이다 — 이 사실 하나가 "따로 알려 줘야 하나"를 가른다
+    return { ...(data as OrgInvite), registered: !!existingProfile };
   });
 }
 
 /** 조직의 대기 중 초대 목록 (방장 화면) */
-export async function fetchOrgInvites(orgId: string): Promise<ApiResponse<OrgInvite[]>> {
+export async function fetchOrgInvites(orgId: string): Promise<ApiResponse<OrgInviteView[]>> {
   return wrap(async () => {
     const user = await requireAuth();
     await requireMembership(orgId, user.id);
@@ -228,7 +257,25 @@ export async function fetchOrgInvites(orgId: string): Promise<ApiResponse<OrgInv
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []) as OrgInvite[];
+
+    const invites = (data ?? []) as OrgInvite[];
+    if (invites.length === 0) return [];
+
+    /*
+      가입 여부를 한 번에 확인한다. 초대장마다 조회하면 대기 중인 초대 수만큼 왕복이 는다.
+
+      **이건 계정 존재 여부를 알려 주는 것이다.** 초대장의 이메일은 방장이 직접 적어 넣은
+      주소이고 이 조회는 그 주소들에만 답하므로, 임의의 이메일을 넣어 가입 여부를 캐내는
+      용도로는 쓸 수 없다.
+      탈퇴한 사람의 프로필은 email이 null이라 여기 걸리지 않는다 — 계정이 없는 게 맞다.
+    */
+    const { data: profiles } = await getSupabaseAdmin()
+      .from('profiles')
+      .select('email')
+      .in('email', invites.map(i => i.email));
+
+    const registered = new Set((profiles ?? []).map(p => (p.email ?? '').toLowerCase()));
+    return invites.map(i => ({ ...i, registered: registered.has(i.email.toLowerCase()) }));
   });
 }
 
@@ -461,6 +508,81 @@ export async function renameOrg(orgId: string, name: string): Promise<ApiRespons
       .update({ name: parsed })
       .eq('id', orgId);
     if (error) throw new Error(error.message);
+
+    revalidatePath('/board');
+    return null;
+  });
+}
+
+/**
+ * RPC가 던지는 예외 코드를 사람이 읽는 문구로 옮긴다.
+ *
+ * 검사를 SQL 안에서 하는 이유는 **원자성** 때문이다 — TS에서 "내가 방장인가"를 확인하고
+ * 그 다음 문장으로 이양을 보내면, 그 사이에 다른 이양·삭제가 끼어들 수 있다.
+ * `for update`로 조직 행을 잡은 채 검사하고 갱신해야 그 틈이 없어진다.
+ * 대신 에러가 문자열로 올라오므로 여기서 한 번 번역해 준다.
+ */
+function orgRpcError(message: string, t: ActionT): Error {
+  if (message.includes('NOT_OWNER')) return new Error(t('ownerOnly'));
+  if (message.includes('ORG_NOT_FOUND')) return new Error(t('orgNotFound'));
+  if (message.includes('NOT_A_MEMBER')) return new Error(t('notAMember'));
+  if (message.includes('ALREADY_OWNER')) return new Error(t('alreadyOwner'));
+  return new Error(message);
+}
+
+/**
+ * 소유권 이양 — 방장만, 같은 조직의 멤버에게만.
+ *
+ * 물러난 방장은 **관리자로 남는다.** 팀원으로 떨어뜨리면 방금까지 조직을 운영하던 사람이
+ * 초대 한 번 못 보내게 되는데, 그건 이양이 아니라 강등이다.
+ *
+ * 이게 있어야 조직이 방장을 잃지 않는다. 예전에는 `removeMember`가 방장 제거를 막기만 하고
+ * 넘길 방법을 주지 않아서, 방장은 조직에서 나갈 수도 조직을 없앨 수도 없었다 —
+ * 계정을 통째로 지우는 것 말고는 벗어날 길이 없는 막다른 길이었다.
+ */
+export async function transferOrgOwnership(
+  orgId: string,
+  newOwnerId: string
+): Promise<ApiResponse<null>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    const t = await getActionT();
+
+    // 소유자 검사는 RPC 안에서 잠금과 함께 다시 한다 — 여기 검사는 멤버가 아닌 사람에게
+    // "방장만 할 수 있어요" 대신 "이 조직의 멤버가 아니에요"를 돌려주기 위한 것이다.
+    await requireMembership(orgId, user.id);
+
+    const { error } = await getSupabaseAdmin().rpc('transfer_org_ownership', {
+      p_org: orgId,
+      p_actor: user.id,
+      p_new_owner: newOwnerId,
+    });
+    if (error) throw orgRpcError(error.message, t);
+
+    revalidatePath('/board');
+    return null;
+  });
+}
+
+/**
+ * 조직 삭제 — 방장만. 할 일·메모·일정·가계부·멤버·초대가 cascade로 함께 사라진다.
+ *
+ * **이 앱에서 유일하게 소프트 삭제가 아닌 지우기다.** 소프트 삭제는 "확인 없이 바로 누르되
+ * 되돌릴 수 있게" 하려는 장치인데, 조직 삭제는 시트에서 조직 이름을 확인시키고 한 단계 더
+ * 묻는 동작이라 실수로 눌릴 일이 없다. 반대로 남겨 두면 모든 조회에 "지워진 조직 제외"가
+ * 붙고 한 번만 빠뜨려도 지운 조직이 목록에 다시 나타난다.
+ */
+export async function deleteOrg(orgId: string): Promise<ApiResponse<null>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    const t = await getActionT();
+    await requireMembership(orgId, user.id);
+
+    const { error } = await getSupabaseAdmin().rpc('delete_org', {
+      p_org: orgId,
+      p_actor: user.id,
+    });
+    if (error) throw orgRpcError(error.message, t);
 
     revalidatePath('/board');
     return null;

@@ -39,18 +39,57 @@ export function useOrgMembers(orgId: string | null) {
 }
 
 export function useOrgTodos(orgId: string | null) {
+  const queryClient = useQueryClient();
+
   return useQuery({
     queryKey: boardKeys.todos(orgId ?? ''),
     enabled: !!orgId,
     queryFn: async (): Promise<Todo[]> => {
       const res = await fetchOrgTodos(orgId!);
       if (!res.success) throw new Error(res.error);
-      return res.data;
+      /*
+        한 번의 응답에서 두 캐시를 채운다.
+
+        서버는 할 일과 "주인별 완료 총 개수"를 함께 준다(같은 쿼리 패스라 개수는 공짜다).
+        그런데 이 훅의 캐시는 `Todo[]`여야 한다 — 실시간 병합과 낙관적 반영이 전부 그
+        배열을 직접 주무르고 있어서, 객체로 바꾸면 앱에서 제일 예민한 코드가 통째로 흔들린다.
+        개수만 옆 키로 흘려 둔다.
+      */
+      queryClient.setQueryData(boardKeys.doneTotals(orgId!), res.data.doneTotals);
+      return res.data.todos;
     },
     staleTime: 30_000,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   });
+}
+
+/**
+ * 주인별 완료 할 일 **총** 개수 — 상한(최근 20개)에 걸려 안 실려 온 것까지 포함한다.
+ *
+ * `useOrgTodos`가 채워 두는 값이라 여기서는 읽기만 한다(`queryFn`이 없다).
+ * 아직 안 읽혔으면 빈 객체다 — 화면은 그때 받은 개수만 말하면 되고, 곧 채워진다.
+ */
+export function useOrgDoneTotals(orgId: string | null): Record<string, number> {
+  const { data } = useQuery<Record<string, number>>({
+    queryKey: boardKeys.doneTotals(orgId ?? ''),
+    /*
+      **스스로 읽지 않는다.** 이 값은 `useOrgTodos`의 응답에 함께 실려 오므로 여기서 또
+      부르면 같은 것을 두 번 읽는다. `enabled: false`여도 useQuery는 이 키의 캐시를
+      구독하므로, 저쪽이 `setQueryData`로 채우는 순간 이 컴포넌트가 다시 그려진다.
+      queryFn을 두는 건 혹시라도 불릴 경우 조용히 빈 값으로 덮지 않게 하려는 것이다.
+    */
+    enabled: false,
+    queryFn: () => {
+      throw new Error('useOrgDoneTotals는 스스로 조회하지 않는다 — useOrgTodos가 채운다');
+    },
+  });
+  /*
+    실시간으로 남이 할 일을 완료하면 `todos` 캐시는 병합으로 즉시 바뀌지만 이 값은 그대로다
+    — 다음 invalidate나 포커스 재조회 때 맞춰진다. 머리의 요약 숫자가 잠깐 하나 적을 뿐이라
+    실시간 페이로드마다 여기까지 손대며 어긋날 자리를 늘릴 값이 아니다.
+  */
+  return data ?? {};
 }
 
 /**

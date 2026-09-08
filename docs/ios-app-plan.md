@@ -689,11 +689,18 @@ ios/**/.swiftpm/
 
 - [ ] Apple Developer Program 등록 ($99/년, 승인 며칠)
 - [x] **P0-1 실시간 인증 검증 및 수정** — [§1](#p0--코드-쓰기-전에-끝내야-하는-것) · 2026-09-02 완료
-- [ ] **P0-2 계정 삭제** 설계 + 웹에 먼저 구현 (조직 소유권 이양 규칙 포함)
+- [x] **P0-2 계정 삭제** 설계 + 웹에 먼저 구현 (조직 소유권 이양 규칙 포함) — 2026-09-08 완료
+      · `deleteMyAccount()` + `/me`의 확인 시트 · `auth.users → profiles` cascade를 끊고
+        프로필을 묘비로 남긴다(`20260908115046`) · 소유권 이양·조직 삭제는 `/team`에도 있다
+        (`transfer_org_ownership` / `delete_org` RPC) · 이용약관·개인정보 처리방침 `/legal/*`
 - [ ] Bundle ID, App Group(`group.com.<you>.todolight`), Keychain group 확정
 - [ ] `ios/` 스캐폴딩, `.gitignore` 추가
 
 ✅ **완료 기준**: 웹에서 계정을 지울 수 있고, 실시간 채널이 인증된 상태로 붙는다.
+→ **둘 다 충족.** 남은 것은 코드가 아니라 계정 일이다(Apple Developer 등록, Bundle ID·App
+Group 확정, `ios/` 스캐폴딩). 그리고 Supabase의 **이메일 확인이 꺼져 있다** — 남의 이메일로
+가입해 그 사람 앞으로 온 조직 초대를 가로챌 수 있으므로 M1 전에 켠다
+(Authentication → Sign In / Providers → Email → Confirm email).
 
 ### M1 — API 레이어 · 1주
 

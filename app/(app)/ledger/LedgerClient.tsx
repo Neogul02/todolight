@@ -153,11 +153,11 @@ export default function LedgerClient() {
     <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 pt-5 pt-safe pb-tabbar sm:pt-6 sm:pb-6">
       {/*
         달 이동 — 합계는 "한 달치"여야 의미가 있다. 범위가 없으면 숫자가 영원히 커지기만 한다.
-        헤더가 없는 모바일에서는 이 줄이 화면 맨 위다 — 우측은 그 위에 뜬 아바타 버튼만큼
-        비워 다음 달 버튼이 아바타 밑에 깔리지 않게 해야 하는데, **오른쪽만 비우면 달 이름이
-        화면 가운데가 아니라 왼쪽으로 밀린 자리에 놓인다.** 양쪽을 같은 만큼 비운다.
+        헤더가 없는 모바일에서는 이 줄이 화면 맨 위다. 한때는 우상단에 뜬 아바타를 피해
+        오른쪽을 비웠고, 그러면 달 이름이 왼쪽으로 밀려서 아무것도 없는 왼쪽까지 같이
+        비워야 했다 — 아바타가 하단 탭바로 내려가면서 그 예약이 사라졌다.
       */}
-      <div className="flex items-center gap-1 px-12 sm:px-0">
+      <div className="flex items-center gap-1">
         <MonthButton dir="prev" label={t('prevMonth')} onClick={() => goMonth(-1)} />
         <h1 className="flex-1 text-center text-title text-ink tabular-nums">
           {formatMonth(month, locale)}
