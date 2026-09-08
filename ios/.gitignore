@@ -1,0 +1,14 @@
+# Xcode가 만드는 사용자별 상태 — 사람마다 다르고 합쳐질 일이 없다
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# 빌드 산출물
+.build/
+DerivedData/
+build/
+
+# SPM이 해석한 버전 고정. 앱 타깃(.xcodeproj)의 것은 커밋하지만
+# 패키지 단독 빌드의 것은 지운다 — 이 패키지는 의존성이 없다.
+TodoLightKit/.swiftpm/
+TodoLightKit/Package.resolved

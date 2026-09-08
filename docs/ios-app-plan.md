@@ -725,9 +725,14 @@ Group 확정, `ios/` 스캐폴딩). 그리고 Supabase의 **이메일 확인이 
 
 ### M2 — 앱 껍데기 · 2~3주
 
+> **Xcode 프로젝트 설정값과 인증 접합 코드는 [`docs/ios-m2-setup.md`](./ios-m2-setup.md)에 있다.**
+> 서버와 이야기하는 층(`ios/TodoLightKit`)은 2026-09-08에 먼저 만들어 뒀다 —
+> 엔드포인트 42개, 테스트 27개, 그중 4개는 실배포본을 상대로 통과 확인.
+> **여기부터 남은 일은 사실상 전부 화면이다.**
+
 - [ ] `supabase-swift` 붙이기, 커스텀 `AuthLocalStorage`(공유 Keychain, AfterFirstUnlock)
 - [ ] Sign in with Apple + 이메일 로그인
-- [ ] `TodoLightKit` 모델 + `APIClient` + `APIResponse`
+- [x] `TodoLightKit` 모델 + `APIClient` + `APIResponse` — 2026-09-08 완료
 - [ ] 보드 화면 (가로 캐러셀, 카드, 체크, 추가) — 낙관적 반영 포함
 - [ ] Realtime 구독 + 캐시 병합 (`useBoardRealtime` 규칙 이식)
 - [ ] 테마 생성기 + 6종 적용
