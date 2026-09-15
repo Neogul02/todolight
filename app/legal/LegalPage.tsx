@@ -21,7 +21,7 @@ export default async function LegalPage({ doc, titleKey }: { doc: LegalDoc; titl
       <header className="flex h-14 items-center">
         <Link
           href="/"
-          className="-ml-2 rounded-lg px-2 py-2 text-[15px] font-medium text-ink-muted transition-colors active:bg-canvas-soft sm:text-[14px] sm:hover:text-ink"
+          className="-ml-2 rounded-lg px-2 py-2 text-[15px] font-medium text-ink-muted transition-colors active:bg-canvas-soft sm:text-[14px] pointer-fine:hover:text-ink"
         >
           ‹ {t('backHome')}
         </Link>

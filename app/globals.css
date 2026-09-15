@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/*
+  마우스가 있는 환경에서만 호버를 준다.
+
+  예전에는 `sm:hover:`로 **화면 폭**을 보고 호버를 켰다. 폭은 입력 장치가 아니다 —
+  1024px 아이패드·터치 노트북에서 호버 스타일이 켜지고, 터치에는 "포인터가 떠나는" 순간이
+  없어서 한 번 누른 요소에 호버가 그대로 들러붙는다.
+  실제로 물어야 할 것은 "이 기기에 호버가 되는 정밀 포인터가 있나"다.
+*/
+@custom-variant pointer-fine (@media (hover: hover) and (pointer: fine));
+
 /* ──────────────────────────────────────────────────────────────
    Theme tokens
    :root가 밝은 기본값을 깔고, 각 테마 블록은 달라지는 토큰만 덮는다.
@@ -82,6 +92,18 @@
   --glass-shade: rgba(20, 18, 15, 0.05);
   --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.08);
 
+  /*
+    ── 캔버스 틴트 ──
+    카드 유리가 흐릴 대상. 이 두 색이 없으면 카드의 backdrop-filter는 단색을 흐려서
+    결과가 0이다(--canvas와 --surface가 같은 테마도 있다). 진폭을 키우고 싶어지는데,
+    키우면 대비 검사가 먼저 깨진다 — scripts/check-glass-contrast.mjs가 상한을 지킨다.
+    --glass-card-bg는 --glass-bg(바/시트용)보다 불투명하다: 카드는 글을 읽는 면이다.
+  */
+  --canvas-tint-a: rgba(206, 196, 178, 0.27);
+  --canvas-tint-b: rgba(198, 206, 218, 0.21);
+  --glass-card-bg: rgba(255, 255, 255, 0.78);
+  --glass-card-bg-alt: rgba(250, 248, 244, 0.76);
+
   /* 흰 배경에서는 아주 옅은 그림자로 층만 만든다 */
   --shadow-1:
     rgba(0, 0, 0, 0.012) 0 0.175px 1.041px, rgba(0, 0, 0, 0.022) 0 0.8px 2.925px,
@@ -142,6 +164,18 @@
   --glass-bg: rgba(32, 32, 32, 0.58);
   --glass-bg-strong: rgba(26, 26, 26, 0.88);
 
+  /*
+    ── 캔버스 틴트 ──
+    카드 유리가 흐릴 대상. 이 두 색이 없으면 카드의 backdrop-filter는 단색을 흐려서
+    결과가 0이다(--canvas와 --surface가 같은 테마도 있다). 진폭을 키우고 싶어지는데,
+    키우면 대비 검사가 먼저 깨진다 — scripts/check-glass-contrast.mjs가 상한을 지킨다.
+    --glass-card-bg는 --glass-bg(바/시트용)보다 불투명하다: 카드는 글을 읽는 면이다.
+  */
+  --canvas-tint-a: rgba(86, 78, 66, 0.14);
+  --canvas-tint-b: rgba(54, 60, 74, 0.12);
+  --glass-card-bg: rgba(30, 30, 30, 0.78);
+  --glass-card-bg-alt: rgba(36, 36, 36, 0.76);
+
   --success: #86cfa2;
   --success-soft: #1a3226;
   --warning: #e2ba6a;
@@ -178,6 +212,18 @@
   --glass-sheen: rgba(255, 255, 255, 0.8);
   --glass-shade: rgba(7, 54, 66, 0.06);
 
+  /*
+    ── 캔버스 틴트 ──
+    카드 유리가 흐릴 대상. 이 두 색이 없으면 카드의 backdrop-filter는 단색을 흐려서
+    결과가 0이다(--canvas와 --surface가 같은 테마도 있다). 진폭을 키우고 싶어지는데,
+    키우면 대비 검사가 먼저 깨진다 — scripts/check-glass-contrast.mjs가 상한을 지킨다.
+    --glass-card-bg는 --glass-bg(바/시트용)보다 불투명하다: 카드는 글을 읽는 면이다.
+  */
+  --canvas-tint-a: rgba(216, 206, 172, 0.39);
+  --canvas-tint-b: rgba(178, 200, 196, 0.24);
+  --glass-card-bg: rgba(253, 246, 227, 0.78);
+  --glass-card-bg-alt: rgba(245, 239, 220, 0.76);
+
   --success: #4f7a1f; /* green을 배경 대비에 맞게 낮춤 */
   --success-soft: #e8ecd2;
   --warning: #97690b; /* yellow 계열 */
@@ -210,6 +256,18 @@
   --glass-bg: rgba(59, 66, 82, 0.6);
   --glass-bg-strong: rgba(46, 52, 64, 0.9);
 
+  /*
+    ── 캔버스 틴트 ──
+    카드 유리가 흐릴 대상. 이 두 색이 없으면 카드의 backdrop-filter는 단색을 흐려서
+    결과가 0이다(--canvas와 --surface가 같은 테마도 있다). 진폭을 키우고 싶어지는데,
+    키우면 대비 검사가 먼저 깨진다 — scripts/check-glass-contrast.mjs가 상한을 지킨다.
+    --glass-card-bg는 --glass-bg(바/시트용)보다 불투명하다: 카드는 글을 읽는 면이다.
+  */
+  --canvas-tint-a: rgba(94, 122, 148, 0.28);
+  --canvas-tint-b: rgba(67, 76, 94, 0.36);
+  --glass-card-bg: rgba(59, 66, 82, 0.78);
+  --glass-card-bg-alt: rgba(67, 76, 94, 0.76);
+
   --success: #a3be8c; /* nord14 */
   --success-soft: #333f31;
   --warning: #ebcb8b; /* nord13 */
@@ -241,6 +299,18 @@
 
   --glass-bg: rgba(52, 55, 70, 0.6);
   --glass-bg-strong: rgba(40, 42, 54, 0.9);
+
+  /*
+    ── 캔버스 틴트 ──
+    카드 유리가 흐릴 대상. 이 두 색이 없으면 카드의 backdrop-filter는 단색을 흐려서
+    결과가 0이다(--canvas와 --surface가 같은 테마도 있다). 진폭을 키우고 싶어지는데,
+    키우면 대비 검사가 먼저 깨진다 — scripts/check-glass-contrast.mjs가 상한을 지킨다.
+    --glass-card-bg는 --glass-bg(바/시트용)보다 불투명하다: 카드는 글을 읽는 면이다.
+  */
+  --canvas-tint-a: rgba(120, 94, 168, 0.15);
+  --canvas-tint-b: rgba(68, 71, 90, 0.22);
+  --glass-card-bg: rgba(52, 55, 70, 0.78);
+  --glass-card-bg-alt: rgba(60, 63, 81, 0.76);
 
   --success: #50fa7b;
   --success-soft: #1f3a29;
@@ -287,10 +357,16 @@
   box-sizing: border-box;
 }
 
+/*
+  body에는 배경을 주지 않는다. 색은 위의 :root가 이미 갖고 있고, 여기서 한 번 더 칠하면
+  캔버스 틴트 레이어(.canvas-tint, z-index:-10)가 그 밑에 깔려 영영 보이지 않는다 —
+  CSS 페인팅 순서상 음수 z-index는 **in-flow 블록의 배경보다 먼저** 칠해지기 때문에,
+  body가 불투명하면 틴트를 덮는다. 실제로 그렇게 만들어 놓고 화면이 평면 흰색이었다.
+  :root에 색이 있으므로 body를 비워도 배경이 사라지지는 않는다.
+*/
 body {
   margin: 0;
   color: var(--ink);
-  background: var(--canvas);
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: contain;
 }
@@ -472,6 +548,48 @@ select:focus-visible {
 }
 
 /*
+  카드 유리. 바(bar)·시트와 세 가지가 다르다:
+
+  1. 훨씬 불투명하다(0.78). 카드는 **글을 읽는 면**이라 뒤가 비치는 정도가 곧 가독성이다.
+     이 값과 --canvas-tint-* 진폭은 scripts/check-glass-contrast.mjs가 함께 잡아 둔 짝이다.
+     한쪽만 손대면 다섯 테마 중 어딘가에서 기준선 대비가 5% 넘게 떨어진다.
+  2. blur 반경이 낮다(10px). 카드는 화면에 수십 개라 비용이 그만큼 곱해진다.
+  3. 그림자를 얹지 않는다. 카드는 이미 --shadow-1을 갖고 있고, 유리 그림자까지 더하면
+     층이 두 겹으로 보인다.
+*/
+@utility glass-card {
+  background: var(--glass-card-bg);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  backdrop-filter: blur(10px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-sheen),
+    inset 0 0 0 1px var(--glass-border);
+}
+
+@utility glass-card-alt {
+  background: var(--glass-card-bg-alt);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  backdrop-filter: blur(10px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-sheen),
+    inset 0 0 0 1px var(--glass-border);
+}
+
+/*
+  유리가 흐릴 대상. 이게 없으면 카드의 backdrop-filter는 단색을 흐려서 결과가 0이다
+  (--canvas와 --surface가 같은 값인 테마가 있다 — 흰 테마는 둘 다 #ffffff다).
+
+  두 원을 화면 **반대편 모서리**에 둔다. 대비 검사는 둘이 완전히 겹치는 최악을 가정하고
+  진폭 상한을 정했으므로, 실제로 떨어뜨려 놓으면 그만큼 여유가 더 생긴다.
+  rem 단위라 화면이 커져도 원이 같이 커지지 않는다 — PC에서 얼룩처럼 보이지 않게.
+*/
+@utility canvas-tint {
+  background-image:
+    radial-gradient(70rem 46rem at 10% 4%, var(--canvas-tint-a), transparent 68%),
+    radial-gradient(60rem 40rem at 92% 96%, var(--canvas-tint-b), transparent 68%);
+}
+
+/*
   backdrop-filter를 못 쓰는 환경에서는 흐림 없이 반투명만 남아 글자 뒤로 콘텐츠가
   그대로 비친다 — 읽을 수 없는 상태라 불투명한 면으로 떨어뜨린다.
   투명도를 줄이도록 설정한 사용자(prefers-reduced-transparency)에게도 같은 처리를 한다:
@@ -483,6 +601,19 @@ select:focus-visible {
   .glass-bar {
     background: var(--surface);
   }
+
+  .glass-card {
+    background: var(--surface);
+  }
+
+  .glass-card-alt {
+    background: var(--surface-alt);
+  }
+
+  /* 카드가 불투명해지면 틴트는 카드 밖에서만 보이는 얼룩이 된다 — 같이 걷어낸다 */
+  .canvas-tint {
+    background-image: none;
+  }
 }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -492,6 +623,22 @@ select:focus-visible {
     background: var(--surface);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+  }
+
+  .glass-card {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .glass-card-alt {
+    background: var(--surface-alt);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .canvas-tint {
+    background-image: none;
   }
 }
 

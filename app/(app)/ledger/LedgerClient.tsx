@@ -341,7 +341,7 @@ function EntryRow({
           onClick={onRemove}
           disabled={removing}
           aria-label={deleteLabel}
-          className="-my-1 shrink-0 p-1.5 text-ink-faint transition-[color,transform] active:scale-90 sm:hover:text-danger"
+          className="-my-1 shrink-0 p-1.5 text-ink-faint transition-[color,transform] active:scale-90 pointer-fine:hover:text-danger"
         >
           <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="m4 4 8 8M12 4l-8 8" strokeLinecap="round" />

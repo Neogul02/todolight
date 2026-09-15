@@ -23,7 +23,7 @@ export default async function LandingPage() {
         </span>
         <Link
           href="/login"
-          className="-mr-2 rounded-lg px-2 py-2 text-[15px] font-medium text-ink-muted transition-colors active:bg-canvas-soft sm:text-[14px] sm:hover:text-ink"
+          className="-mr-2 rounded-lg px-2 py-2 text-[15px] font-medium text-ink-muted transition-colors active:bg-canvas-soft sm:text-[14px] pointer-fine:hover:text-ink"
         >
           {t('login')}
         </Link>
@@ -69,10 +69,10 @@ export default async function LandingPage() {
       */}
       <footer className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-16 pb-safe text-caption text-ink-faint">
         <span>© {new Date().getFullYear()} todolight</span>
-        <Link href="/legal/terms" className="transition-colors sm:hover:text-ink-muted">
+        <Link href="/legal/terms" className="transition-colors pointer-fine:hover:text-ink-muted">
           {t('terms')}
         </Link>
-        <Link href="/legal/privacy" className="transition-colors sm:hover:text-ink-muted">
+        <Link href="/legal/privacy" className="transition-colors pointer-fine:hover:text-ink-muted">
           {t('privacy')}
         </Link>
       </footer>

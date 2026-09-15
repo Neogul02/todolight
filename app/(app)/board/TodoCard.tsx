@@ -211,9 +211,12 @@ export default function TodoCard({
     .filter((m): m is MemberSummary => Boolean(m));
   const focusColor = focusMembers[0] ? getAvatarColor(focusMembers[0].avatar_color, focusMembers[0].user_id).bg : null;
 
+  // 유리 카드. border를 떼고 glass-card의 inset 그림자에 맡긴다 — border는 1px이 요소
+  // 크기에 더해져서, 체크박스·제목·X의 py-2로 맞춰 둔 터치 영역이 밀린다.
+  // backdrop-filter를 못 쓰거나 투명도 줄이기를 켠 환경은 globals.css가 불투명으로 떨어뜨린다.
   const cardClassName = cn(
-    'relative rounded-xl border border-hairline bg-surface px-3 py-1.5 transition-colors',
-    done && 'bg-surface-alt',
+    'relative rounded-xl px-3 py-1.5 transition-colors',
+    done ? 'glass-card-alt' : 'glass-card',
     isDragging && 'shadow-level-2 z-20 scale-[1.02]'
   );
 
@@ -269,7 +272,7 @@ export default function TodoCard({
               'grid size-5 place-items-center rounded-md border transition-colors',
               done
                 ? 'border-accent bg-accent text-accent-ink'
-                : 'border-hairline-strong bg-surface sm:hover:border-ink-muted'
+                : 'border-hairline-strong bg-surface pointer-fine:hover:border-ink-muted'
             )}
           >
             {done && (
@@ -366,7 +369,7 @@ export default function TodoCard({
             onClick={() => remove.mutate(todo)}
             disabled={busy}
             aria-label={t('card.deleteAria')}
-            className="shrink-0 py-2 pl-2.5 text-ink-faint transition-[color,transform] active:scale-90 sm:hover:text-danger"
+            className="shrink-0 py-2 pl-2.5 text-ink-faint transition-[color,transform] active:scale-90 pointer-fine:hover:text-danger"
           >
             <span className="grid size-5 place-items-center">
               <svg
@@ -656,7 +659,7 @@ function TodoCardOpenContent({
                         }}
                         className={cn(
                           '-my-1 block min-w-0 flex-1 py-1 text-left text-caption break-words text-ink-secondary',
-                          mine && 'sm:hover:text-ink'
+                          mine && 'pointer-fine:hover:text-ink'
                         )}
                       >
                         <Linkify text={n.content} />
@@ -667,7 +670,7 @@ function TodoCardOpenContent({
                           onClick={() => deleteNote.mutate({ todoId: todo.id, noteId: n.id })}
                           disabled={deleteNote.isPending}
                           aria-label={t('card.deleteNoteAria')}
-                          className="-my-1 shrink-0 p-2 text-ink-faint transition-colors active:scale-90 sm:hover:text-danger"
+                          className="-my-1 shrink-0 p-2 text-ink-faint transition-colors active:scale-90 pointer-fine:hover:text-danger"
                         >
                           <svg
                             viewBox="0 0 16 16"

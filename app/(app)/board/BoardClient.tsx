@@ -236,7 +236,7 @@ export default function BoardClient({ onHandoff }: { onHandoff: (todo: Todo) => 
       나머지를 캐러셀이 가져간다. 예전엔 board-viewport가 dvh에서 헤더·툴바·탭바를 직접
       빼느라, 칩이 없을 때 `--board-toolbar-h`를 인라인으로 0px로 덮는 보정까지 필요했다.
     */
-    <main className="mx-auto flex h-full w-full max-w-[1400px] flex-col">
+    <main className="mx-auto flex h-full w-full max-w-[1760px] flex-col">
       {/*
         멤버 칩은 보드 전용이고 모바일 전용이다 — 다른 뷰에서 툴바를 남겨 두면
         빈 띠가 화면 위를 먹는다. (뷰 전환은 헤더로, 완료 보기는 설정으로 옮겼다)
@@ -343,12 +343,12 @@ export default function BoardClient({ onHandoff }: { onHandoff: (todo: Todo) => 
                     좌우 패딩(px-3)과 정확히 맞아떨어져 옆 컬럼이 삐져나오지 않는다.
                     (100vw로 잡으면 스크롤바 폭만큼 어긋난다)
                   */
-                  className="w-full sm:w-[330px]"
+                  className="w-full sm:w-[330px] xl:w-[360px]"
                 />
               ))}
 
               {soloMember && (
-                <InviteColumn isManager={isManager} className="w-full sm:w-[330px]" />
+                <InviteColumn isManager={isManager} className="w-full sm:w-[330px] xl:w-[360px]" />
               )}
             </div>
           </motion.div>
@@ -363,7 +363,7 @@ export default function BoardClient({ onHandoff }: { onHandoff: (todo: Todo) => 
               대시보드는 내용만큼 길어진다 — 예전엔 페이지가 늘어나 body가 스크롤했지만
               이제는 패널 높이가 고정이라 이 격자가 자기 안에서 스크롤한다.
             */
-            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pt-3 pb-tabbar sm:grid sm:grid-cols-2 sm:px-4 sm:pb-3 lg:grid-cols-3"
+            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pt-3 pb-tabbar sm:grid sm:grid-cols-2 sm:px-4 sm:pb-3 lg:grid-cols-3 xl:grid-cols-4"
           >
             {orderedMembers.map(m => (
               <MemberColumn

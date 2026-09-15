@@ -302,6 +302,20 @@ export default function AppShell({
     >
       <div className="flex min-h-dvh flex-col">
         {/*
+          유리가 흐릴 대상(--canvas-tint-*). 카드·헤더의 backdrop-filter는 뒤에 무엇이
+          있어야 의미가 생기는데, 이 앱의 캔버스는 단색이고 흰 테마는 --canvas와 --surface가
+          아예 같은 값이라(#ffffff) 이 레이어가 없으면 유리 효과가 말 그대로 0이다.
+
+          `position: fixed` 전용 레이어를 쓰는 이유: 보드·달력·가계부는 패널이 각자
+          내부 스크롤을 하고(app-viewport), /team·/me는 문서가 통째로 스크롤한다.
+          body에 background-attachment: fixed로 붙이면 두 경우가 갈리는 데다
+          iOS Safari에서 신뢰할 수 없다. 고정 레이어는 어느 쪽이든 제자리에 남는다.
+
+          -z-10이라 모든 콘텐츠 뒤에 깔리고, aria-hidden + pointer-events-none이라
+          읽히지도 눌리지도 않는다.
+        */}
+        <div aria-hidden className="canvas-tint pointer-events-none fixed inset-0 -z-10" />
+        {/*
           헤더는 **보드에서만 감춘다.**
 
           보드·달력·가계부는 매일 들여다보는 화면이라 폰에서 세로 52px을 상단 바에 내주는 게
@@ -321,7 +335,7 @@ export default function AppShell({
           )}
         >
           {/* pt-safe는 header에 준다 — 높이를 가진 이 줄에 얹으면 그만큼 안쪽이 눌린다 */}
-          <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center gap-1 px-2 sm:h-[var(--header-h)] sm:px-3">
+          <div className="mx-auto flex h-14 w-full max-w-[1760px] items-center gap-1 px-2 sm:h-[var(--header-h)] sm:px-3">
             {/*
               보드가 아닌 화면에서는 되돌아갈 길을 남긴다.
               달력·가계부는 예외 — 뷰 세그먼트가 그대로 떠 있어서 거기서 바로 보드로 갈 수 있다.

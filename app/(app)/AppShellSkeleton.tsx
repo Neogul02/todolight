@@ -16,7 +16,7 @@ export default function AppShellSkeleton() {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-30 hidden border-b border-hairline bg-canvas/85 backdrop-blur-md sm:block">
-        <div className="mx-auto flex h-[var(--header-h)] w-full max-w-[1400px] items-center gap-1 px-2 sm:px-3">
+        <div className="mx-auto flex h-[var(--header-h)] w-full max-w-[1760px] items-center gap-1 px-2 sm:px-3">
           <div className="mr-1 flex min-w-0 flex-1 items-center gap-1.5 px-2">
             <Bar className="size-7 shrink-0 rounded-lg" />
             <Bar className="h-4 w-24" />

@@ -359,7 +359,7 @@ export function CalendarView({
         캡처된 포인터로 패널은 리사이즈되는데 화면은 그와 별개로 페이지 스크롤을 따라 같이
         움직인다 — 여기서 미리 잘라내 그 여지 자체를 없앤다.
       */
-      className="mx-auto flex h-full w-full max-w-[720px] flex-col overflow-hidden px-3 pt-safe sm:h-auto sm:overflow-visible sm:px-4 sm:pt-2 sm:pb-safe"
+      className="mx-auto flex h-full w-full max-w-[960px] flex-col overflow-hidden px-3 pt-safe sm:h-auto sm:overflow-visible sm:px-4 sm:pt-2 sm:pb-safe"
     >
       {/*
         헤더가 없는 모바일에서는 이 줄이 화면 맨 위다.
@@ -828,7 +828,7 @@ function TodoRow({
             'grid size-5 place-items-center rounded-md border transition-colors',
             done
               ? 'border-accent bg-accent text-accent-ink'
-              : 'border-hairline-strong bg-surface sm:hover:border-ink-muted'
+              : 'border-hairline-strong bg-surface pointer-fine:hover:border-ink-muted'
           )}
         >
           {done && (

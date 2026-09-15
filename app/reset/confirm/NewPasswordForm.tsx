@@ -92,7 +92,7 @@ export default function NewPasswordForm() {
 
       <Link
         href="/reset"
-        className="mt-4 block text-center text-caption text-ink-muted transition-colors sm:hover:text-ink"
+        className="mt-4 block text-center text-caption text-ink-muted transition-colors pointer-fine:hover:text-ink"
       >
         {t('expiredLinkPrompt')}
       </Link>

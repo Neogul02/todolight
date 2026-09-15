@@ -219,11 +219,13 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     <section
       ref={ref}
       className={cn(
-        'flex flex-col rounded-2xl border border-hairline bg-canvas-soft/60',
+        // 배경 틴트가 카드까지 닿으려면 이 중간 층도 열려 있어야 한다.
+        // 내 컬럼(아래 isMine)이 불투명하면 "남의 컬럼만 유리"가 된다.
+        'flex flex-col rounded-2xl border border-hairline bg-canvas-soft/55',
         // 캐러셀에서는 컬럼이 뷰포트 높이를 채우고 내부만 스크롤한다.
         // 대시보드에서는 내용만큼만 자라고 페이지가 통째로 스크롤된다.
         stacked ? 'w-full' : 'snap-col h-full shrink-0 overflow-hidden',
-        isMine && 'border-hairline-strong bg-surface-alt',
+        isMine && 'border-hairline-strong bg-surface-alt/70',
         className
       )}
     >
