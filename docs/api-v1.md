@@ -90,6 +90,7 @@ type ApiResponse<T> = { success: true; data: T } | { success: false; error: stri
 | `todos/updateNote` | `{ noteId, content }` | `TodoNote` |
 | `todos/deleteNote` | `{ noteId }` | `null` |
 | `todos/handleForMember` | `{ todoId, note }` | `{ todo: Todo; note: TodoNote }` |
+| `todos/give` | `{ todoId, toUserId, note? }` | `{ todo: Todo; note: TodoNote \| null }` |
 | `todos/join` | `{ todoId }` | `null` |
 | `todos/leave` | `{ todoId }` | `null` |
 
@@ -98,6 +99,17 @@ type ApiResponse<T> = { success: true; data: T } | { success: false; error: stri
 - `todos/list`는 **유계다.** 미완료는 전부, 완료는 **주인별 최근 20개**만 온다. 그보다
   오래된 완료는 `doneTotals`(주인별 완료 **총** 개수)에서 받은 개수를 빼서 숫자로만 안다.
 - `dueDate`는 `YYYY-MM-DD` 또는 `null`.
+- `todos/give`는 할 일을 다른 팀원 컬럼의 **맨 위로** 옮긴다. 할 수 있는 사람은 지우기와
+  같다(주인 · 만든 사람 · 방장/관리자), 끝낸 할 일은 못 넘긴다. 받는 사람이 같이하기
+  참여자였으면 참여가 풀린다. `Todo.given_by`가 `owner_id`와 다르면 카드에 "OOO이 넘김"을
+  띄운다 — 이때는 "부탁" 배지(`created_by`)보다 이쪽이 우선이다.
+- `todos/update`의 `ownerId`도 같은 규칙으로 동작한다(내부에서 `todos/give`와 같은 함수를 탄다).
+- `todos/update`의 `title`·`dueDate`도 **주인 · 만든 사람 · 방장/관리자만** 고칠 수 있다.
+  보내지 않은 칸은 건드리지 않으므로 **바꾼 칸만 보낼 것** — 마감만 바꾸면서 제목까지 실으면
+  그 사이 남이 고친 제목을 덮어쓴다.
+- `todos/setStatus`로 **남의 할 일을 `done`으로 바꿀 수 없다**(메모 필수인 `todos/handleForMember`로
+  보낼 것). 완료를 되돌리는 건 누구나 된다.
+- `todos/handleForMember`는 이미 끝난 할 일이면 실패한다. 완료 표시와 메모가 한 트랜잭션이다.
 
 ### orgs
 

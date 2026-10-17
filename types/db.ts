@@ -85,6 +85,11 @@ export interface Todo {
   due_date: string | null;
   position: number;
   created_by: string;
+  /**
+   * 마지막으로 이 할 일을 넘긴 사람(`giveTodo`). `owner_id`와 다르면 카드에 "OOO이 넘김"이 뜬다 —
+   * `created_by`는 처음 만든 사람이라, 부탁받은 걸 다시 넘기면 받는 쪽에 엉뚱한 이름이 뜬다.
+   */
+  given_by?: string | null;
   /** 남이 대신 처리한 경우 그 사람의 id (본인 처리면 owner_id와 같음) */
   handled_by: string | null;
   completed_at: string | null;

@@ -144,14 +144,16 @@
       "handledByOther": "{name} 대신 처리",
       "notesCount": "메모 {count}",
       "deleteAria": "할 일 지우기",
-      "edit": "수정",
+      "edit": "제목 수정",
       "deleteNoteAria": "메모 지우기",
       "notePlaceholder": "메모 남기기",
       "noteSubmitAria": "메모 등록",
       "joinTogether": "같이하기",
       "leaveTogether": "그만하기",
       "typingIndicator": "{name}님이 입력 중...",
-      "viewingBadge": "{names}님이 보는 중"
+      "viewingBadge": "{names}님이 보는 중",
+      "give": "넘기기",
+      "givenBy": "{name} 넘김"
     },
     "column": {
       "me": "(나)",
@@ -330,7 +332,8 @@
     "orgDeleted": "조직을 지웠어요.",
     "inviteSentUnregistered": "초대했어요. 아직 가입하지 않은 분이라 직접 알려 주셔야 해요.",
     "inviteCopied": "초대 문구를 복사했어요.",
-    "inviteCopyFailed": "복사하지 못했어요. 직접 알려 주세요."
+    "inviteCopyFailed": "복사하지 못했어요. 직접 알려 주세요.",
+    "todoGiven": "{name}님에게 넘겼어요"
   },
   "common": {
     "save": "저장",
@@ -390,7 +393,14 @@
     "orgNotFound": "조직을 찾을 수 없어요.",
     "alreadyOwner": "이미 방장이에요.",
     "invalidRequestBody": "요청 형식이 올바르지 않아요.",
-    "tooManyRequests": "요청이 너무 잦아요. 잠시 뒤에 다시 시도해 주세요."
+    "tooManyRequests": "요청이 너무 잦아요. 잠시 뒤에 다시 시도해 주세요.",
+    "giveTargetNotMember": "받는 사람이 이 조직의 멤버가 아니에요.",
+    "cannotGiveTodo": "본인 할 일이거나 만든 사람·방장만 넘길 수 있어요.",
+    "cannotGiveDone": "끝낸 할 일은 넘길 수 없어요.",
+    "giveSameOwner": "이미 그 사람의 할 일이에요.",
+    "cannotEditTodo": "본인 할 일이거나 만든 사람·방장만 고칠 수 있어요.",
+    "handoffNoteRequired": "남의 할 일은 메모와 함께 대신 처리해 주세요.",
+    "alreadyDone": "이미 끝난 할 일이에요."
   },
   "legal": {
     "backHome": "홈으로",
@@ -401,5 +411,11 @@
     "privacy": {
       "title": "개인정보 처리방침"
     }
+  },
+  "give": {
+    "title": "누구에게 넘길까요?",
+    "notePlaceholder": "한마디 남기기 (선택) — 예) 이거 좀 부탁해요",
+    "noOne": "넘길 팀원이 없어요. 팀 화면에서 먼저 초대해 주세요.",
+    "currentOwner": "지금 담당"
   }
 }

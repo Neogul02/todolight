@@ -131,7 +131,7 @@ org_invites     id, org_id, email, invited_by, status('pending'|'accepted'|'decl
                 created_at, responded_at
                 — (org_id, lower(email)) WHERE status='pending' 부분 유니크 인덱스
 todos           id, org_id, owner_id, title, status('todo'|'doing'|'done'), due_date,
-                position(double), created_by, handled_by, completed_at, deleted_at,
+                position(double), created_by, given_by, handled_by, completed_at, deleted_at,
                 created_at, updated_at
 todo_notes      id, todo_id, author_id, content, created_at
 org_events      id, org_id, title, color, start_date, end_date, created_by,
@@ -381,7 +381,7 @@ iOS 앱(`docs/ios-app-plan.md`)은 백엔드를 새로 만들지 않는다. 서�
 그 위에 얇은 어댑터만 얹는다. 열쇠는 **`getAuthUser()` 한 함수**다.
 
 - 웹은 `@supabase/ssr` 쿠키로, 앱은 `Authorization: Bearer <access_token>`으로 온다.
-  `getAuthUser()`가 두 경로를 다 보므로 **액션 41개가 전부 그대로 앱에서도 동작한다** —
+  `getAuthUser()`가 두 경로를 다 보므로 **액션 42개가 전부 그대로 앱에서도 동작한다** —
   가드도 zod 검증도 Discord 알림도 `position` 계산도 다시 만들지 않는다.
 - **Bearer가 쿠키보다 먼저다.** 웹 요청에는 Authorization 헤더가 실릴 일이 없어 웹 동작은
   바뀌지 않고, 앱 요청에는 쿠키가 없어 서로 섞이지 않는다. 헤더는 브라우저가 교차 출처로
@@ -598,6 +598,19 @@ PC     헤더 (--header-h)   [←] [조직아이콘 이름] ...... [▣][▤]|[�
 화면마다 dvh 산수를 다시 하지 않는다(예전 `board-viewport`/`calendar-viewport`가 그랬고,
 칩이 없을 때 `--board-toolbar-h`를 인라인 `0px`로 덮는 보정까지 딸려 왔다).
 
+### 홈 화면 앱 첫 진입 — 콜드 스타트를 깨워 둔다
+
+홈 화면 아이콘으로 열면 2초 가까이 흰 화면(스플래시)이 떴다. **데이터가 원인이 아니다** —
+가장 큰 조직 보드가 50KB · 쿼리 9ms(2026-10-17 실측). `/board`는 proxy → 페이지 두 단계를
+거치는데, 잠든 서버리스는 각각 ~0.9초씩 깨어나고 그게 직렬로 붙는다(깨어 있으면 0.1~0.2초).
+
+그래서 Supabase `pg_cron` + `pg_net`이 KST 07~24시에 5분마다 `/board`(proxy)와 `/`(페이지)를
+두드린다(`20261017083358_keep_warm.sql`, 잡 이름 `keep-app-warm`). 둘 다 미인증·무DB 경로다.
+Vercel Hobby cron은 하루 한 번이라 못 쓴다. **도메인을 바꾸면 그 잡의 URL도 고칠 것.**
+
+스플래시(`app/splash`)는 iOS가 **홈 화면에 추가하는 순간** 캐시한다 — 2026-08-17 이전에
+추가한 아이콘은 지웠다 다시 추가해야 순백 화면 대신 체크 마크가 뜬다.
+
 ### 로딩 표시
 
 보드는 스피너가 아니라 `BoardSkeleton`을 쓴다. 실제 컬럼과 **같은 폭·높이**(`w-full` /
@@ -672,6 +685,24 @@ Tailwind v4 preflight는 버튼 커서를 `default`로 되돌린다. 터치에�
 - **지우기는 실행취소 토스트를 띄운다**(`lib/toast.ts`의 `showUndo`). 소프트 삭제라
   `restoreTodo`로 되살릴 수 있고, 확인 창을 묻는 것보다 이쪽이 빠르고 안전하다.
 
+### 넘기기 — 내 할 일을 팀원에게
+
+펼친 카드의 「넘기기」 → `GiveSheet`에서 사람을 누르면 그 사람 컬럼의 **맨 위로** 옮겨진다.
+확인 창 없이 바로 넘어가고 실행취소 토스트로 되돌린다(지우기와 같은 이유).
+메모 칸은 사람 목록 **위에** 있다 — 쓰고 나서 누르는 순서라야 한다.
+
+- 할 수 있는 사람은 지우기와 같다: 주인 · 만든 사람 · 방장/관리자. 끝낸 일은 못 넘긴다.
+- `give_todo` RPC 한 번이 권한 검사(행 `for update`) · 이동(advisory lock으로 맨 위 position) ·
+  받는 사람의 같이하기 참여 해제 · 메모를 한 트랜잭션으로 한다. 참여를 안 풀면 주인이면서
+  참여자라 컬럼에 두 번 뜬다.
+- **`todos.given_by`를 따로 둔다.** 부탁 배지는 `created_by`를 보는데, A가 부탁한 걸 내가
+  C에게 넘기면 C 카드에 "A가 부탁"이 뜬다. `given_by ≠ owner_id`면 "OOO이 넘김"이 부탁 배지
+  **대신** 뜬다. `created_by`는 건드리지 않는다 — 지울 권한이 거기 걸려 있다.
+- `updateTodo({ ownerId })`도 같은 함수를 탄다. 예전엔 조직 멤버면 누구나 남의 할 일 주인을
+  바꿀 수 있었다.
+- 시트는 카드 안이 아니라 `ViewPager`에서 그린다 — body로 포털된 시트 안의 클릭이 카드
+  입장에선 바깥 클릭이라, 카드가 접히며 시트까지 언마운트된다.
+
 ### 편집 중 실시간 충돌
 
 카드 인라인 수정은 편집을 시작한 순간의 값을 `editBase` ref에 잡아 두고, 저장할 때 그 값과
@@ -692,9 +723,26 @@ Tailwind v4 preflight는 버튼 커서를 `default`로 되돌린다. 터치에�
 있으면 컬럼이 길어져 무엇이 남았는지 한눈에 안 들어온다. 다른 카드를 열거나, 레이아웃을
 바꾸거나, 다른 멤버로 이동하면 접힌다.
 
-펼친 내용의 순서는 **메모 목록 → 메모 입력 → 동작 버튼(수정 · 같이하기)**이다.
+펼친 내용의 순서는 **메모 목록 → 메모 입력 → 동작 줄(마감 알약 · 제목 수정 · 넘기기 · 같이하기)**이다.
 자주 하는 일이 메모 한 줄이라 그게 먼저 와야 하고, 동작을 한곳에 모아야 내 할 일과 남의
 할 일에서 버튼이 있는 자리가 같다. "대신 처리"는 여기 없다 — 체크박스가 그 일을 한다.
+
+**마감은 편집 폼을 거치지 않는다.** 동작 줄 맨 앞의 알약이 지금 값이자 고치는 버튼이고,
+날짜를 고르는 순간 저장된다(알약 → 날짜, 두 번). 예전엔 「수정」 → 알약 → 날짜 → 「저장」
+네 번이었다. 그래서 「수정」은 **제목만** 고친다. `edit`는 **바꾼 칸만** 보낸다 — 마감만
+바꾸면서 제목까지 실으면 그 사이 실시간으로 들어온 남의 제목 수정을 덮어쓴다.
+알약 루트는 `contents`로 풀어 버튼들과 한 줄에 서고, 레일은 `basis-full`로 다음 줄을 통째로 쓴다.
+
+### 화면만 막던 규칙은 서버도 막는다
+
+화면에서 숨긴 동작은 `/api/v1`(iOS)로는 그대로 열려 있다. 그래서 서버 액션이 같은 규칙을 갖는다:
+
+- 제목·마감 고치기, 지우기, 되살리기, 넘기기 — 주인 · 만든 사람 · 방장/관리자(`canManageTodo`).
+  `loadTodoForMember`가 이미 읽은 role을 쓰므로 조회가 늘지 않는다.
+- 남의 할 일을 `done`으로 바꾸는 건 `setTodoStatus`가 아니라 `handleForMember`(메모 필수)로만.
+- `handleForMember`는 `handle_for_member` RPC 한 트랜잭션이다 — 완료 표시와 메모가 별개 요청이라
+  메모 없이 완료된 할 일이 남을 수 있었다. 이미 끝난 할 일이면 막는다(동시에 누르면 나중 사람이
+  `handled_by`를 덮어썼다). 화면에서는 `useTodoMutations.handOff`로 낙관적으로 끝낸다.
 
 ### 할 일 카드 정렬
 

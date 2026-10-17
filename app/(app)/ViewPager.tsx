@@ -2,16 +2,16 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useQueryClient } from '@tanstack/react-query';
 import { useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
-import { boardKeys, useBoardRealtime, useOrgMembers, useOrgPresence } from '@/hooks/useOrgBoard';
+import { useBoardRealtime, useOrgMembers, useOrgPresence } from '@/hooks/useOrgBoard';
 import { Button, Card } from '@/components/ui';
 import type { Todo } from '@/types/db';
 import { APP_VIEWS, useApp, type AppView } from './OrgContext';
 import { BoardSkeleton } from './board/BoardSkeleton';
 import BoardClient from './board/BoardClient';
 import HandoffModal from './board/HandoffModal';
+import GiveSheet from './board/GiveSheet';
 import CalendarClient from './calendar/CalendarClient';
 import LedgerClient from './ledger/LedgerClient';
 
@@ -35,7 +35,6 @@ const SLIDE_MS = 240;
 export default function ViewPager() {
   const { activeOrgId, userId, orgs, orgsStatus, retryOrgs, openMenu, pendingInvites, view } =
     useApp();
-  const queryClient = useQueryClient();
   const reduceMotion = useReducedMotion();
   const t = useTranslations('board');
 
@@ -55,6 +54,8 @@ export default function ViewPager() {
     뷰포트가 아니라 트랙 기준으로 배치된다(그래서 BottomSheet도 body로 포털한다).
   */
   const [handoff, setHandoff] = useState<Todo | null>(null);
+  // 넘기기 시트도 같은 이유로 여기서 그린다(GiveSheet 주석 참고)
+  const [giving, setGiving] = useState<Todo | null>(null);
 
   /*
     패널은 **처음 열릴 때 마운트하고 그 뒤로는 유지한다.**
@@ -67,10 +68,6 @@ export default function ViewPager() {
   if (!mounted.includes(view)) setMounted([...mounted, view]);
 
   const index = APP_VIEWS.indexOf(view);
-
-  function refresh() {
-    if (activeOrgId) queryClient.invalidateQueries({ queryKey: boardKeys.todos(activeOrgId) });
-  }
 
   /*
     조직 목록을 아직 못 불러왔다 — AppShellSkeleton과 같은 스켈레톤을 재사용한다.
@@ -169,7 +166,7 @@ export default function ViewPager() {
             >
               {mounted.includes(pane) && (
                 <>
-                  {pane === 'board' && <BoardClient onHandoff={setHandoff} />}
+                  {pane === 'board' && <BoardClient onHandoff={setHandoff} onGive={setGiving} />}
                   {pane === 'calendar' && <CalendarClient onHandoff={setHandoff} />}
                   {pane === 'ledger' && <LedgerClient />}
                 </>
@@ -186,7 +183,16 @@ export default function ViewPager() {
             members.data?.find(m => m.user_id === handoff.owner_id)?.display_name ?? t('teammate')
           }
           onClose={() => setHandoff(null)}
-          onDone={refresh}
+          currentUserId={userId}
+        />
+      )}
+
+      {giving && (
+        <GiveSheet
+          todo={giving}
+          members={members.data ?? []}
+          currentUserId={userId}
+          onClose={() => setGiving(null)}
         />
       )}
     </div>

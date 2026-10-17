@@ -33,7 +33,13 @@ const PRESS_SLOP_PX = 6;
  * 실시간 구독·접속 표시는 ViewPager가, 대신 처리 시트는 `onHandoff`로 올려 보낸다 —
  * 달력 패널과 동시에 살아 있기 때문에 각자 열면 같은 채널이 두 번 열리고 시트가 두 벌이 된다.
  */
-export default function BoardClient({ onHandoff }: { onHandoff: (todo: Todo) => void }) {
+export default function BoardClient({
+  onHandoff,
+  onGive,
+}: {
+  onHandoff: (todo: Todo) => void;
+  onGive: (todo: Todo) => void;
+}) {
   const { activeOrgId, userId, isManager, profile, boardMode: mode } = useApp();
   const locale = useLocale() as Locale;
   const t = useTranslations('board');
@@ -335,6 +341,7 @@ export default function BoardClient({ onHandoff }: { onHandoff: (todo: Todo) => 
                   openTodoId={openTodoId}
                   onToggleOpen={toggleOpenTodo}
                   onHandoff={onHandoff}
+                  onGive={onGive}
                   typingByTodoId={typingByTodoId}
                   onTyping={broadcastTyping}
                   focusByTodoId={focusByTodoId}
@@ -380,6 +387,7 @@ export default function BoardClient({ onHandoff }: { onHandoff: (todo: Todo) => 
                 openTodoId={openTodoId}
                 onToggleOpen={toggleOpenTodo}
                 onHandoff={onHandoff}
+                onGive={onGive}
                 typingByTodoId={typingByTodoId}
                 onTyping={broadcastTyping}
                 focusByTodoId={focusByTodoId}

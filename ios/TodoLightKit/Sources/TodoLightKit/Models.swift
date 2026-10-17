@@ -99,6 +99,8 @@ public struct Todo: Decodable, Sendable, Identifiable {
     public let dueDate: String?
     public let position: Double
     public let createdBy: String
+    /// 마지막으로 넘긴 사람(`todos/give`). `ownerId`와 다르면 "OOO이 넘김" 배지.
+    public let givenBy: String?
     /// 남이 대신 처리했으면 그 사람. 본인 처리면 `ownerId`와 같다.
     public let handledBy: String?
     public let completedAt: Date?
@@ -115,8 +117,13 @@ public struct Todo: Decodable, Sendable, Identifiable {
     public var noteList: [TodoNote] { notes ?? [] }
     public var participants: [String] { participantIds ?? [] }
 
+    /// 남이 넘겨준 할 일 — 이때는 부탁 배지보다 넘김 배지가 우선이다.
+    public var isGivenByOther: Bool {
+        guard let givenBy else { return false }
+        return givenBy != ownerId
+    }
     /// 남이 내 목록에 넣어 준 할 일 — 카드에 "OOO이 부탁" 배지가 뜨는 조건.
-    public var isRequestedByOther: Bool { createdBy != ownerId }
+    public var isRequestedByOther: Bool { !isGivenByOther && createdBy != ownerId }
     /// 남이 대신 처리해 준 할 일.
     public var isHandledByOther: Bool {
         guard let handledBy else { return false }
@@ -174,6 +181,13 @@ public struct InviteResponse: Decodable, Sendable {
 public struct HandoffResult: Decodable, Sendable {
     public let todo: Todo
     public let note: TodoNote
+}
+
+/// `todos/give`의 응답. 메모를 안 남겼으면 `note`가 nil이다.
+/// 메모에는 작성자 이름·아바타가 **안 담긴다** — 목록을 다시 받아 맞출 것.
+public struct GiveResult: Decodable, Sendable {
+    public let todo: Todo
+    public let note: TodoNote?
 }
 
 /// `ledger/delete`의 응답.

@@ -36,6 +36,7 @@ interface Props {
   openTodoId: string | null;
   onToggleOpen: (todoId: string) => void;
   onHandoff: (todo: Todo) => void;
+  onGive: (todo: Todo) => void;
   /** 할 일 id별 입력 중인 다른 멤버 목록 */
   typingByTodoId: Map<string, TypingUser[]>;
   onTyping: (todoId: string, field: 'title' | 'note') => void;
@@ -61,6 +62,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     openTodoId,
     onToggleOpen,
     onHandoff,
+    onGive,
     typingByTodoId,
     onTyping,
     focusByTodoId,
@@ -336,6 +338,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
                 open={openTodoId === todo.id}
                 onToggleOpen={() => onToggleOpen(todo.id)}
                 onHandoff={onHandoff}
+                onGive={onGive}
                 typingUsers={typingByTodoId.get(todo.id)}
                 onTyping={onTyping}
                 focusUsers={focusByTodoId.get(todo.id)}

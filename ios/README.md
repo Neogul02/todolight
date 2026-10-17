@@ -12,7 +12,7 @@ ios/
 │   │   ├── FieldPatch.swift    "손대지 않음"과 "비움"을 구분하는 삼상태
 │   │   ├── Models.swift        types/db.ts와 1:1
 │   │   ├── APIClient.swift     Bearer · 401/429/400 · Accept-Language
-│   │   ├── Endpoints.swift     엔드포인트 42개
+│   │   ├── Endpoints.swift     엔드포인트 43개
 │   │   └── BoardRules.swift    컬럼 정렬·조사 — 웹과 같아야 하는 규칙
 │   └── Tests/                  27개 (그중 4개는 실서버, 기본 건너뜀)
 └── TodoLight/             ← 앱 타깃 (.xcodeproj). 아직 없다 — docs/ios-m2-setup.md 참고

@@ -79,6 +79,14 @@ extension APIClient {
         try await call("todos/handleForMember", body: ["todoId": todoId, "note": note])
     }
 
+    /// 내 할 일을 다른 팀원 컬럼의 맨 위로 넘긴다. 메모는 선택.
+    /// 주인 · 만든 사람 · 방장/관리자만 할 수 있고, 끝낸 할 일은 못 넘긴다.
+    public func giveTodo(todoId: String, toUserId: String, note: String? = nil) async throws -> GiveResult {
+        var body = ["todoId": todoId, "toUserId": toUserId]
+        if let note, !note.isEmpty { body["note"] = note }
+        return try await call("todos/give", body: body)
+    }
+
     public func joinTodo(todoId: String) async throws {
         let _: Empty = try await call("todos/join", body: ["todoId": todoId])
     }

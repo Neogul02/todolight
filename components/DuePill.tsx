@@ -37,6 +37,7 @@ export function DuePill({
   onOpenChange,
   className,
   railClassName,
+  buttonClassName,
   allowNone = true,
 }: {
   value: string | null;
@@ -51,6 +52,8 @@ export function DuePill({
    * **레일이 아니라 이 상자를 넓혀야** 넓힌 만큼이 잘리지 않는다.
    */
   railClassName?: string;
+  /** 알약 버튼에 붙는다 — 카드의 동작 버튼 줄에 놓일 때 옆 버튼과 높이를 맞추는 용도 */
+  buttonClassName?: string;
   allowNone?: boolean;
 }) {
   const locale = useLocale() as Locale;
@@ -70,7 +73,8 @@ export function DuePill({
         className={cn(
           'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[12px] font-medium no-select',
           'transition-colors active:scale-[0.97]',
-          TONE[state]
+          TONE[state],
+          buttonClassName
         )}
       >
         <CalendarGlyph className="size-3.5 opacity-70" />

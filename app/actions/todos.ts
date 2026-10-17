@@ -5,7 +5,7 @@ import { after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { notifyDiscord, truncate } from '@/lib/discord';
 import { requireAuth, wrap } from './_base';
-import { assertMember, assertMembers, requireMembership } from '@/lib/guards';
+import { assertMembers, requireMembership } from '@/lib/guards';
 import { formatRelativeDay } from '@/lib/utils';
 import { type ActionT, getActionT } from '@/lib/server-i18n';
 import type { ApiResponse } from '@/types/api';
@@ -24,7 +24,7 @@ const dueSchema = (t: ActionT) =>
     .optional();
 
 const TODO_COLUMNS =
-  'id, org_id, owner_id, title, status, due_date, position, created_by, handled_by, completed_at, created_at, updated_at, deleted_at';
+  'id, org_id, owner_id, title, status, due_date, position, created_by, given_by, handled_by, completed_at, created_at, updated_at, deleted_at';
 
 /**
  * 한 사람의 컬럼에 실어 보낼 **완료한 할 일**의 최대 개수.
@@ -235,6 +235,16 @@ export async function setTodoStatus(
     const { todo } = await loadTodoForMember(todoId, user.id);
     const next = statusSchema.parse(status);
 
+    /*
+      남의 할 일을 끝내는 건 "대신 처리"다 — 메모가 필수인 길(`handleForMember`)로만 간다.
+      예전엔 화면만 막고 있어서 API로는 메모 없이 남의 할 일을 끝낼 수 있었다.
+      되돌리기(완료 → 미완료)는 막지 않는다: 잘못 끝낸 걸 누구든 바로잡을 수 있어야 한다.
+    */
+    if (next === 'done' && todo.status !== 'done' && todo.owner_id !== user.id) {
+      const t = await getActionT();
+      throw new Error(t('handoffNoteRequired'));
+    }
+
     const patch: Record<string, unknown> = { status: next };
     if (next === 'done') {
       patch.completed_at = new Date().toISOString();
@@ -262,26 +272,114 @@ export async function updateTodo(
 ): Promise<ApiResponse<Todo>> {
   return wrap(async () => {
     const user = await requireAuth();
-    const { todo } = await loadTodoForMember(todoId, user.id);
+    const { todo, role } = await loadTodoForMember(todoId, user.id);
     const t = await getActionT();
+
+    /*
+      제목·마감은 주인 · 만든 사람 · 방장/관리자만 고친다 — 카드의 「수정」이 그 사람들에게만
+      보이는 것과 같은 규칙. 예전엔 화면만 숨기고 서버는 멤버면 누구나 받아 줬다.
+      role은 loadTodoForMember가 이미 읽은 값이라 조회가 늘지 않는다.
+    */
+    if (
+      (patch.title !== undefined || patch.dueDate !== undefined) &&
+      !canManageTodo(todo, user.id, role)
+    ) {
+      throw new Error(t('cannotEditTodo'));
+    }
 
     const update: Record<string, unknown> = {};
     if (patch.title !== undefined) update.title = titleSchema(t).parse(patch.title);
     if (patch.dueDate !== undefined) update.due_date = dueSchema(t).parse(patch.dueDate) ?? null;
-    if (patch.ownerId !== undefined && patch.ownerId !== todo.owner_id) {
-      await assertMember(todo.org_id, patch.ownerId);
-      update.owner_id = patch.ownerId;
-    }
-    if (Object.keys(update).length === 0) return todo;
+    const reassign = patch.ownerId !== undefined && patch.ownerId !== todo.owner_id;
+    if (Object.keys(update).length === 0 && !reassign) return todo;
 
-    const { data, error } = await getSupabaseAdmin()
-      .from('todos')
-      .update(update)
-      .eq('id', todo.id)
-      .select(TODO_COLUMNS)
-      .single();
-    if (error) throw new Error(error.message);
-    return data as Todo;
+    let result = todo;
+    if (Object.keys(update).length > 0) {
+      const { data, error } = await getSupabaseAdmin()
+        .from('todos')
+        .update(update)
+        .eq('id', todo.id)
+        .select(TODO_COLUMNS)
+        .single();
+      if (error) throw new Error(error.message);
+      result = data as Todo;
+    }
+    /*
+      주인 바꾸기는 넘기기와 같은 길로 보낸다. 예전에는 여기서 owner_id만 바꿔서
+      **조직 멤버면 누구나** 남의 할 일을 다른 컬럼으로 치울 수 있었고, 받는 사람이
+      같이하기 참여자면 컬럼에 두 번 뜨는 것도 그대로였다.
+    */
+    if (reassign) result = (await giveTodoAs(user.id, todo.id, patch.ownerId!, null, t)).todo;
+    return result;
+  });
+}
+
+/** `give_todo`가 던지는 코드를 해요체 문구로 옮긴다 */
+function giveRpcError(message: string, t: ActionT): Error {
+  if (message.includes('TODO_NOT_FOUND')) return new Error(t('todoNotFound'));
+  if (message.includes('TARGET_NOT_MEMBER')) return new Error(t('giveTargetNotMember'));
+  if (message.includes('NOT_A_MEMBER')) return new Error(t('notAMember'));
+  if (message.includes('CANNOT_GIVE')) return new Error(t('cannotGiveTodo'));
+  if (message.includes('ALREADY_DONE')) return new Error(t('cannotGiveDone'));
+  if (message.includes('SAME_OWNER')) return new Error(t('giveSameOwner'));
+  return new Error(message);
+}
+
+/** 넘기기 본체 — 검사·이동·참여 정리·메모가 `give_todo` 한 트랜잭션이다 */
+async function giveTodoAs(
+  actorId: string,
+  todoId: string,
+  toUserId: string,
+  note: string | null,
+  t: ActionT
+): Promise<{ todo: Todo; note: TodoNote | null }> {
+  const { data, error } = await getSupabaseAdmin()
+    .rpc('give_todo', { p_todo: todoId, p_actor: actorId, p_to: toUserId, p_note: note })
+    .single<{ todo: Todo; note: TodoNote | null }>();
+  if (error) throw giveRpcError(error.message, t);
+  return data;
+}
+
+/**
+ * 넘기기 — 내 할 일을 다른 팀원 컬럼으로 옮긴다("이거 네가 좀 맡아 줘").
+ *
+ * 할 수 있는 사람은 지우기와 같다: 주인 · 만든 사람 · 방장/관리자. 받는 사람 카드에는
+ * "OOO이 넘김" 배지가 뜬다(`given_by`) — 부탁 배지와 같은 이유로, 왜 내 목록에 있는지를
+ * 카드에서 바로 알아야 한다. 메모는 선택이다 — 대신 처리와 달리 일이 끝난 게 아니라
+ * 옮겨 간 것뿐이라 카드 자체가 맥락을 들고 간다.
+ */
+export async function giveTodo(
+  todoId: string,
+  toUserId: string,
+  note?: string | null
+): Promise<ApiResponse<{ todo: Todo; note: TodoNote | null }>> {
+  return wrap(async () => {
+    const user = await requireAuth();
+    const t = await getActionT();
+    const id = idSchema(t).parse(todoId);
+    const to = idSchema(t).parse(toUserId);
+    const trimmed = note?.trim() ? noteSchema(t).parse(note) : null;
+
+    const result = await giveTodoAs(user.id, id, to, trimmed, t);
+    const given = result.todo;
+
+    after(async () => {
+      const { orgName, webhook, nameOf } = await loadNotifyContext(given.org_id, [user.id, to]);
+      await notifyDiscord(
+        webhook,
+        '할 일 넘김',
+        `**${nameOf(user.id)}**님이 **${nameOf(to)}**님에게 할 일을 넘겼어요.`,
+        [
+          { name: '내용', value: truncate(given.title) },
+          ...(trimmed ? [{ name: '메모', value: truncate(trimmed, 900) }] : []),
+          { name: '마감', value: given.due_date ? formatRelativeDay(given.due_date) : '없음', inline: true },
+          { name: '조직', value: orgName, inline: true },
+        ],
+        { url: `${process.env.NEXT_PUBLIC_SITE_URL}/board`, authorName: orgName }
+      );
+    });
+
+    return result;
   });
 }
 
@@ -309,10 +407,18 @@ export async function reorderTodo(todoId: string, position: number): Promise<Api
   });
 }
 
-/** 지우거나 되살릴 수 있는 사람: 할 일의 주인 · 그 할 일을 만든 사람 · 방장/관리자 */
+/**
+ * 할 일을 "관리"할 수 있는 사람 — 고치기 · 지우기 · 되살리기 · 넘기기가 전부 이 규칙이다:
+ * 할 일의 주인 · 그 할 일을 만든 사람 · 방장/관리자. (`give_todo`도 SQL로 같은 규칙을 갖는다)
+ */
+function canManageTodo(todo: Todo, userId: string, role: MemberRole): boolean {
+  return (
+    todo.owner_id === userId || todo.created_by === userId || role === 'owner' || role === 'admin'
+  );
+}
+
 async function assertCanRemove(todo: Todo, userId: string, role: MemberRole): Promise<void> {
-  if (todo.owner_id === userId || todo.created_by === userId) return;
-  if (role !== 'owner' && role !== 'admin') {
+  if (!canManageTodo(todo, userId, role)) {
     const t = await getActionT();
     throw new Error(t('cannotDeleteTodo'));
   }
@@ -425,47 +531,33 @@ export async function updateTodoNote(noteId: string, content: string): Promise<A
   });
 }
 
-/** 대신 처리 — 완료 표시 + 메모를 한 번에 (보드의 "대신 처리" 버튼) */
+/**
+ * 대신 처리 — 완료 표시 + 메모를 한 번에 (남의 할 일 체크박스).
+ *
+ * `handle_for_member` 한 트랜잭션이다. 예전엔 완료 표시와 메모 insert를 별개 요청으로 동시에
+ * 보내서, 하나만 성공하면 **메모 없이 완료된** 할 일이 남았다. 이미 끝난 할 일이면 막는다 —
+ * 둘이 거의 동시에 누르면 나중 사람이 handled_by를 덮어썼다. 왕복도 3→1이다.
+ */
 export async function handleForMember(
   todoId: string,
   note: string
 ): Promise<ApiResponse<{ todo: Todo; note: TodoNote }>> {
   return wrap(async () => {
     const user = await requireAuth();
-    const { todo } = await loadTodoForMember(todoId, user.id);
     const t = await getActionT();
+    const id = idSchema(t).parse(todoId);
     const parsedNote = noteSchema(t).parse(note);
 
-    // 완료 처리 · 메모 insert · 프로필 조회는 서로의 결과를 기다릴 이유가 없다 —
-    // 셋 다 todo.id/user.id/parsedNote만으로 끝난다(fetchOrgTodos와 같은 이유).
-    const [
-      { data: updated, error },
-      { data: noteRow, error: noteError },
-      { data: profile },
-    ] = await Promise.all([
-      getSupabaseAdmin()
-        .from('todos')
-        .update({
-          status: 'done',
-          completed_at: new Date().toISOString(),
-          handled_by: user.id,
-        })
-        .eq('id', todo.id)
-        .select(TODO_COLUMNS)
-        .single(),
-      getSupabaseAdmin()
-        .from('todo_notes')
-        .insert({ todo_id: todo.id, author_id: user.id, content: parsedNote })
-        .select('id, todo_id, author_id, content, created_at')
-        .single(),
-      getSupabaseAdmin()
-        .from('profiles')
-        .select('display_name, avatar_color, avatar_url')
-        .eq('id', user.id)
-        .maybeSingle(),
-    ]);
-    if (error) throw new Error(error.message);
-    if (noteError) throw new Error(noteError.message);
+    const { data, error } = await getSupabaseAdmin()
+      .rpc('handle_for_member', { p_todo: id, p_actor: user.id, p_note: parsedNote })
+      .single<{ todo: Todo; note: TodoNote }>();
+    if (error) {
+      if (error.message.includes('TODO_NOT_FOUND')) throw new Error(t('todoNotFound'));
+      if (error.message.includes('NOT_A_MEMBER')) throw new Error(t('notAMember'));
+      if (error.message.includes('ALREADY_DONE')) throw new Error(t('alreadyDone'));
+      throw new Error(error.message);
+    }
+    const todo = data.todo;
 
     after(async () => {
       const { orgName, webhook, nameOf } = await loadNotifyContext(todo.org_id, [
@@ -486,15 +578,7 @@ export async function handleForMember(
       );
     });
 
-    return {
-      todo: updated as Todo,
-      note: {
-        ...(noteRow as TodoNote),
-        author_name: profile?.display_name,
-        author_color: profile?.avatar_color ?? null,
-        author_avatar_url: profile?.avatar_url ?? null,
-      },
-    };
+    return data;
   });
 }
 

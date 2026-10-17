@@ -144,14 +144,16 @@
       "handledByOther": "Handled by {name}",
       "notesCount": "{count} notes",
       "deleteAria": "Delete to-do",
-      "edit": "Edit",
+      "edit": "Rename",
       "deleteNoteAria": "Delete note",
       "notePlaceholder": "Leave a note",
       "noteSubmitAria": "Add note",
       "joinTogether": "Join in",
       "leaveTogether": "Leave",
       "typingIndicator": "{name} is typing...",
-      "viewingBadge": "{names} viewing"
+      "viewingBadge": "{names} viewing",
+      "give": "Hand off",
+      "givenBy": "Handed off by {name}"
     },
     "column": {
       "me": "(You)",
@@ -330,7 +332,8 @@
     "orgDeleted": "Organization deleted.",
     "inviteSentUnregistered": "Invited. They have not signed up yet, so you will need to tell them.",
     "inviteCopied": "Invitation message copied.",
-    "inviteCopyFailed": "Could not copy. Please tell them directly."
+    "inviteCopyFailed": "Could not copy. Please tell them directly.",
+    "todoGiven": "Handed off to {name}"
   },
   "common": {
     "save": "Save",
@@ -390,7 +393,14 @@
     "orgNotFound": "That organization no longer exists.",
     "alreadyOwner": "You are already the owner.",
     "invalidRequestBody": "The request body is not valid.",
-    "tooManyRequests": "Too many requests. Please try again in a moment."
+    "tooManyRequests": "Too many requests. Please try again in a moment.",
+    "giveTargetNotMember": "That person isn't a member of this org.",
+    "cannotGiveTodo": "Only the owner, the creator, or a manager can hand this off.",
+    "cannotGiveDone": "Finished to-dos can't be handed off.",
+    "giveSameOwner": "It already belongs to them.",
+    "cannotEditTodo": "Only the owner, the creator, or a manager can edit this.",
+    "handoffNoteRequired": "To finish someone else's to-do, handle it for them with a note.",
+    "alreadyDone": "This to-do is already done."
   },
   "legal": {
     "backHome": "Home",
@@ -401,5 +411,11 @@
     "privacy": {
       "title": "Privacy Policy"
     }
+  },
+  "give": {
+    "title": "Hand off to whom?",
+    "notePlaceholder": "Add a note (optional) — e.g. Could you take this?",
+    "noOne": "No one to hand off to yet. Invite teammates from the Team page first.",
+    "currentOwner": "Current owner"
   }
 }

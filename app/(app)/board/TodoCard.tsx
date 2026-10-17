@@ -38,6 +38,7 @@ export default function TodoCard({
   open,
   onToggleOpen,
   onHandoff,
+  onGive,
   typingUsers,
   onTyping,
   focusUsers,
@@ -53,6 +54,8 @@ export default function TodoCard({
   open: boolean;
   onToggleOpen: () => void;
   onHandoff: (todo: Todo) => void;
+  /** 넘기기 시트를 연다 — 시트는 카드 바깥(ViewPager)에서 그린다 */
+  onGive: (todo: Todo) => void;
   /** 지금 이 할 일의 제목/메모를 입력 중인 다른 멤버들 */
   typingUsers?: TypingUser[];
   onTyping: (todoId: string, field: 'title' | 'note') => void;
@@ -78,10 +81,16 @@ export default function TodoCard({
     "이거 왜 내 목록에 있지"를 카드에서 바로 알 수 있어야 한다 — 추가할 때 뜬 토스트는
     금방 사라지고, 남의 컬럼에 꽂아 넣은 사람 말고는 아무도 그 토스트를 못 본다.
   */
-  const askedByOther = todo.created_by !== todo.owner_id;
+  /*
+    넘겨받은 할 일이면 부탁 배지 대신 넘김 배지를 띄운다 — A가 부탁한 걸 B가 나에게 넘겼다면
+    내 목록에 넣은 사람은 B다. "A가 부탁"을 띄우면 A에게 물어보러 가게 된다.
+  */
+  const givenByOther = Boolean(todo.given_by) && todo.given_by !== todo.owner_id;
+  const askedByOther = !givenByOther && todo.created_by !== todo.owner_id;
   const requester = askedByOther
     ? members.find(m => m.user_id === todo.created_by)
     : undefined;
+  const giver = givenByOther ? members.find(m => m.user_id === todo.given_by) : undefined;
 
   /**
    * "최진형이 부탁" / "Requested by Jinhyung" — 한국어는 받침에 따라 조사가 갈려서
@@ -89,6 +98,8 @@ export default function TodoCard({
    */
   const requestedByText = (name: string) =>
     locale === 'ko' ? `${name}${subjectParticle(name)} 부탁` : t('card.requestedBy', { name });
+  const givenByText = (name: string) =>
+    locale === 'ko' ? `${name}${subjectParticle(name)} 넘김` : t('card.givenBy', { name });
   const handledByText = (name: string) =>
     locale === 'ko' ? `${name}${subjectParticle(name)} 대신 처리` : t('card.handledByOther', { name });
 
@@ -315,6 +326,7 @@ export default function TodoCard({
 
           {(todo.due_date ||
             askedByOther ||
+            givenByOther ||
             handledByOther ||
             noteCount > 0 ||
             participantIds.length > 0 ||
@@ -330,6 +342,12 @@ export default function TodoCard({
                 <Badge className="pl-0.5">
                   <PersonDot member={requester} fallbackId={todo.created_by} />
                   {requestedByText(requesterName)}
+                </Badge>
+              )}
+              {givenByOther && (
+                <Badge className="pl-0.5">
+                  <PersonDot member={giver} fallbackId={todo.given_by!} />
+                  {givenByText(giver?.display_name ?? t('someone'))}
                 </Badge>
               )}
               {handledByOther && (
@@ -411,6 +429,7 @@ export default function TodoCard({
               onTyping={onTyping}
               noteTypers={noteTypers}
               participantIds={participantIds}
+              onGive={() => onGive(todo)}
             />
           </motion.div>
         )}
@@ -470,6 +489,7 @@ function TodoCardOpenContent({
   onTyping,
   noteTypers,
   participantIds,
+  onGive,
 }: {
   todo: Todo;
   currentUserId: string;
@@ -481,6 +501,7 @@ function TodoCardOpenContent({
   onTyping: (todoId: string, field: 'title' | 'note') => void;
   noteTypers: TypingUser[];
   participantIds: string[];
+  onGive: () => void;
 }) {
   const t = useTranslations('board');
   const tCommon = useTranslations('common');
@@ -490,10 +511,9 @@ function TodoCardOpenContent({
   const [note, setNote] = useState('');
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(todo.title);
-  const [draftDue, setDraftDue] = useState<string | null>(todo.due_date);
   const [dueOpen, setDueOpen] = useState(false);
-  // 편집을 시작한 순간의 값. "안 바뀜" 판정의 기준이 된다.
-  const editBase = useRef({ title: todo.title, due: todo.due_date });
+  // 편집을 시작한 순간의 제목. "안 바뀜" 판정의 기준이 된다.
+  const editBase = useRef(todo.title);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
 
@@ -503,8 +523,7 @@ function TodoCardOpenContent({
 
   function startEditing() {
     setDraftTitle(todo.title);
-    setDraftDue(todo.due_date);
-    editBase.current = { title: todo.title, due: todo.due_date };
+    editBase.current = todo.title;
     setDueOpen(false);
     setEditing(true);
   }
@@ -517,10 +536,19 @@ function TodoCardOpenContent({
 
     // 기준은 편집을 시작한 순간의 값이다. 지금의 todo.title과 비교하면,
     // 편집하는 동안 남이 고친 내용이 "내가 바꾼 것"으로 오인돼 그대로 덮어써진다.
-    const untouched = title === editBase.current.title && draftDue === editBase.current.due;
-    if (untouched) return;
+    if (title === editBase.current) return;
+    edit.mutate({ todo, title });
+  }
 
-    edit.mutate({ todo, title, dueDate: draftDue });
+  /*
+    마감은 편집 폼을 거치지 않는다 — 고르는 순간 저장한다(내 설정 화면과 같은 즉시 저장).
+    예전엔 「수정」 → 날짜 알약 → 날짜 → 「저장」 네 번을 눌러야 했고, 제목은 그대로인데
+    폼이 열려 있어서 "뭘 저장하는 거지"가 됐다. 지금은 알약 → 날짜, 두 번이다.
+    낙관적으로 반영되고 실패하면 되돌려진다(useTodoMutations).
+  */
+  function changeDue(next: string | null) {
+    if (next === todo.due_date) return;
+    edit.mutate({ todo, dueDate: next });
   }
 
   function submitNote(e: React.FormEvent) {
@@ -567,18 +595,6 @@ function TodoCardOpenContent({
             enterKeyHint="done"
             autoFocus
             className="h-10 w-full sm:h-9"
-          />
-          {/*
-            추가 칸과 같은 알약이다. 예전에는 레일이 늘 펼쳐진 채였는데, 제목의 오타 하나를
-            고치러 들어와도 날짜 90칸이 함께 열려서 폼이 카드 두 개 높이를 먹었다.
-            대부분의 수정은 제목만 건드린다 — 날짜는 바꿀 사람만 편다.
-          */}
-          <DuePill
-            value={draftDue}
-            onChange={setDraftDue}
-            open={dueOpen}
-            onOpenChange={setDueOpen}
-            railClassName="-mx-3 px-3"
           />
           <div className="flex gap-1.5">
             <Button
@@ -754,10 +770,35 @@ function TodoCardOpenContent({
             toggleDone이 onHandoff로 넘긴다) — 같은 동작을 두 군데 두지 않는다.
           */}
           {(canRemove || (!isMine && !done)) && (
-            <div className="mt-2.5 flex gap-1.5">
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              {/*
+                마감 알약이 동작 줄의 맨 앞이다 — 지금 값을 보여 주는 것이 곧 고치는 버튼이다.
+                루트를 contents로 풀어 알약은 버튼들과 한 줄에 서고, 레일은 basis-full로
+                다음 줄 전체를 쓴다(버튼 하나 폭에 갇히지 않게).
+              */}
+              {canRemove && !done && (
+                <DuePill
+                  value={todo.due_date}
+                  onChange={changeDue}
+                  open={dueOpen}
+                  onOpenChange={setDueOpen}
+                  className="contents"
+                  buttonClassName="h-10 px-3.5 text-[13px] sm:h-8 sm:px-3"
+                  railClassName="basis-full"
+                />
+              )}
               {canRemove && (
                 <Button size="sm" variant="outline" onClick={startEditing}>
                   {t('card.edit')}
+                </Button>
+              )}
+              {/*
+                넘기기 — 지울 수 있는 사람(주인 · 만든 사람 · 방장)만. 끝낸 일은 넘기지 않는다.
+                팀원이 나 하나면 받을 사람이 없으니 버튼도 없다.
+              */}
+              {canRemove && !done && members.length > 1 && (
+                <Button size="sm" variant="outline" onClick={onGive}>
+                  {t('card.give')}
                 </Button>
               )}
               {!isMine && !done && (

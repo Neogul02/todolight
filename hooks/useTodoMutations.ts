@@ -7,6 +7,8 @@ import {
   createTodo,
   deleteTodo,
   deleteTodoNote,
+  giveTodo,
+  handleForMember,
   reorderTodo,
   restoreTodo,
   setTodoStatus,
@@ -206,8 +208,12 @@ export function useTodoMutations(orgId: string | null) {
     onSettled: (_data, _error, todo) => settle(todo.id),
   });
 
+  /**
+   * 제목·마감 고치기. **바꾼 칸만 보낸다** — 마감만 바꿨는데 제목까지 실어 보내면, 그 사이
+   * 실시간으로 들어온 남의 제목 수정을 내가 들고 있던 옛 제목으로 덮어쓴다.
+   */
   const edit = useMutation({
-    mutationFn: async (input: { todo: Todo; title: string; dueDate: string | null }) => {
+    mutationFn: async (input: { todo: Todo; title?: string; dueDate?: string | null }) => {
       const res = await updateTodo(input.todo.id, { title: input.title, dueDate: input.dueDate });
       if (!res.success) throw new Error(res.error);
       return res.data;
@@ -217,7 +223,13 @@ export function useTodoMutations(orgId: string | null) {
       return {
         snapshot: await patch(todos =>
           todos.map(t =>
-            t.id === input.todo.id ? { ...t, title: input.title, due_date: input.dueDate } : t
+            t.id === input.todo.id
+              ? {
+                  ...t,
+                  ...(input.title !== undefined && { title: input.title }),
+                  ...(input.dueDate !== undefined && { due_date: input.dueDate }),
+                }
+              : t
           )
         ),
       };
@@ -247,6 +259,101 @@ export function useTodoMutations(orgId: string | null) {
     },
     onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
     onSettled: (_data, _error, input) => settle(input.todoId),
+  });
+
+  /**
+   * 넘기기 — 받는 사람 컬럼의 맨 위로 옮긴다.
+   *
+   * 낙관적으로 옮긴다. 서버(`give_todo`)와 같은 규칙으로 미리 채워야 카드가 받는 컬럼에서
+   * 한 번 튀지 않는다 — 주인 · 넘긴 사람 · 맨 위 position · 받는 사람의 같이하기 참여 해제.
+   * 지우기처럼 실행취소 토스트를 띄운다(되돌리기 = 원래 주인에게 다시 넘기기, 메모 없이).
+   */
+  const give = useMutation({
+    mutationFn: async (input: {
+      todo: Todo;
+      toUserId: string;
+      toName: string;
+      actorId: string;
+      note?: string;
+      /** 실행취소로 되돌리는 중 — 또 실행취소 토스트를 띄우지 않는다 */
+      isUndo?: boolean;
+    }) => {
+      const res = await giveTodo(input.todo.id, input.toUserId, input.note ?? null);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onMutate: async input => {
+      markTodoPending(input.todo.id);
+      return {
+        snapshot: await patch(todos => {
+          const top = todos
+            .filter(t => t.owner_id === input.toUserId && t.id !== input.todo.id)
+            .reduce((min, t) => Math.min(min, t.position), 1);
+          return todos.map(t =>
+            t.id === input.todo.id
+              ? {
+                  ...t,
+                  owner_id: input.toUserId,
+                  given_by: input.actorId,
+                  position: top - 1,
+                  participant_ids: (t.participant_ids ?? []).filter(id => id !== input.toUserId),
+                }
+              : t
+          );
+        }),
+      };
+    },
+    onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
+    onSuccess: (_data, input) => {
+      if (input.isUndo) return;
+      const from = input.todo.owner_id;
+      showUndo(t('todoGiven', { name: input.toName }), tCommon('undo'), () =>
+        give.mutate({ ...input, todo: { ...input.todo, owner_id: input.toUserId }, toUserId: from, note: undefined, isUndo: true })
+      );
+    },
+    onSettled: (_data, _error, input) => {
+      clearTodoPending(input.todo.id);
+      // 메모를 함께 남겼으면 작성자 조인이 필요해서 바로 맞춘다
+      if (input.note?.trim()) resyncNow();
+      else resyncSoon();
+    },
+  });
+
+  /**
+   * 대신 처리 — 남의 할 일을 메모와 함께 끝낸다.
+   *
+   * 체크와 같이 **완료 표시는 낙관적으로** 한다(예전엔 시트가 서버 응답을 기다리며 버튼만
+   * 잠겨 있었다). 메모는 작성자 조인이 필요해서 응답 뒤 바로 맞춘다.
+   */
+  const handOff = useMutation({
+    mutationFn: async (input: { todo: Todo; note: string; actorId: string }) => {
+      const res = await handleForMember(input.todo.id, input.note);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onMutate: async input => {
+      markTodoPending(input.todo.id);
+      return {
+        snapshot: await patch(todos =>
+          todos.map(t =>
+            t.id === input.todo.id
+              ? {
+                  ...t,
+                  status: 'done' as const,
+                  handled_by: input.actorId,
+                  completed_at: new Date().toISOString(),
+                }
+              : t
+          )
+        ),
+      };
+    },
+    onError: (error: Error, _input, context) => rollback(context?.snapshot, error),
+    onSuccess: () => showMsg(t('handledForMember'), 'success'),
+    onSettled: (_data, _error, input) => {
+      clearTodoPending(input.todo.id);
+      resyncNow();
+    },
   });
 
   // 메모는 작성자 이름·아바타 조인이 필요해서 낙관적으로 그리지 않고 서버 결과를 기다린다.
@@ -351,6 +458,8 @@ export function useTodoMutations(orgId: string | null) {
     remove,
     restore,
     reorder,
+    give,
+    handOff,
     addNote,
     editNote,
     deleteNote,
