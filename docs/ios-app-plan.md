@@ -693,8 +693,8 @@ ios/**/.swiftpm/
       · `deleteMyAccount()` + `/me`의 확인 시트 · `auth.users → profiles` cascade를 끊고
         프로필을 묘비로 남긴다(`20260908115046`) · 소유권 이양·조직 삭제는 `/team`에도 있다
         (`transfer_org_ownership` / `delete_org` RPC) · 이용약관·개인정보 처리방침 `/legal/*`
-- [ ] Bundle ID, App Group(`group.com.<you>.todolight`), Keychain group 확정
-- [ ] `ios/` 스캐폴딩, `.gitignore` 추가
+- [x] Bundle ID `com.neogul02.todolight`, App Group `group.com.neogul02.todolight`로 확정 (2026-10-17, 등록은 유료 계정 후)
+- [x] `ios/TodoLight` 앱 타깃(XcodeGen) + `.gitignore` — 2026-10-17, 시뮬레이터 빌드·테스트 통과
 
 ✅ **완료 기준**: 웹에서 계정을 지울 수 있고, 실시간 채널이 인증된 상태로 붙는다.
 → **둘 다 충족.** 남은 것은 코드가 아니라 계정 일이다(Apple Developer 등록, Bundle ID·App
@@ -730,7 +730,8 @@ Group 확정, `ios/` 스캐폴딩). 그리고 Supabase의 **이메일 확인이 
 > 엔드포인트 42개, 테스트 27개, 그중 4개는 실배포본을 상대로 통과 확인.
 > **여기부터 남은 일은 사실상 전부 화면이다.**
 
-- [ ] `supabase-swift` 붙이기, 커스텀 `AuthLocalStorage`(공유 Keychain, AfterFirstUnlock)
+- [x] `supabase-swift` 붙이기 (2026-10-17) — 공유 Keychain `AuthLocalStorage`는 M4(유료 계정)
+- [x] 이메일 로그인·가입 + SmokeView (2026-10-17)
 - [ ] Sign in with Apple + 이메일 로그인
 - [x] `TodoLightKit` 모델 + `APIClient` + `APIResponse` — 2026-09-08 완료
 - [ ] 보드 화면 (가로 캐러셀, 카드, 체크, 추가) — 낙관적 반영 포함

@@ -4,6 +4,9 @@
 > **앱 타깃**을 얹는다. `.xcodeproj`는 Xcode가 만들어야 해서 이 문서가 그 설정값을 갖는다.
 >
 > 작성 기준: 2026-09-08 · Xcode 26.6 / Swift 6.3
+> **갱신 2026-10-17**: M3 Pro · Xcode 27.1 · Swift 6.4에서 앱 타깃 생성 완료.
+> 프로젝트는 손으로 만들지 않고 `ios/TodoLight/project.yml` → `xcodegen generate`로 만든다
+> (`.xcodeproj`는 git에 안 넣는다). Bundle ID는 **`com.neogul02.todolight`**.
 
 ---
 

@@ -15,7 +15,15 @@ ios/
 │   │   ├── Endpoints.swift     엔드포인트 43개
 │   │   └── BoardRules.swift    컬럼 정렬·조사 — 웹과 같아야 하는 규칙
 │   └── Tests/                  27개 (그중 4개는 실서버, 기본 건너뜀)
-└── TodoLight/             ← 앱 타깃 (.xcodeproj). 아직 없다 — docs/ios-m2-setup.md 참고
+└── TodoLight/             ← 앱 타깃. project.yml → `xcodegen generate` (xcodeproj는 git 제외)
+```
+
+## 앱 열기
+
+```bash
+cd ios/TodoLight
+xcodegen generate      # project.yml을 고칠 때마다
+open TodoLight.xcodeproj
 ```
 
 ## 왜 같은 repo인가
