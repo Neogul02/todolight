@@ -27,6 +27,8 @@ final class BoardStore {
     private(set) var themePreference: String?
     /// `profiles.locale` — 웹에서 바꾼 언어를 앱이 따라간다
     private(set) var localePreference: String?
+    /// `profiles.show_ledger` — 끄면 탭바에서 가계부 칸이 사라진다
+    private(set) var showLedger = true
     /// 카드 펼침은 보드 전체에서 하나뿐이다
     var openTodoId: String?
     /// 화면 아래에 띄울 알림(에러·실행취소)
@@ -86,6 +88,7 @@ final class BoardStore {
             showDone = p.showDone
             themePreference = p.theme
             localePreference = p.locale
+            showLedger = p.showLedger
             members = Self.order(m, me: userId, saved: p.memberOrder[orgId] ?? [])
             phase = .ready
         } catch {

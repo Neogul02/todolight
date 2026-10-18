@@ -26,6 +26,7 @@ struct BoardView: View {
     /// 처음 열릴 때 마운트하고 그 뒤로는 유지한다 — 한 번도 안 본 패널은 쿼리도 안 돈다
     @State private var mounted: Set<AppPane> = [.board]
     @State private var calendar: CalendarStore?
+    @State private var ledger: LedgerStore?
 
     init(org: OrganizationSummary, orgs: [OrganizationSummary], userId: String,
          onSwitchOrg: @escaping (String) -> Void, onOpen: @escaping (AppRoute) -> Void) {
@@ -61,13 +62,25 @@ struct BoardView: View {
                             CalendarView(board: store, store: calendar, onHandoff: { handoffTodo = $0 })
                                 .paneVisible(pane == .calendar)
                         }
+                        if mounted.contains(.ledger), let ledger {
+                            Group {
+                                if store.showLedger {
+                                    LedgerView(board: store, store: ledger)
+                                } else {
+                                    LedgerOffNotice { onOpen(.me) }
+                                }
+                            }
+                            .paneVisible(pane == .ledger)
+                        }
                     }
                 }
             }
 
             VStack(spacing: 8) {
                 banner
-                TabBar(pane: $pane, me: store.me, onProfile: { menuOpen = true })
+                // 가계부를 끄면 칸이 사라진다 — 다만 보고 있는 동안에는 남긴다(다른 기기에서 끄면 나갈 길이 없어진다)
+                TabBar(pane: $pane, me: store.me, showLedger: store.showLedger || pane == .ledger,
+                       onProfile: { menuOpen = true })
             }
         }
         .task { await start() }
@@ -79,6 +92,9 @@ struct BoardView: View {
         .onChange(of: pane) { _, next in
             if next == .calendar && calendar == nil {
                 calendar = CalendarStore(orgId: org.id) { [store] b in store.banner = b }
+            }
+            if next == .ledger && ledger == nil {
+                ledger = LedgerStore(orgId: org.id) { [store] b in store.banner = b }
             }
             mounted.insert(next)
         }
@@ -226,14 +242,14 @@ private struct TabBar: View {
     @Namespace private var ns
     @Binding var pane: AppPane
     let me: MemberSummary?
+    let showLedger: Bool
     let onProfile: () -> Void
-    @State private var notice: String?
 
     var body: some View {
         HStack(spacing: 4) {
             item(.board, tr("보드", "Board"), icon: "rectangle.split.2x1")
             item(.calendar, tr("달력", "Calendar"), icon: "calendar")
-            item(.ledger, tr("가계부", "Ledger"), icon: "wonsign.circle")
+            if showLedger { item(.ledger, tr("가계부", "Ledger"), icon: "wonsign.circle") }
             Rectangle().fill(tk.hairlineStrong).frame(width: 1, height: 28).padding(.horizontal, 2)
             Button(action: onProfile) {
                 VStack(spacing: 2) {
@@ -252,30 +268,12 @@ private struct TabBar: View {
         .background(tk.glassBg, in: Capsule())
         .overlay(Capsule().strokeBorder(tk.glassBorder, lineWidth: 1))
         .shadow(color: .black.opacity(0.08), radius: 12, y: 8)
-        .overlay(alignment: .top) {
-            if let notice {
-                Text(notice).font(.tl(12, .medium)).foregroundStyle(tk.inkInvert)
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(tk.ink, in: Capsule())
-                    .offset(y: -40)
-                    .transition(.opacity)
-            }
-        }
         .padding(.bottom, 12)
     }
 
     private func item(_ key: AppPane, _ label: String, icon: String) -> some View {
         let on = pane == key
         return Button {
-            guard key != .ledger else {
-                // 달력·가계부는 아직 웹에만 있다 — 눌렀을 때 아무 일 없으면 고장처럼 보인다
-                Motion.run(Motion.quick, reduce: reduce) { notice = tr("\(label)은 곧 앱에도 열려요", "\(label) is coming to the app soon") }
-                Task {
-                    try? await Task.sleep(for: .seconds(1.6))
-                    Motion.run(Motion.quick, reduce: reduce) { notice = nil }
-                }
-                return
-            }
             Motion.run(Motion.tabSpring, reduce: reduce) { pane = key }
         } label: {
             VStack(spacing: 2) {

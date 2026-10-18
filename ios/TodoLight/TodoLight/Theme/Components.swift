@@ -360,11 +360,17 @@ struct DuePicker: View {
     @Environment(\.tokens) private var tk
     let value: String?
     var allowNone = true
+    /// 범위를 세는 기준일. 가계부는 "보고 있는 달 1일"을 넘겨 그 달 날짜만 나오게 한다 —
+    /// 오늘 기준이면 7월을 보면서 적은 지출이 8월로 저장된다. "오늘/어제/내일" 라벨은 늘 실제 오늘 기준.
+    var anchor: String? = nil
+    var pastDays = 14
+    var futureDays = 90
     let onChange: (String?) -> Void
 
     var body: some View {
         let today = Due.today()
-        let dates = (-14...90).map { Due.add(today, $0) }
+        let from = anchor ?? today
+        let dates = (-pastDays...futureDays).map { Due.add(from, $0) }
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
