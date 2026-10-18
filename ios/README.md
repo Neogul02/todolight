@@ -18,6 +18,13 @@ ios/
 └── TodoLight/             ← 앱 타깃. project.yml → `xcodegen generate` (xcodeproj는 git 제외)
 ```
 
+## 앱 화면 (2026-10-18)
+
+로그인 · 보드(캐러셀·카드·대신 처리·넘기기·같이하기) · 달력 · 가계부 · 조직(초대·멤버·설정·삭제) ·
+받은 초대 · 새 조직 · 내 설정(사진·이름·테마 3종·언어·화면·약관·계정 삭제).
+색은 `scripts/gen-ios-theme.mjs`가 웹 CSS에서 만들고, 아이콘은 `scripts/gen-ios-app-icon.swift`가 그린다.
+문구는 `tr("한국어", "English")` — 화면 코드에 두 언어가 나란히 있다.
+
 ## 앱 열기
 
 ```bash

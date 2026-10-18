@@ -744,11 +744,11 @@ Group 확정, `ios/` 스캐폴딩). 그리고 Supabase의 **이메일 확인이 
 
 > 순서와 화면별 완료 기준은 `.omc/plans/ios-m3-screens.md` — 심사를 막는 계정 삭제부터 한다.
 
-- [ ] 달력, 가계부, 팀, 내 설정
+- [x] 달력, 가계부, 팀, 내 설정 — 2026-10-18 (+ 받은 초대 · 새 조직 · 조직 0개 화면 · 언어 설정)
 - [x] `DuePicker` Swift판 — 2026-10-18 (`Theme/Components.swift`의 `DuePillView`·`DuePicker`)
 - [ ] SwiftData 캐시 + 오프라인 큐
 - [x] 계정 삭제 화면 (심사 필수) — 2026-10-18 내 설정 맨 아래 + 확인 시트(무슨 일이 벌어지는지 적는다)
-- [ ] Privacy Manifest (`PrivacyInfo.xcprivacy`) — 2024년 5월부터 필수
+- [x] Privacy Manifest (`PrivacyInfo.xcprivacy`) — 2026-10-18, UserDefaults CA92.1 · 수집 5종(계정 연결·앱 기능용·추적 없음)
 
 ✅ **완료 기준**: 비행기 모드로 앱을 열면 마지막 상태가 보이고, 체크한 게 온라인 복귀 후 반영된다.
 
@@ -773,9 +773,9 @@ Group 확정, `ios/` 스캐폴딩). 그리고 Supabase의 **이메일 확인이 
 
 **M5에 오기 전에 이미 끝나 있어야 하는 것** (여기서 시작하면 늦는다)
 
-- [ ] 개인정보 처리방침 페이지 (`NEXT_PUBLIC_SITE_URL/privacy`) — 없으면 **제출 자체가 안 된다**
-- [ ] 앱 안의 계정 삭제 경로 (M3) — Guideline 5.1.1(v), 링크로 웹에 보내는 것은 인정되지 않는다
-- [ ] `PrivacyInfo.xcprivacy` (M3) — App Group `UserDefaults` 사유 코드 `CA92.1`
+- [x] 개인정보 처리방침 페이지 (`/legal/privacy`, 로그인 없이 열림) — 없으면 **제출 자체가 안 된다**
+- [x] 앱 안의 계정 삭제 경로 (M3) — Guideline 5.1.1(v) · 2026-10-18 내 설정 맨 아래
+- [x] `PrivacyInfo.xcprivacy` (M3) — App Group `UserDefaults` 사유 코드 `CA92.1` · 2026-10-18
 - [ ] 유료 테마를 어떻게 할지 결정 (§12-7) — iOS는 IAP 강제이고 웹 결제 유도는 리젝 사유다.
       **첫 출시에서는 전부 무료로 두는 쪽을 권한다**
 
