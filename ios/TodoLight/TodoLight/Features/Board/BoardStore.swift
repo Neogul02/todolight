@@ -25,6 +25,8 @@ final class BoardStore {
     private(set) var showDone = true
     /// `profiles.theme` — 앱 루트의 ThemeStore가 이 값을 따라간다
     private(set) var themePreference: String?
+    /// `profiles.locale` — 웹에서 바꾼 언어를 앱이 따라간다
+    private(set) var localePreference: String?
     /// 카드 펼침은 보드 전체에서 하나뿐이다
     var openTodoId: String?
     /// 화면 아래에 띄울 알림(에러·실행취소)
@@ -83,6 +85,7 @@ final class BoardStore {
             }
             showDone = p.showDone
             themePreference = p.theme
+            localePreference = p.locale
             members = Self.order(m, me: userId, saved: p.memberOrder[orgId] ?? [])
             phase = .ready
         } catch {
@@ -259,7 +262,7 @@ final class BoardStore {
             try await api.deleteTodo(todoId: todo.id)
         }, onSuccess: { [weak self] in
             // 소프트 삭제라 확인 창 대신 실행취소를 준다
-            self?.banner = Banner(message: "할 일을 지웠어요") { [weak self] in self?.restore(todo) }
+            self?.banner = Banner(message: tr("할 일을 지웠어요", "To-do deleted")) { [weak self] in self?.restore(todo) }
         })
     }
 
@@ -282,7 +285,7 @@ final class BoardStore {
         }, request: {
             _ = try await api.handleForMember(todoId: todo.id, note: note)
         }, onSuccess: { [weak self] in
-            self?.banner = Banner(message: "대신 처리했어요")
+            self?.banner = Banner(message: tr("대신 처리했어요", "Handled for them"))
         })
     }
 
@@ -304,7 +307,7 @@ final class BoardStore {
             guard let self, !isUndo, let original = self.member(from) else { return }
             var moved = todo
             moved.ownerId = member.userId
-            self.banner = Banner(message: "\(member.displayName)님에게 넘겼어요") { [weak self] in
+            self.banner = Banner(message: tr("\(member.displayName)님에게 넘겼어요", "Handed off to \(member.displayName)")) { [weak self] in
                 self?.banner = nil
                 self?.give(moved, to: original, note: nil, isUndo: true)
             }
@@ -338,9 +341,9 @@ final class BoardStore {
     static func message(_ error: any Error) -> String {
         switch error {
         case APIError.server(let text): text
-        case APIError.unauthorized: "다시 로그인해 주세요."
-        case APIError.rateLimited: "잠시 후에 다시 시도해 주세요."
-        default: "연결이 불안정해요. 잠시 후에 다시 시도해 주세요."
+        case APIError.unauthorized: tr("다시 로그인해 주세요.", "Please log in again.")
+        case APIError.rateLimited: tr("잠시 후에 다시 시도해 주세요.", "Please try again shortly.")
+        default: tr("연결이 불안정해요. 잠시 후에 다시 시도해 주세요.", "Connection is unstable. Please try again shortly.")
         }
     }
 }

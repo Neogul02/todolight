@@ -3,7 +3,10 @@ import Supabase
 
 /// 이메일 + 비밀번호 — 웹 `app/login/LoginForm.tsx`와 같은 흐름.
 struct LoginView: View {
-    enum Mode: String, CaseIterable { case signIn = "로그인", signUp = "회원가입" }
+    enum Mode: CaseIterable {
+        case signIn, signUp
+        var label: String { self == .signIn ? tr("로그인", "Log in") : tr("회원가입", "Sign up") }
+    }
     enum Field { case name, email, password }
 
     @State private var mode: Mode = .signIn
@@ -27,7 +30,7 @@ struct LoginView: View {
                 HStack(spacing: 0) {
                     ForEach(Mode.allCases, id: \.self) { m in
                         Button { mode = m } label: {
-                            Text(m.rawValue).font(.tl(14, .medium))
+                            Text(m.label).font(.tl(14, .medium))
                                 .frame(maxWidth: .infinity, minHeight: 44)
                                 .foregroundStyle(mode == m ? tk.accentInk : tk.inkMuted)
                                 .background(mode == m ? tk.accent : tk.surface)
@@ -41,8 +44,8 @@ struct LoginView: View {
 
                 VStack(alignment: .leading, spacing: 12) {
                     if mode == .signUp {
-                        labeled("이름") {
-                            TextField("", text: $name, prompt: placeholder("팀원에게 보일 이름", tk))
+                        labeled(tr("이름", "Name")) {
+                            TextField("", text: $name, prompt: placeholder(tr("팀원에게 보일 이름", "Name your teammates will see"), tk))
                                 .textContentType(.name)
                                 .focused($focus, equals: .name)
                                 .submitLabel(.next)
@@ -51,7 +54,7 @@ struct LoginView: View {
                         }
                     }
                     // iOS가 첫 글자를 대문자로 바꿔 로그인이 실패한다 — 웹과 같은 규칙(CLAUDE.md 「그 밖의 iOS 대응」)
-                    labeled("이메일") {
+                    labeled(tr("이메일", "Email")) {
                         TextField("", text: $email)
                             .keyboardType(.emailAddress)
                             .textContentType(.username)
@@ -62,8 +65,8 @@ struct LoginView: View {
                             .onSubmit { focus = .password }
                             .tlField()
                     }
-                    labeled("비밀번호") {
-                        SecureField("", text: $password, prompt: placeholder("6자 이상", tk))
+                    labeled(tr("비밀번호", "Password")) {
+                        SecureField("", text: $password, prompt: placeholder(tr("6자 이상", "At least 6 characters"), tk))
                             .textContentType(mode == .signUp ? .newPassword : .password)
                             .focused($focus, equals: .password)
                             .submitLabel(.go)
@@ -82,7 +85,7 @@ struct LoginView: View {
                         Task { await submit() }
                     } label: {
                         Group {
-                            if busy { ProgressView().tint(tk.accentInk) } else { Text(mode.rawValue) }
+                            if busy { ProgressView().tint(tk.accentInk) } else { Text(mode.label) }
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -132,14 +135,14 @@ struct LoginView: View {
                 )
                 // 이메일 확인이 켜져 있으면 세션 없이 돌아온다 — 아무 말 없이 화면이 그대로면 고장처럼 보인다
                 if res.session == nil {
-                    notice = "\(trimmed)으로 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요."
+                    notice = tr("\(trimmed)으로 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.", "We sent a confirmation email to \(trimmed). Tap the link in it, then log in.")
                     mode = .signIn
                 }
             } else {
                 try await auth.signIn(email: trimmed, password: password)
             }
         } catch {
-            self.error = "로그인하지 못했어요. 이메일과 비밀번호를 확인해 주세요."
+            self.error = tr("로그인하지 못했어요. 이메일과 비밀번호를 확인해 주세요.", "Couldn't log in. Check your email and password.")
         }
     }
 }

@@ -13,6 +13,7 @@ struct BoardView: View {
 
     @Environment(SessionStore.self) private var session
     @Environment(ThemeStore.self) private var theme
+    @Environment(LangStore.self) private var lang
     @Environment(\.tokens) private var tk
     @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var store: BoardStore
@@ -46,7 +47,7 @@ struct BoardView: View {
                 case .failed(let message):
                     VStack(spacing: 12) {
                         Text(message).font(.tlBodySm).foregroundStyle(tk.inkMuted)
-                        Button("다시 시도") { Task { await start() } }.buttonStyle(TLButtonStyle(variant: .outline))
+                        Button(tr("다시 시도", "Try again")) { Task { await start() } }.buttonStyle(TLButtonStyle(variant: .outline))
                     }
                     .frame(maxHeight: .infinity)
                 case .ready:
@@ -72,6 +73,9 @@ struct BoardView: View {
         .task { await start() }
         .onDisappear { Task { await store.stopRealtime() } }
         .onChange(of: store.themePreference) { _, pref in if let pref { theme.preference = pref } }
+        .onChange(of: store.localePreference) { _, pref in
+            if let pref, let next = AppLang(rawValue: pref), next != lang.lang { lang.lang = next }
+        }
         .onChange(of: pane) { _, next in
             if next == .calendar && calendar == nil {
                 calendar = CalendarStore(orgId: org.id) { [store] b in store.banner = b }
@@ -79,7 +83,7 @@ struct BoardView: View {
             mounted.insert(next)
         }
         .sheet(item: $handoffTodo) { todo in
-            HandoffSheet(todo: todo, ownerName: store.member(todo.ownerId)?.displayName ?? "팀원") {
+            HandoffSheet(todo: todo, ownerName: store.member(todo.ownerId)?.displayName ?? tr("팀원", "Teammate")) {
                 store.handOff(todo, note: $0)
             }
         }
@@ -163,7 +167,7 @@ struct BoardView: View {
                 Text(b.message).font(.tl(14, .medium)).foregroundStyle(tk.ink)
                 Spacer()
                 if let undo = b.undo {
-                    Button("실행취소") { undo() }.font(.tl(14, .semibold)).foregroundStyle(tk.accent)
+                    Button(tr("실행취소", "Undo")) { undo() }.font(.tl(14, .semibold)).foregroundStyle(tk.accent)
                 }
             }
             .padding(.horizontal, 16)
@@ -193,7 +197,7 @@ private struct MemberChip: View {
         Button(action: onTap) {
             HStack(spacing: 6) {
                 AvatarView(member: member, size: 24)
-                Text(isMe ? "나" : member.displayName).font(.tl(13, .medium)).lineLimit(1).frame(maxWidth: 80)
+                Text(isMe ? tr("나", "Me") : member.displayName).font(.tl(13, .medium)).lineLimit(1).frame(maxWidth: 80)
                 if remaining > 0 {
                     Text("\(remaining)").font(.tl(11, .bold)).monospacedDigit()
                         .foregroundStyle(active ? tk.accentInk : tk.inkSecondary)
@@ -227,21 +231,21 @@ private struct TabBar: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            item(.board, "보드", icon: "rectangle.split.2x1")
-            item(.calendar, "달력", icon: "calendar")
-            item(.ledger, "가계부", icon: "wonsign.circle")
+            item(.board, tr("보드", "Board"), icon: "rectangle.split.2x1")
+            item(.calendar, tr("달력", "Calendar"), icon: "calendar")
+            item(.ledger, tr("가계부", "Ledger"), icon: "wonsign.circle")
             Rectangle().fill(tk.hairlineStrong).frame(width: 1, height: 28).padding(.horizontal, 2)
             Button(action: onProfile) {
                 VStack(spacing: 2) {
                     AvatarView(member: me, size: 24).frame(height: 22)
-                    Text("나").font(.tl(10, .medium))
+                    Text(tr("나", "Me")).font(.tl(10, .medium))
                 }
                 .foregroundStyle(tk.inkMuted)
                 .frame(width: 64)
                 .padding(.vertical, 6)
             }
             .buttonStyle(PressScale(scale: 0.95))
-            .accessibilityLabel("메뉴")
+            .accessibilityLabel(tr("메뉴", "Menu"))
         }
         .padding(6)
         .background(.ultraThinMaterial, in: Capsule())
@@ -265,7 +269,7 @@ private struct TabBar: View {
         return Button {
             guard key != .ledger else {
                 // 달력·가계부는 아직 웹에만 있다 — 눌렀을 때 아무 일 없으면 고장처럼 보인다
-                Motion.run(Motion.quick, reduce: reduce) { notice = "\(label)은 곧 앱에도 열려요" }
+                Motion.run(Motion.quick, reduce: reduce) { notice = tr("\(label)은 곧 앱에도 열려요", "\(label) is coming to the app soon") }
                 Task {
                     try? await Task.sleep(for: .seconds(1.6))
                     Motion.run(Motion.quick, reduce: reduce) { notice = nil }

@@ -22,7 +22,7 @@ final class Backend: Sendable {
           우리가 만료를 재거나 타이머를 두면 반드시 한 번은 놓친다.
           로그아웃 상태에서는 throw하므로 nil로 떨어뜨려 서버가 401을 주게 둔다.
         */
-        self.api = APIClient(baseURL: AppConfig.apiBaseURL) {
+        self.api = APIClient(baseURL: AppConfig.apiBaseURL, language: { AppLang.current.rawValue }) {
             try? await supabase.auth.session.accessToken
         }
     }

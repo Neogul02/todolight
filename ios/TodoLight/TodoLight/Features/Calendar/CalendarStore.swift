@@ -31,10 +31,10 @@ final class CalendarStore {
         do {
             if let editing {
                 _ = try await api.updateEvent(eventId: editing.id, title: title, color: color, startDate: start, endDate: end)
-                banner(.init(message: "일정을 고쳤어요"))
+                banner(.init(message: tr("일정을 고쳤어요", "Event updated")))
             } else {
                 _ = try await api.createEvent(orgId: orgId, title: title, color: color, startDate: start, endDate: end)
-                banner(.init(message: "일정을 추가했어요"))
+                banner(.init(message: tr("일정을 추가했어요", "Event added")))
             }
             await load()
             return true
@@ -49,7 +49,7 @@ final class CalendarStore {
         do {
             try await api.deleteEvent(eventId: event.id)
             events.removeAll { $0.id == event.id }
-            banner(.init(message: "일정을 지웠어요") { [weak self] in
+            banner(.init(message: tr("일정을 지웠어요", "Event deleted")) { [weak self] in
                 Task { await self?.restore(event) }
             })
             return true
@@ -69,16 +69,17 @@ final class CalendarStore {
 
 /// 일정 색 — 웹 `lib/event-colors.ts`와 같은 표. 아바타보다 진하다(얇은 띠라 눈에 걸려야 한다).
 enum EventColors {
-    static let all: [(key: String, name: String, bar: String, ink: String)] = [
-        ("slate", "슬레이트", "#6b7280", "#ffffff"),
-        ("red", "레드", "#d1544c", "#ffffff"),
-        ("orange", "오렌지", "#d97b2e", "#ffffff"),
-        ("amber", "앰버", "#c99a1e", "#241a00"),
-        ("green", "그린", "#3f8f5f", "#ffffff"),
-        ("teal", "틸", "#2f8b86", "#ffffff"),
-        ("blue", "블루", "#4372b8", "#ffffff"),
-        ("violet", "바이올렛", "#7a5cc0", "#ffffff"),
-    ]
+    /// 이름이 언어를 따라가야 해서 매번 만든다(8칸이라 비용이 없다)
+    static var all: [(key: String, name: String, bar: String, ink: String)] { [
+        ("slate", tr("슬레이트", "Slate"), "#6b7280", "#ffffff"),
+        ("red", tr("레드", "Red"), "#d1544c", "#ffffff"),
+        ("orange", tr("오렌지", "Orange"), "#d97b2e", "#ffffff"),
+        ("amber", tr("앰버", "Amber"), "#c99a1e", "#241a00"),
+        ("green", tr("그린", "Green"), "#3f8f5f", "#ffffff"),
+        ("teal", tr("틸", "Teal"), "#2f8b86", "#ffffff"),
+        ("blue", tr("블루", "Blue"), "#4372b8", "#ffffff"),
+        ("violet", tr("바이올렛", "Violet"), "#7a5cc0", "#ffffff"),
+    ] }
 
     static func of(_ key: String) -> (bar: String, ink: String) {
         let c = all.first { $0.key == key } ?? all[0]

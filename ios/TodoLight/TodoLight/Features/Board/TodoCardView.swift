@@ -26,7 +26,7 @@ struct TodoCardView: View {
                         .padding(.trailing, 10)
                 }
                 .buttonStyle(PressScale())
-                .accessibilityLabel(done ? "완료 취소" : "완료")
+                .accessibilityLabel(done ? tr("완료 취소", "Mark not done") : tr("완료", "Mark done"))
                 .sensoryFeedback(.impact(weight: .light), trigger: done) { _, now in now }
 
                 Button(action: onToggleOpen) {
@@ -57,7 +57,7 @@ struct TodoCardView: View {
                             .padding(.leading, 10)
                     }
                     .buttonStyle(PressScale())
-                    .accessibilityLabel("지우기")
+                    .accessibilityLabel(tr("지우기", "Delete"))
                 }
             }
 
@@ -89,14 +89,14 @@ struct TodoCardView: View {
                 }
                 // "이거 왜 내 목록에 있지"를 카드에서 바로 — 넘김이 부탁보다 우선(넘긴 사람에게 물어야 한다)
                 if todo.isGivenByOther {
-                    personBadge(todo.givenBy, suffix: "넘김")
+                    personBadge(todo.givenBy, suffix: "넘김", en: "Handed off by")
                 } else if todo.isRequestedByOther {
-                    personBadge(todo.createdBy, suffix: "부탁")
+                    personBadge(todo.createdBy, suffix: "부탁", en: "Requested by")
                 }
                 if done, todo.isHandledByOther {
-                    personBadge(todo.handledBy, suffix: "대신 처리", tone: .success)
+                    personBadge(todo.handledBy, suffix: "대신 처리", en: "Handled by", tone: .success)
                 }
-                if !todo.noteList.isEmpty { BadgeView("메모 \(todo.noteList.count)") }
+                if !todo.noteList.isEmpty { BadgeView(tr("메모 \(todo.noteList.count)", "\(plural(todo.noteList.count, "note"))")) }
                 if !todo.participants.isEmpty {
                     HStack(spacing: -6) {
                         ForEach(todo.participants, id: \.self) { id in
@@ -109,10 +109,12 @@ struct TodoCardView: View {
         }
     }
 
-    private func personBadge(_ id: String?, suffix: String, tone: BadgeView<AvatarView>.Tone = .neutral) -> some View {
+    /// 한국어는 받침에 따라 조사가 갈려 "최진형이 부탁"/"최진우가 부탁" — 영어는 어순부터 다르다
+    private func personBadge(_ id: String?, suffix: String, en: String, tone: BadgeView<AvatarView>.Tone = .neutral) -> some View {
         let m = store.member(id)
-        let name = m?.displayName ?? "누군가"
-        return BadgeView(text: "\(name)\(BoardRules.subjectParticle(name)) \(suffix)", tone: tone) {
+        let name = m?.displayName ?? tr("누군가", "Someone")
+        let text = AppLang.current == .ko ? "\(name)\(BoardRules.subjectParticle(name)) \(suffix)" : "\(en) \(name)"
+        return BadgeView(text: text, tone: tone) {
             AvatarView(member: m, size: 14)
         }
     }
@@ -158,7 +160,7 @@ private struct TodoCardOpenContent: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: 6) {
                 AvatarView(member: store.member(n.authorId), size: 16)
-                Text("\(n.authorName ?? "알 수 없음") · \(Due.relative(Due.format(n.createdAt))) \(n.createdAt.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).locale(Locale(identifier: "ko_KR"))))")
+                Text("\(n.authorName ?? tr("알 수 없음", "Unknown")) · \(Due.relative(Due.format(n.createdAt))) \(n.createdAt.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).locale(AppLang.locale)))")
                     .font(.tl(11)).foregroundStyle(tk.inkFaint)
             }
         }
@@ -170,7 +172,7 @@ private struct TodoCardOpenContent: View {
     private var noteInput: some View {
         let empty = note.trimmingCharacters(in: .whitespaces).isEmpty
         return HStack(spacing: 6) {
-            TextField("", text: $note, prompt: placeholder("메모 남기기", tk))
+            TextField("", text: $note, prompt: placeholder(tr("메모 남기기", "Leave a note"), tk))
                 .submitLabel(.send)
                 .onSubmit(sendNote)
                 .tlField(height: 40)
@@ -184,7 +186,7 @@ private struct TodoCardOpenContent: View {
             }
             .buttonStyle(PressScale())
             .disabled(empty)
-            .accessibilityLabel("메모 보내기")
+            .accessibilityLabel(tr("메모 보내기", "Send note"))
         }
     }
 
@@ -199,14 +201,14 @@ private struct TodoCardOpenContent: View {
                         DuePillView(value: todo.dueDate, onChange: { store.setDue(todo, $0) }, open: $dueOpen, height: 40)
                     }
                     if canManage {
-                        Button("제목 수정", action: startEditing).buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
+                        Button(tr("제목 수정", "Rename"), action: startEditing).buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
                     }
                     if canGive {
-                        Button("넘기기", action: onGive).buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
+                        Button(tr("넘기기", "Hand off"), action: onGive).buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
                     }
                     if canJoin {
                         let joined = todo.participants.contains(store.userId)
-                        Button(joined ? "같이하기 그만" : "같이하기") { store.setJoined(todo, !joined) }
+                        Button(joined ? tr("같이하기 그만", "Leave") : tr("같이하기", "Join")) { store.setJoined(todo, !joined) }
                             .buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
                     }
                 }
@@ -223,8 +225,8 @@ private struct TodoCardOpenContent: View {
                 .onSubmit(submitEdit)
                 .tlField(height: 40)
             HStack(spacing: 6) {
-                Button("취소") { editing = false }.buttonStyle(TLButtonStyle(variant: .outline, fill: true))
-                Button("저장", action: submitEdit).buttonStyle(TLButtonStyle())
+                Button(tr("취소", "Cancel")) { editing = false }.buttonStyle(TLButtonStyle(variant: .outline, fill: true))
+                Button(tr("저장", "Save"), action: submitEdit).buttonStyle(TLButtonStyle())
                     .disabled(draftTitle.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }

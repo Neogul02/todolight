@@ -10,6 +10,8 @@ struct BoardRootView: View {
     @State private var orgs: [OrganizationSummary]?
     @State private var error: String?
     @State private var path: [AppRoute] = []
+    /// 언어를 바꾸면 루트가 새로 만들어진다 — 내 설정에서 바꿨으면 거기로 돌아와야 한다
+    @SceneStorage("route") private var savedRoute = ""
 
     private var activeOrg: OrganizationSummary? {
         orgs?.first { $0.id == storedOrgId } ?? orgs?.first
@@ -19,9 +21,11 @@ struct BoardRootView: View {
         NavigationStack(path: $path) {
             content
                 .toolbar(.hidden, for: .navigationBar)
+                .onAppear { if savedRoute == "me", path.isEmpty { path = [.me] } }
+                .onChange(of: path) { _, p in savedRoute = p.last == .me ? "me" : "" }
                 .navigationDestination(for: AppRoute.self) { route in
                     switch route {
-                    case .me: MeView(userId: userId).appTopBar("내 설정")
+                    case .me: MeView(userId: userId).appTopBar(tr("내 설정", "Settings"))
                     }
                 }
         }
@@ -35,17 +39,17 @@ struct BoardRootView: View {
                     .id(org.id)
             } else if orgs != nil {
                 ContentUnavailableView {
-                    Label("아직 조직이 없어요", systemImage: "person.3")
+                    Label(tr("아직 조직이 없어요", "No orgs yet"), systemImage: "person.3")
                 } description: {
-                    Text("웹에서 조직을 만들거나 초대를 받아 주세요.")
+                    Text(tr("웹에서 조직을 만들거나 초대를 받아 주세요.", "Create an org on the web or accept an invite."))
                 } actions: {
-                    Button("로그아웃") { Task { await session.signOut() } }
+                    Button(tr("로그아웃", "Log out")) { Task { await session.signOut() } }
                 }
             } else if let error {
                 ContentUnavailableView {
                     Label(error, systemImage: "wifi.exclamationmark")
                 } actions: {
-                    Button("다시 시도") { Task { await loadOrgs() } }
+                    Button(tr("다시 시도", "Try again")) { Task { await loadOrgs() } }
                 }
             } else {
                 ProgressView()

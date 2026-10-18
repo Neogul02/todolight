@@ -11,6 +11,7 @@ import TodoLightKit
 struct MeView: View {
     @Environment(\.tokens) private var tk
     @Environment(ThemeStore.self) private var theme
+    @Environment(LangStore.self) private var lang
     @Environment(SessionStore.self) private var session
     let userId: String
     private var email: String? { profile?.email }
@@ -33,6 +34,7 @@ struct MeView: View {
             VStack(alignment: .leading, spacing: 16) {
                 profileCard
                 themeCard
+                langCard
                 viewCard
                 legalCard
                 deleteCard
@@ -63,7 +65,7 @@ struct MeView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 6) {
-                Text("이름").font(.tl(13, .medium)).foregroundStyle(tk.inkSecondary)
+                Text(tr("이름", "Name")).font(.tl(13, .medium)).foregroundStyle(tk.inkSecondary)
                 TextField("", text: $name)
                     .submitLabel(.done)
                     .tlField()
@@ -76,12 +78,12 @@ struct MeView: View {
     private var photoButtons: some View {
         HStack(spacing: 8) {
             PhotosPicker(selection: $photoItem, matching: .images) {
-                Text(uploading ? "올리는 중…" : photoURL == nil ? "사진 올리기" : "사진 바꾸기")
+                Text(uploading ? tr("올리는 중…", "Uploading…") : photoURL == nil ? tr("사진 올리기", "Upload photo") : tr("사진 바꾸기", "Change photo"))
             }
             .buttonStyle(TLButtonStyle(variant: .outline, size: .sm, fill: true))
             .disabled(uploading)
             if photoURL != nil {
-                Button("삭제") { Task { await clearPhoto() } }
+                Button(tr("삭제", "Delete")) { Task { await clearPhoto() } }
                     .buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
                     .disabled(uploading)
             }
@@ -90,7 +92,7 @@ struct MeView: View {
 
     private var themeCard: some View {
         card {
-            Text("테마").font(.tlTitle).foregroundStyle(tk.ink)
+            Text(tr("테마", "Theme")).font(.tlTitle).foregroundStyle(tk.ink)
             // 시스템 · 화이트 · 다크 — 3열 한 줄
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
                 ForEach(Self.themes, id: \.key) { t in
@@ -119,16 +121,37 @@ struct MeView: View {
         }
     }
 
+    /// 언어 — 고르는 순간 앱 전체가 그 언어로 다시 그려지고 계정에 저장된다(웹 /me와 같은 값)
+    private var langCard: some View {
+        card {
+            Text(tr("언어", "Language")).font(.tlTitle).foregroundStyle(tk.ink)
+            HStack(spacing: 8) {
+                ForEach(AppLang.allCases, id: \.self) { l in
+                    let on = lang.lang == l
+                    Button { pickLang(l) } label: {
+                        Text(l.label).font(.tl(14, .medium)).foregroundStyle(tk.ink)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .background(on ? tk.accentSoft : .clear, in: RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(on ? tk.accent : tk.hairline))
+                    }
+                    .buttonStyle(PressScale(scale: 0.97))
+                    .accessibilityAddTraits(on ? .isSelected : [])
+                }
+            }
+            .padding(.top, 12)
+        }
+    }
+
     private var viewCard: some View {
         card {
-            Text("화면").font(.tlTitle).foregroundStyle(tk.ink)
+            Text(tr("화면", "Display")).font(.tlTitle).foregroundStyle(tk.ink)
             VStack(spacing: 12) {
-                settingToggle("완료한 할 일도 보기", isOn: showDone) {
+                settingToggle(tr("완료한 할 일도 보기", "Show finished to-dos"), isOn: showDone) {
                     showDone.toggle()
                     let next = showDone
                     Task { await save { try await api.updateProfile(showDone: next) } onFail: { showDone = !next } }
                 }
-                settingToggle("가계부 쓰기", isOn: showLedger) {
+                settingToggle(tr("가계부 쓰기", "Use the ledger"), isOn: showLedger) {
                     showLedger.toggle()
                     let next = showLedger
                     Task { await save { try await api.updateProfile(showLedger: next) } onFail: { showLedger = !next } }
@@ -141,10 +164,10 @@ struct MeView: View {
     /// 약관 — 심사자는 앱 안에서도 닿을 수 있기를 본다. 웹 페이지를 그대로 연다(로그인 없이 열린다).
     private var legalCard: some View {
         card {
-            Text("약관").font(.tlTitle).foregroundStyle(tk.ink)
+            Text(tr("약관", "Legal")).font(.tlTitle).foregroundStyle(tk.ink)
             VStack(spacing: 0) {
-                legalLink("이용약관", "legal/terms")
-                legalLink("개인정보 처리방침", "legal/privacy")
+                legalLink(tr("이용약관", "Terms of Service"), "legal/terms")
+                legalLink(tr("개인정보 처리방침", "Privacy Policy"), "legal/privacy")
             }
             .padding(.top, 8)
         }
@@ -153,8 +176,8 @@ struct MeView: View {
     /// 맨 아래 — 매일 만지는 설정과 평생 한 번 누를 버튼을 떨어뜨려 둔다.
     private var deleteCard: some View {
         card {
-            Text("계정과 로그인 정보를 지워요. 되돌릴 수 없어요.").font(.tlCaption).foregroundStyle(tk.inkMuted)
-            Button("계정 삭제") { deleteOpen = true }
+            Text(tr("계정과 로그인 정보를 지워요. 되돌릴 수 없어요.", "Deletes your account and login. This can't be undone.")).font(.tlCaption).foregroundStyle(tk.inkMuted)
+            Button(tr("계정 삭제", "Delete account")) { deleteOpen = true }
                 .buttonStyle(TLButtonStyle(variant: .danger, fill: true))
                 .padding(.top, 16)
         }
@@ -235,6 +258,20 @@ struct MeView: View {
         }
     }
 
+    private func pickLang(_ next: AppLang) {
+        let before = lang.lang
+        guard next != before else { return }
+        Task {
+            // 저장이 먼저다 — 루트가 다시 그려지면 이 화면의 Task가 끊길 수 있다
+            do {
+                _ = try await api.updateProfile(locale: next.rawValue)
+                lang.lang = next
+            } catch {
+                toast = BoardStore.message(error)
+            }
+        }
+    }
+
     private func pickTheme(_ key: String) {
         let before = theme.preference
         theme.preference = key
@@ -265,9 +302,9 @@ struct MeView: View {
             let url = try storage.getPublicURL(path: path).absoluteString + "?v=\(Int(Date().timeIntervalSince1970 * 1000))"
             profile = try await api.updateProfile(avatarUrl: .set(url))
             photoURL = url
-            toast = "사진을 바꿨어요"
+            toast = tr("사진을 바꿨어요", "Photo updated")
         } catch {
-            toast = error is CancellationError ? "사진을 읽지 못했어요" : BoardStore.message(error)
+            toast = error is CancellationError ? tr("사진을 읽지 못했어요", "Couldn't read that photo") : BoardStore.message(error)
         }
     }
 
@@ -278,7 +315,7 @@ struct MeView: View {
             _ = try await Backend.shared.supabase.storage.from("avatars").remove(paths: ["\(userId)/avatar.webp"])
             profile = try await api.updateProfile(avatarUrl: .clear)
             photoURL = nil
-            toast = "사진을 지웠어요"
+            toast = tr("사진을 지웠어요", "Photo removed")
         } catch {
             toast = BoardStore.message(error)
         }
@@ -302,11 +339,11 @@ struct MeView: View {
     }
 
     /// 웹 `lib/themes.ts`의 THEMES — 이름은 messages/ko.json `me.theme.names`
-    private static let themes: [(key: String, name: String, swatch: [String])] = [
-        ("system", "시스템", ["#ffffff", "#101010", "#8a8a8a"]),
-        ("ink", "화이트", ["#ffffff", "#f4f2ee", "#14120f"]),
-        ("ink-dark", "다크", ["#101010", "#232221", "#f5f2ec"]),
-    ]
+    private static var themes: [(key: String, name: String, swatch: [String])] { [
+        ("system", tr("시스템", "System"), ["#ffffff", "#101010", "#8a8a8a"]),
+        ("ink", tr("화이트", "White"), ["#ffffff", "#f4f2ee", "#14120f"]),
+        ("ink-dark", tr("다크", "Dark"), ["#101010", "#232221", "#f5f2ec"]),
+    ] }
 }
 
 /// 계정 삭제 확인 — "정말 삭제할까요?"만 묻지 않고 **무슨 일이 벌어지는지** 적는다.
@@ -319,23 +356,23 @@ private struct DeleteAccountSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("계정 삭제").font(.tlTitle).foregroundStyle(tk.ink)
+            Text(tr("계정 삭제", "Delete account")).font(.tlTitle).foregroundStyle(tk.ink)
             VStack(alignment: .leading, spacing: 8) {
                 ForEach([
-                    "로그인 정보와 이름·이메일·프로필 사진을 지워요. 다시 로그인할 수 없어요.",
-                    "방장으로 있는 조직은 남은 멤버 중 먼저 들어온 관리자에게 방장을 넘겨요.",
-                    "나 혼자인 조직은 그 조직의 할 일·일정·가계부와 함께 지워요.",
-                    "팀에 남긴 할 일과 메모, 가계부 기록은 이름 없이 남아요 — 팀의 장부가 나 때문에 바뀌면 안 되니까요.",
+                    tr("로그인 정보와 이름·이메일·프로필 사진을 지워요. 다시 로그인할 수 없어요.", "Your login, name, email and profile photo are deleted. You won't be able to log in again."),
+                    tr("방장으로 있는 조직은 남은 멤버 중 먼저 들어온 관리자에게 방장을 넘겨요.", "Orgs you own are handed to the earliest-joined admin among remaining members."),
+                    tr("나 혼자인 조직은 그 조직의 할 일·일정·가계부와 함께 지워요.", "Orgs where you're the only member are deleted along with their to-dos, events and ledger."),
+                    tr("팀에 남긴 할 일과 메모, 가계부 기록은 이름 없이 남아요 — 팀의 장부가 나 때문에 바뀌면 안 되니까요.", "To-dos, notes and ledger entries you left stay without your name — the team's records shouldn't change because you left."),
                 ], id: \.self) { Text($0).font(.tlBodySm).foregroundStyle(tk.ink) }
             }
             .padding(14)
             .background(tk.canvasSoft, in: RoundedRectangle(cornerRadius: 12))
-            Text("이 동작은 되돌릴 수 없어요.").font(.tlCaption).foregroundStyle(tk.danger)
+            Text(tr("이 동작은 되돌릴 수 없어요.", "This can't be undone.")).font(.tlCaption).foregroundStyle(tk.danger)
             if let error { Text(error).font(.tlCaption).foregroundStyle(tk.danger) }
             HStack(spacing: 8) {
-                Button("취소") { dismiss() }
+                Button(tr("취소", "Cancel")) { dismiss() }
                     .buttonStyle(TLButtonStyle(variant: .outline, fill: true))
-                Button(deleting ? "지우는 중…" : "삭제할래요") { Task { await run() } }
+                Button(deleting ? tr("지우는 중…", "Deleting…") : tr("삭제할래요", "Delete it")) { Task { await run() } }
                     .buttonStyle(TLButtonStyle(variant: .danger, fill: true))
             }
             .disabled(deleting)

@@ -36,6 +36,7 @@ extension EnvironmentValues {
 /// 루트에 한 번 — 고른 테마를 토큰으로 풀어 환경에 넣고, 시스템 컨트롤 색 체계도 맞춘다.
 struct ThemedRoot<Content: View>: View {
     @Environment(ThemeStore.self) private var theme
+    @Environment(LangStore.self) private var lang
     @Environment(\.colorScheme) private var scheme
     @ViewBuilder let content: Content
 
@@ -43,6 +44,10 @@ struct ThemedRoot<Content: View>: View {
         let resolved = resolveTheme(theme.preference, dark: scheme == .dark)
         let tokens = resolved.tokens
         content
+            // 언어가 바뀌면 트리를 새로 만든다 — 모든 `tr`이 그 자리에서 다시 읽힌다.
+            // 보던 화면은 BoardRootView가 SceneStorage로 되살린다.
+            .id(lang.lang)
+            .environment(\.locale, AppLang.locale)
             .environment(\.tokens, tokens)
             .tint(tokens.accent)
             .foregroundStyle(tokens.ink)

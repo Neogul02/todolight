@@ -34,12 +34,12 @@ struct HandoffSheet: View {
 
     var body: some View {
         let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        SheetScaffold(title: "대신 처리") {
+        SheetScaffold(title: tr("대신 처리", "Handle for them")) {
             Text(todo.title).font(.tlBodySm).foregroundStyle(tk.ink)
-            Text("\(ownerName)님의 할 일이에요. 어떻게 처리했는지 한 줄 남겨 주세요.")
+            Text(tr("\(ownerName)님의 할 일이에요. 어떻게 처리했는지 한 줄 남겨 주세요.", "This is \(ownerName)'s to-do. Leave a line about how you handled it."))
                 .font(.tlCaption).foregroundStyle(tk.inkMuted).padding(.top, 4)
 
-            TextField("", text: $note, prompt: placeholder("예) 거래처에 메일 보내뒀습니다. 회신 오면 공유할게요.", tk), axis: .vertical)
+            TextField("", text: $note, prompt: placeholder(tr("예) 거래처에 메일 보내뒀습니다. 회신 오면 공유할게요.", "e.g. Emailed the client. Will share when they reply."), tk), axis: .vertical)
                 .lineLimit(3...6)
                 .focused($focused)
                 .padding(.vertical, 12)
@@ -47,13 +47,13 @@ struct HandoffSheet: View {
                 .padding(.top, 16)
 
             VStack(spacing: 8) {
-                Button("완료 처리") {
+                Button(tr("완료 처리", "Mark done")) {
                     onSubmit(trimmed)
                     dismiss()
                 }
                 .buttonStyle(TLButtonStyle(fill: true))
                 .disabled(trimmed.isEmpty)
-                Button("취소") { dismiss() }.buttonStyle(TLButtonStyle(variant: .outline, fill: true))
+                Button(tr("취소", "Cancel")) { dismiss() }.buttonStyle(TLButtonStyle(variant: .outline, fill: true))
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 12)
@@ -74,13 +74,13 @@ struct GiveSheet: View {
     @State private var note = ""
 
     var body: some View {
-        SheetScaffold(title: "누구에게 넘길까요?") {
+        SheetScaffold(title: tr("누구에게 넘길까요?", "Hand off to whom?")) {
             Text(todo.title).font(.tlBodySm).foregroundStyle(tk.ink)
             if candidates.isEmpty {
-                Text("넘길 팀원이 없어요. 팀 화면에서 먼저 초대해 주세요.")
+                Text(tr("넘길 팀원이 없어요. 팀 화면에서 먼저 초대해 주세요.", "No one to hand off to yet. Invite teammates from the Team page first."))
                     .font(.tlCaption).foregroundStyle(tk.inkMuted).padding(.top, 16)
             } else {
-                TextField("", text: $note, prompt: placeholder("한마디 남기기 (선택) — 예) 이거 좀 부탁해요", tk))
+                TextField("", text: $note, prompt: placeholder(tr("한마디 남기기 (선택) — 예) 이거 좀 부탁해요", "Add a note (optional) — e.g. Could you take this?"), tk))
                     .tlField()
                     .padding(.top, 16)
                 VStack(spacing: 4) {
@@ -120,8 +120,8 @@ struct ProfileSheet: View {
     let onSignOut: () -> Void
 
     var body: some View {
-        SheetScaffold(title: me?.displayName ?? "내 계정") {
-            Text("조직").font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary).padding(.horizontal, 4).padding(.bottom, 8)
+        SheetScaffold(title: me?.displayName ?? tr("내 계정", "My account")) {
+            Text(tr("조직", "Orgs")).font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary).padding(.horizontal, 4).padding(.bottom, 8)
             VStack(spacing: 4) {
                 ForEach(orgs) { o in
                     Button { onSwitchOrg(o.id) } label: {
@@ -140,17 +140,17 @@ struct ProfileSheet: View {
                     .disabled(o.id == org.id)
                 }
             }
-            Text("관리").font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary)
+            Text(tr("관리", "Manage")).font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary)
                 .padding(.horizontal, 4).padding(.top, 20).padding(.bottom, 8)
             Button { onOpen(.me) } label: {
-                Text("내 설정").font(.tl(15, .medium)).foregroundStyle(tk.ink)
+                Text(tr("내 설정", "Settings")).font(.tl(15, .medium)).foregroundStyle(tk.ink)
                 .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
                 .padding(.horizontal, 12)
                 .contentShape(Rectangle())
             }
             .buttonStyle(RowPress())
 
-            Button("로그아웃", action: onSignOut)
+            Button(tr("로그아웃", "Log out"), action: onSignOut)
                 .buttonStyle(TLButtonStyle(variant: .outline, fill: true))
                 .padding(.top, 16)
         }

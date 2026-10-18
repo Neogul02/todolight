@@ -4,6 +4,7 @@ import SwiftUI
 struct TodoLightApp: App {
     @State private var session = SessionStore()
     @State private var theme = ThemeStore()
+    @State private var lang = LangStore()
 
     init() { AppFont.register() }
 
@@ -12,6 +13,7 @@ struct TodoLightApp: App {
             ThemedRoot { RootView() }
                 .environment(session)
                 .environment(theme)
+                .environment(lang)
         }
     }
 }

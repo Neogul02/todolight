@@ -23,6 +23,11 @@ struct CalendarView: View {
     private static let maxLanes = 3
     private static let gap: CGFloat = 4
     private static let tabBarInset: CGFloat = 84
+    private static var weekdaySymbols: [String] {
+        var c = Calendar(identifier: .gregorian)
+        c.locale = AppLang.locale
+        return c.shortWeekdaySymbols
+    }
 
     /// 칸이 납작해지면 띠 3줄이 안 들어간다 — 그때는 점으로 바꾼다
     private var compact: Bool { ratio > Self.snaps[0] + 0.05 }
@@ -56,12 +61,12 @@ struct CalendarView: View {
 
     private var header: some View {
         HStack {
-            arrow("chevron.left", label: "이전 달") { shift(-1) }
+            arrow("chevron.left", label: tr("이전 달", "Previous month")) { shift(-1) }
             Spacer()
             HStack(spacing: 8) {
                 Text(monthLabel).font(.tlTitle).foregroundStyle(tk.ink).monospacedDigit()
                 if month != today.prefix(7) {
-                    Button("오늘", action: goToday)
+                    Button(tr("오늘", "Today"), action: goToday)
                         .font(.tl(12, .medium)).foregroundStyle(tk.inkMuted)
                         .padding(.horizontal, 8).frame(height: 28)
                         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(tk.hairline))
@@ -69,7 +74,7 @@ struct CalendarView: View {
                 }
             }
             Spacer()
-            arrow("chevron.right", label: "다음 달") { shift(1) }
+            arrow("chevron.right", label: tr("다음 달", "Next month")) { shift(1) }
         }
         .padding(.bottom, 8)
     }
@@ -86,7 +91,8 @@ struct CalendarView: View {
     /// 일요일만 붉게 — 한국 달력의 관습이라 배우지 않아도 읽힌다
     private var weekdayRow: some View {
         HStack(spacing: Self.gap) {
-            ForEach(Array(["일", "월", "화", "수", "목", "금", "토"].enumerated()), id: \.offset) { i, w in
+            // 요일 이름은 고른 언어의 달력에서 — 0 = 일요일
+            ForEach(Array(Self.weekdaySymbols.enumerated()), id: \.offset) { i, w in
                 Text(w).font(.tl(11, .medium))
                     .foregroundStyle(i == 0 ? tk.danger.opacity(0.7) : tk.inkFaint)
                     .frame(maxWidth: .infinity)
@@ -217,10 +223,10 @@ struct CalendarView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(selectedLabel).font(.tl(15, .semibold)).foregroundStyle(tk.ink)
-                    Text("일정 \(dayEvents.count) · 할 일 \(dayTodos.count)").font(.tl(11)).foregroundStyle(tk.inkFaint)
+                    Text(tr("일정 \(dayEvents.count) · 할 일 \(dayTodos.count)", "\(plural(dayEvents.count, "event")) · \(plural(dayTodos.count, "to-do"))")).font(.tl(11)).foregroundStyle(tk.inkFaint)
                 }
                 Spacer()
-                Button("일정 추가") {
+                Button(tr("일정 추가", "Add event")) {
                     editing = nil
                     sheetOpen = true
                 }
@@ -232,12 +238,12 @@ struct CalendarView: View {
                 VStack(spacing: 6) {
                     ForEach(dayEvents) { eventRow($0) }
                     if dayTodos.isEmpty && dayEvents.isEmpty {
-                        Text("이 날은 비어 있어요").font(.tlCaption).foregroundStyle(tk.inkFaint).padding(.vertical, 24)
+                        Text(tr("이 날은 비어 있어요", "Nothing on this day")).font(.tlCaption).foregroundStyle(tk.inkFaint).padding(.vertical, 24)
                     }
                     ForEach(dayTodos) { todoRow($0) }
                     if !undated.isEmpty {
                         Rectangle().fill(tk.hairline).frame(height: 1).padding(.top, 14)
-                        Text("마감 없음 · \(undated.count)건").font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary)
+                        Text(tr("마감 없음 · \(undated.count)건", "No due date · \(undated.count)")).font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 6)
                         ForEach(undated) { todoRow($0) }
                     }
@@ -273,7 +279,7 @@ struct CalendarView: View {
                         snap(to: up ? Self.snaps[1] : down ? Self.snaps[0] : start)
                     }
             )
-            .accessibilityLabel("목록 크기 조절")
+            .accessibilityLabel(tr("목록 크기 조절", "Resize list"))
             .accessibilityAddTraits(.isButton)
     }
 
@@ -310,12 +316,12 @@ struct CalendarView: View {
                 if !done && t.ownerId != board.userId { onHandoff(t) } else { board.toggle(t) }
             } label: { CheckBox(checked: done) }
                 .buttonStyle(PressScale())
-                .accessibilityLabel(done ? "완료 취소" : "완료")
+                .accessibilityLabel(done ? tr("완료 취소", "Mark not done") : tr("완료", "Mark done"))
             AvatarView(member: owner, size: 24)
             VStack(alignment: .leading, spacing: 1) {
                 Text(t.title).font(.tl(14)).strikethrough(done, color: tk.inkFaint)
                     .foregroundStyle(done ? tk.inkFaint : tk.ink).lineLimit(1)
-                Text(owner?.displayName ?? "알 수 없음").font(.tl(11)).foregroundStyle(tk.inkFaint)
+                Text(owner?.displayName ?? tr("알 수 없음", "Unknown")).font(.tl(11)).foregroundStyle(tk.inkFaint)
             }
             Spacer()
         }
@@ -337,13 +343,15 @@ struct CalendarView: View {
 
     private var monthLabel: String {
         let p = month.split(separator: "-")
-        return p.count == 2 ? "\(p[0])년 \(Int(p[1]) ?? 0)월" : month
+        guard p.count == 2, let d = Due.date("\(month)-01") else { return month }
+        return AppLang.current == .ko ? "\(p[0])년 \(Int(p[1]) ?? 0)월"
+            : d.formatted(.dateTime.year().month(.wide).locale(AppLang.locale))
     }
 
     /// "10월 18일 (토) · 오늘" — 어제·오늘·내일만 상대 표현을 붙인다
     private var selectedLabel: String {
         guard let d = Due.date(selected) else { return selected }
-        let base = d.formatted(.dateTime.month(.wide).day().weekday(.abbreviated).locale(Locale(identifier: "ko_KR")))
+        let base = d.formatted(.dateTime.month(.wide).day().weekday(.abbreviated).locale(AppLang.locale))
         let diff = CalendarMath.daysBetween(today, selected)
         return abs(diff) <= 1 ? "\(base) · \(Due.relative(selected))" : base
     }
@@ -357,9 +365,9 @@ struct CalendarView: View {
     }
 
     private func describe(_ day: String, remaining: Int, events: [OrgEvent]) -> String {
-        var parts = ["\(Int(day.dropFirst(5).prefix(2)) ?? 0)월 \(Int(day.suffix(2)) ?? 0)일"]
-        if remaining > 0 { parts.append("남은 할 일 \(remaining)개") }
-        if !events.isEmpty { parts.append("일정 " + events.map(\.title).joined(separator: ", ")) }
+        var parts = [Due.date(day)?.formatted(.dateTime.month(.wide).day().locale(AppLang.locale)) ?? day]
+        if remaining > 0 { parts.append(tr("남은 할 일 \(remaining)개", "\(plural(remaining, "to-do")) left")) }
+        if !events.isEmpty { parts.append(tr("일정 ", "Events: ") + events.map(\.title).joined(separator: ", ")) }
         return parts.joined(separator: ", ")
     }
 
@@ -411,12 +419,12 @@ struct EventSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text(event == nil ? "일정 추가" : "일정 고치기").font(.tlTitle).foregroundStyle(tk.ink)
+                Text(event == nil ? tr("일정 추가", "Add event") : tr("일정 고치기", "Edit event")).font(.tlTitle).foregroundStyle(tk.ink)
 
-                labeled("이름") {
-                    TextField("", text: $title, prompt: placeholder("예) 팝업 준비 기간", tk)).tlField()
+                labeled(tr("이름", "Name")) {
+                    TextField("", text: $title, prompt: placeholder(tr("예) 팝업 준비 기간", "e.g. Pop-up prep week"), tk)).tlField()
                 }
-                labeled("색") {
+                labeled(tr("색", "Color")) {
                     HStack(spacing: 8) {
                         ForEach(EventColors.all, id: \.key) { c in
                             Button { color = c.key } label: {
@@ -431,19 +439,19 @@ struct EventSheet: View {
                     }
                 }
                 // 일정은 시작과 끝이 반드시 있다 — "마감 없음" 칸을 두지 않는다
-                labeled("시작") {
+                labeled(tr("시작", "Start")) {
                     DuePicker(value: start, allowNone: false) { next in
                         start = next ?? Due.today()
                         if start > end { end = start }
                     }
                 }
-                labeled("끝") {
+                labeled(tr("끝", "End")) {
                     DuePicker(value: end, allowNone: false) { end = $0 ?? start }
                 }
 
                 HStack(spacing: 8) {
                     if let event, canDelete {
-                        Button("삭제") {
+                        Button(tr("삭제", "Delete")) {
                             Task {
                                 busy = true
                                 if await store.remove(event) { dismiss() }
@@ -452,7 +460,7 @@ struct EventSheet: View {
                         }
                         .buttonStyle(TLButtonStyle(variant: .danger))
                     }
-                    Button(event == nil ? "추가" : "저장") {
+                    Button(event == nil ? tr("추가", "Add") : tr("저장", "Save")) {
                         Task {
                             busy = true
                             if await store.save(event, title: title.trimmingCharacters(in: .whitespaces),

@@ -34,19 +34,23 @@ public actor APIClient {
     private let baseURL: URL
     private let session: URLSession
     private let tokenProvider: @Sendable () async throws -> String?
+    private let language: @Sendable () -> String
     private let decoder = TodoLightCoding.makeDecoder()
     private let encoder = TodoLightCoding.makeEncoder()
 
     /// - Parameters:
     ///   - baseURL: 앱 주소. `https://todolight.vercel.app` 처럼 `/api/v1`은 빼고 준다.
     ///   - tokenProvider: 지금 유효한 access token. 로그아웃 상태면 nil.
+    ///   - language: 에러 문구 언어(`ko`·`en`). 앱이 기기 언어와 다른 언어를 고를 수 있어서 밖에서 받는다.
     public init(
         baseURL: URL,
         session: URLSession = .shared,
+        language: @escaping @Sendable () -> String = { APIClient.deviceLanguage },
         tokenProvider: @escaping @Sendable () async throws -> String?
     ) {
         self.baseURL = baseURL
         self.session = session
+        self.language = language
         self.tokenProvider = tokenProvider
     }
 
@@ -80,7 +84,7 @@ public actor APIClient {
           에러 문구의 언어를 정하는 헤더. **안 보내면 서버가 한국어로 답한다.**
           액션이 만든 문구가 그대로 사용자에게 보이므로, 이 한 줄이 앱 전체의 에러 언어다.
         */
-        request.setValue(Self.acceptLanguage, forHTTPHeaderField: "Accept-Language")
+        request.setValue(language(), forHTTPHeaderField: "Accept-Language")
 
         if let token = try await tokenProvider() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -131,8 +135,8 @@ public actor APIClient {
 
     /// 기기 설정에서 뽑되 서버가 아는 두 값 중 하나로 떨어뜨린다.
     /// 서버도 모르는 값이면 한국어로 가므로, 여기서 미리 정해 보내는 편이 예측 가능하다.
-    private static let acceptLanguage: String = {
+    public static var deviceLanguage: String {
         let preferred = Locale.preferredLanguages.first ?? "ko"
         return preferred.hasPrefix("ko") ? "ko" : "en"
-    }()
+    }
 }

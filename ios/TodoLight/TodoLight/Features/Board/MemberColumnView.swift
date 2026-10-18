@@ -39,17 +39,17 @@ struct MemberColumnView: View {
                     }
 
                     if hiddenDone > 0 {
-                        dashedButton("완료 \(hiddenDone)개 더 보기") { showAllDone = true }
+                        dashedButton(tr("완료 \(hiddenDone)개 더 보기", "Show \(hiddenDone) more done")) { showAllDone = true }
                     }
                     if store.showDone && showAllDone && notLoaded > 0 {
-                        Text("그 전에 끝낸 \(notLoaded)개는 여기 안 실려요")
+                        Text(tr("그 전에 끝낸 \(notLoaded)개는 여기 안 실려요", "\(notLoaded) older finished to-dos aren't loaded here"))
                             .font(.tlCaption).foregroundStyle(tk.inkFaint).padding(.top, 4)
                     }
                     if store.showDone && showAllDone && done.count > Self.visibleDone {
-                        dashedButton("완료 접기") { showAllDone = false }
+                        dashedButton(tr("완료 접기", "Hide done")) { showAllDone = false }
                     }
                     if open.isEmpty && shownDone.isEmpty {
-                        Text(isMe ? "할 일이 비어 있어요" : "남은 할 일이 없어요")
+                        Text(isMe ? tr("할 일이 비어 있어요", "Your list is empty") : tr("남은 할 일이 없어요", "Nothing left to do"))
                             .font(.tlCaption).foregroundStyle(tk.inkFaint)
                             .frame(maxWidth: .infinity).padding(.vertical, 32)
                             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(tk.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
@@ -76,14 +76,14 @@ struct MemberColumnView: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 4) {
                     Text(member.displayName).font(.tl(15, .semibold)).foregroundStyle(tk.ink).lineLimit(1)
-                    if isMe { Text("(나)").font(.tl(12)).foregroundStyle(tk.inkFaint) }
+                    if isMe { Text(tr("(나)", "(me)")).font(.tl(12)).foregroundStyle(tk.inkFaint) }
                 }
-                Text("남은 일 \(openCount)개" + (doneTotal > 0 ? " · 완료 \(doneTotal)" : ""))
+                Text(tr("남은 일 \(openCount)개", "\(openCount) left") + (doneTotal > 0 ? tr(" · 완료 \(doneTotal)", " · \(doneTotal) done") : ""))
                     .font(.tl(12)).foregroundStyle(tk.inkFaint)
             }
             Spacer(minLength: 0)
             if member.role != .member {
-                BadgeView(member.role == .owner ? "방장" : "관리자")
+                BadgeView(member.role == .owner ? tr("방장", "Owner") : tr("관리자", "Admin"))
             }
         }
         .padding(.horizontal, 12)
@@ -97,7 +97,7 @@ struct MemberColumnView: View {
         let empty = draft.trimmingCharacters(in: .whitespaces).isEmpty
         return VStack(alignment: .leading, spacing: 6) {
             ZStack(alignment: .trailing) {
-                TextField("", text: $draft, prompt: placeholder(isMe ? "할 일 추가" : "\(member.displayName)님에게 부탁하기", tk))
+                TextField("", text: $draft, prompt: placeholder(isMe ? tr("할 일 추가", "Add a to-do") : tr("\(member.displayName)님에게 부탁하기", "Ask \(member.displayName)"), tk))
                     .focused($adding)
                     .submitLabel(.done)
                     .onSubmit(submit)
@@ -112,7 +112,7 @@ struct MemberColumnView: View {
                 .buttonStyle(PressScale())
                 .disabled(empty)
                 .padding(.trailing, 4)
-                .accessibilityLabel("추가")
+                .accessibilityLabel(tr("추가", "Add"))
             }
             let pill = DuePillView(value: due, onChange: { due = $0 }, open: $dueOpen)
             pill
