@@ -20,6 +20,11 @@ struct BoardView: View {
     @State private var handoffTodo: Todo?
     @State private var givingTodo: Todo?
     @State private var menuOpen = false
+    /// 보드 · 달력 · 가계부는 라우트가 아니라 한 화면의 패널이다(웹 ViewPager) — 바꿔도 상태가 남는다
+    @State private var pane: AppPane = .board
+    /// 처음 열릴 때 마운트하고 그 뒤로는 유지한다 — 한 번도 안 본 패널은 쿼리도 안 돈다
+    @State private var mounted: Set<AppPane> = [.board]
+    @State private var calendar: CalendarStore?
 
     init(org: OrganizationSummary, orgs: [OrganizationSummary], userId: String,
          onSwitchOrg: @escaping (String) -> Void, onOpen: @escaping (AppRoute) -> Void) {
@@ -45,19 +50,34 @@ struct BoardView: View {
                     }
                     .frame(maxHeight: .infinity)
                 case .ready:
-                    chips
-                    pager
+                    ZStack {
+                        VStack(spacing: 0) {
+                            chips
+                            pager
+                        }
+                        .paneVisible(pane == .board)
+                        if mounted.contains(.calendar), let calendar {
+                            CalendarView(board: store, store: calendar, onHandoff: { handoffTodo = $0 })
+                                .paneVisible(pane == .calendar)
+                        }
+                    }
                 }
             }
 
             VStack(spacing: 8) {
                 banner
-                TabBar(me: store.me, onProfile: { menuOpen = true })
+                TabBar(pane: $pane, me: store.me, onProfile: { menuOpen = true })
             }
         }
         .task { await start() }
         .onDisappear { Task { await store.stopRealtime() } }
         .onChange(of: store.themePreference) { _, pref in if let pref { theme.preference = pref } }
+        .onChange(of: pane) { _, next in
+            if next == .calendar && calendar == nil {
+                calendar = CalendarStore(orgId: org.id) { [store] b in store.banner = b }
+            }
+            mounted.insert(next)
+        }
         .sheet(item: $handoffTodo) { todo in
             HandoffSheet(todo: todo, ownerName: store.member(todo.ownerId)?.displayName ?? "팀원") {
                 store.handOff(todo, note: $0)
@@ -200,16 +220,16 @@ private struct TabBar: View {
     @Environment(\.tokens) private var tk
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Namespace private var ns
+    @Binding var pane: AppPane
     let me: MemberSummary?
     let onProfile: () -> Void
-    @State private var active = "board"
     @State private var notice: String?
 
     var body: some View {
         HStack(spacing: 4) {
-            item("board", "보드", icon: "rectangle.split.2x1")
-            item("calendar", "달력", icon: "calendar")
-            item("ledger", "가계부", icon: "wonsign.circle")
+            item(.board, "보드", icon: "rectangle.split.2x1")
+            item(.calendar, "달력", icon: "calendar")
+            item(.ledger, "가계부", icon: "wonsign.circle")
             Rectangle().fill(tk.hairlineStrong).frame(width: 1, height: 28).padding(.horizontal, 2)
             Button(action: onProfile) {
                 VStack(spacing: 2) {
@@ -240,10 +260,10 @@ private struct TabBar: View {
         .padding(.bottom, 12)
     }
 
-    private func item(_ key: String, _ label: String, icon: String) -> some View {
-        let on = active == key
+    private func item(_ key: AppPane, _ label: String, icon: String) -> some View {
+        let on = pane == key
         return Button {
-            guard key == "board" else {
+            guard key != .ledger else {
                 // 달력·가계부는 아직 웹에만 있다 — 눌렀을 때 아무 일 없으면 고장처럼 보인다
                 Motion.run(Motion.quick, reduce: reduce) { notice = "\(label)은 곧 앱에도 열려요" }
                 Task {
@@ -252,7 +272,7 @@ private struct TabBar: View {
                 }
                 return
             }
-            Motion.run(Motion.tabSpring, reduce: reduce) { active = key }
+            Motion.run(Motion.tabSpring, reduce: reduce) { pane = key }
         } label: {
             VStack(spacing: 2) {
                 Image(systemName: icon).font(.system(size: 19)).frame(height: 22)
@@ -297,5 +317,17 @@ private struct BoardSkeleton: View {
         }
         .opacity(dim ? 0.55 : 1)
         .onAppear { withAnimation(.easeInOut(duration: 0.9).repeatForever()) { dim = true } }
+    }
+}
+
+enum AppPane: Hashable { case board, calendar, ledger }
+
+extension View {
+    /// 안 보이는 패널 — 화면에서 감추되 언마운트하지 않는다(스크롤 위치·적다 만 글이 남는다).
+    /// 손가락과 VoiceOver가 안 보이는 패널에 닿지 않게 막는다(웹 `inert`).
+    func paneVisible(_ visible: Bool) -> some View {
+        opacity(visible ? 1 : 0)
+            .allowsHitTesting(visible)
+            .accessibilityHidden(!visible)
     }
 }
