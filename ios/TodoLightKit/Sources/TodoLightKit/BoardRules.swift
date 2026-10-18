@@ -93,4 +93,33 @@ public enum BoardRules {
     public static func notLoadedDoneCount(doneTotal: Int, loadedDone: Int) -> Int {
         max(0, doneTotal - loadedDone)
     }
+
+    // MARK: - 순서 바꾸기 (웹 MemberColumn handleReorder · commitReorder)
+
+    /// 같은 마감일 그룹 안에서만 자리를 옮길 수 있다 — 정렬이 "급한 것부터"라 그룹을 넘으면
+    /// 다음 재조회에서 원래 자리로 튀어 돌아간다.
+    public static func canMove(_ a: Todo, near b: Todo) -> Bool {
+        a.status != .done && b.status != .done && a.dueDate == b.dueDate
+    }
+
+    /// 옮긴 뒤 순서에서 `id`가 가질 새 position — 이웃 둘의 평균, 맨 앞이면 다음보다 1 작게,
+    /// 맨 뒤면 앞보다 1 크게. 이웃이 없거나 값이 그대로면 nil(보낼 필요 없음).
+    /// position이 double인 이유가 이것이다 — 사이에 끼워 넣어도 뒤 항목들을 다시 쓰지 않는다.
+    /// 이웃은 **같은 마감일 그룹 안에서만** 본다 — 그룹 경계 너머 카드와 평균을 내면 그룹 안 순서가
+    /// 그대로인 값이 나와, 서버에 저장되는 순간 원래 자리로 튀어 돌아간다.
+    public static func reorderedPosition(of id: String, in order: [Todo]) -> Double? {
+        guard let moved = order.first(where: { $0.id == id }) else { return nil }
+        let order = order.filter { $0.id == id || canMove(moved, near: $0) }
+        guard let i = order.firstIndex(where: { $0.id == id }) else { return nil }
+        let prev = i > 0 ? order[i - 1].position : nil
+        let next = i + 1 < order.count ? order[i + 1].position : nil
+        let position: Double
+        switch (prev, next) {
+        case (nil, nil): return nil
+        case (nil, let n?): position = n - 1
+        case (let p?, nil): position = p + 1
+        case (let p?, let n?): position = (p + n) / 2
+        }
+        return position == order[i].position ? nil : position
+    }
 }

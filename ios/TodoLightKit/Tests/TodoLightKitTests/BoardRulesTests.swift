@@ -172,3 +172,45 @@ struct BoardMergeTests {
         #expect(!t.isRequestedByOther)
     }
 }
+
+
+@Suite("순서 바꾸기")
+struct ReorderTests {
+    @Test("사이에 놓으면 이웃 평균")
+    func between() throws {
+        let order = [try makeTodo("a", position: 1), try makeTodo("m", position: 9), try makeTodo("b", position: 2)]
+        #expect(BoardRules.reorderedPosition(of: "m", in: order) == 1.5)
+    }
+
+    @Test("맨 앞이면 다음보다 1 작게, 맨 뒤면 앞보다 1 크게")
+    func edges() throws {
+        let front = [try makeTodo("m", position: 9), try makeTodo("a", position: 1)]
+        #expect(BoardRules.reorderedPosition(of: "m", in: front) == 0)
+        let back = [try makeTodo("a", position: 1), try makeTodo("m", position: -5)]
+        #expect(BoardRules.reorderedPosition(of: "m", in: back) == 2)
+    }
+
+    @Test("혼자거나 값이 그대로면 보낼 것이 없다")
+    func noop() throws {
+        #expect(BoardRules.reorderedPosition(of: "m", in: [try makeTodo("m", position: 3)]) == nil)
+        let same = [try makeTodo("a", position: 1), try makeTodo("m", position: 1.5), try makeTodo("b", position: 2)]
+        #expect(BoardRules.reorderedPosition(of: "m", in: same) == nil)
+    }
+
+    @Test("그룹 맨 앞이면 다른 마감일 카드가 아니라 그룹 안 다음 카드 기준")
+    func ignoresOtherGroups() throws {
+        // 실기기에서 난 버그: 위의 다른 그룹(-118)과 평균을 내 -122.5가 되어 순서가 그대로였다
+        let order = [try makeTodo("x", due: "2026-10-14", position: -118),
+                     try makeTodo("m", due: "2026-10-15", position: -126.5),
+                     try makeTodo("a", due: "2026-10-15", position: -127)]
+        #expect(BoardRules.reorderedPosition(of: "m", in: order) == -128)
+    }
+
+    @Test("마감일이 다르거나 완료면 옮길 수 없다")
+    func groups() throws {
+        let a = try makeTodo("a", due: "2026-10-20")
+        #expect(BoardRules.canMove(a, near: try makeTodo("b", due: "2026-10-20")))
+        #expect(!BoardRules.canMove(a, near: try makeTodo("c", due: "2026-10-21")))
+        #expect(!BoardRules.canMove(a, near: try makeTodo("d", status: .done, due: "2026-10-20")))
+    }
+}

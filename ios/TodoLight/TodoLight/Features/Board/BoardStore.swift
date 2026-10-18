@@ -422,6 +422,15 @@ final class BoardStore {
         }
     }
 
+    /// 순서 바꾸기 — 새 position만 보낸다(계산은 BoardRules.reorderedPosition). 다시 보내도 같은 값이라
+    /// 오프라인 큐에 넣지 않아도 되지만, 순서는 금방 다시 바뀌는 값이라 실패하면 그냥 되돌린다.
+    func reorder(_ todoId: String, to position: Double) {
+        let api = api
+        mutate(todoId, optimistic: { list in update(todoId, in: &list) { $0.position = position } }) {
+            _ = try await api.reorderTodo(todoId: todoId, position: position)
+        }
+    }
+
     func setJoined(_ todo: Todo, _ join: Bool) {
         let api = api, userId = userId
         mutate(todo.id, optimistic: { list in
