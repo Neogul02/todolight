@@ -40,7 +40,7 @@ function defaultDayOf(month: string): string {
  * 마운트한다** — 가계부를 한 번도 안 본 사람에게는 이 쿼리도 실시간 채널도 아예 돌지 않는다.
  */
 export default function LedgerClient() {
-  const { activeOrgId, userId, profile } = useApp();
+  const { activeOrgId, userId, profile, isManager } = useApp();
   const locale = useLocale() as Locale;
   const t = useTranslations('ledger');
   const tCommon = useTranslations('common');
@@ -282,7 +282,8 @@ export default function LedgerClient() {
               payerName={memberOf(entry.payer_id)?.display_name ?? t('unknownMember')}
               payerColor={memberOf(entry.payer_id)?.avatar_color ?? null}
               payerAvatar={memberOf(entry.payer_id)?.avatar_url ?? null}
-              canRemove={entry.created_by === userId || entry.payer_id === userId}
+              // 서버(assertCanRemoveEntry)와 같은 규칙 — 적은 사람·낸 사람·방장/관리자
+              canRemove={entry.created_by === userId || entry.payer_id === userId || isManager}
               onRemove={() => remove.mutate(entry.id)}
               removing={remove.isPending}
               deleteLabel={tCommon('delete')}

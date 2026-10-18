@@ -32,8 +32,13 @@ final class LedgerStore {
             .sorted { $0.1 > $1.1 }
     }
 
+    /// 달을 넘기는 순간 옛 달 행을 걷는다 — 그대로 두면 응답이 오기 전(또는 실패하면 계속)
+    /// 새 달 이름 아래에 지난 달 합계가 뜬다. 틀린 합계를 잠깐이라도 보이느니 기다리게 한다.
     func go(_ delta: Int) async {
         month = CalendarMath.shift(month, delta)
+        entries = []
+        error = nil
+        loading = true
         await load()
     }
 
@@ -46,7 +51,10 @@ final class LedgerStore {
             entries = rows.sorted { ($0.spentOn, $0.createdAt) > ($1.spentOn, $1.createdAt) }
             error = nil
         } catch {
-            if asked == month { self.error = BoardStore.message(error) }
+            if asked == month {
+                entries = []
+                self.error = BoardStore.message(error)
+            }
         }
         loading = false
     }
@@ -84,6 +92,7 @@ final class LedgerStore {
 
 struct LedgerView: View {
     @Environment(\.tokens) private var tk
+    @Environment(\.scenePhase) private var scenePhase
     let board: BoardStore
     let store: LedgerStore
 
@@ -118,7 +127,10 @@ struct LedgerView: View {
         .scrollDismissesKeyboard(.interactively)
         .refreshable { await store.load() }
         .task { await store.load() }
+        .onAppear { spentOn = Self.defaultDay(of: store.month) }
         .onChange(of: store.month) { _, m in spentOn = Self.defaultDay(of: m) }
+        // 팀원이 적은 지출 — 실시간 채널 대신 앱이 앞으로 돌아올 때 다시 읽는다
+        .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await store.load() } } }
     }
 
     // MARK: 조각
@@ -192,6 +204,7 @@ struct LedgerView: View {
                     TextField("", text: $title, prompt: placeholder(tr("어디에 썼나요", "What was it for?"), tk))
                         .focused($focus, equals: .title)
                         .submitLabel(.done)
+                        .onChange(of: title) { _, v in if v.count > 100 { title = String(v.prefix(100)) } }
                         .onSubmit { Task { await submit() } }
                         .tlField()
                 }
@@ -200,17 +213,13 @@ struct LedgerView: View {
                     spentOn = $0 ?? spentOn
                 }
                 .id(store.month)
+                if amount > Self.maxAmount {
+                    Text(tr("1조 원 이하로 적어 주세요.", "Keep it under ₩1 trillion."))
+                        .font(.tlCaption).foregroundStyle(tk.danger)
+                }
                 Button(tr("추가", "Add")) { Task { await submit() } }
                     .buttonStyle(TLButtonStyle(fill: true))
                     .disabled(!canSubmit)
-            }
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button(focus == .amount ? tr("다음", "Next") : tr("완료", "Done")) {
-                    focus = focus == .amount ? .title : nil
-                }
             }
         }
     }
@@ -231,7 +240,8 @@ struct LedgerView: View {
 
     private func row(_ e: LedgerEntry) -> some View {
         let m = board.member(e.payerId)
-        let canRemove = e.createdBy == board.userId || e.payerId == board.userId
+        // 서버 assertCanRemoveEntry와 같은 규칙 — 적은 사람·낸 사람·방장/관리자
+        let canRemove = e.createdBy == board.userId || e.payerId == board.userId || board.isManager
         return HStack(alignment: .top, spacing: 10) {
             AvatarView(member: m, size: 24).padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {

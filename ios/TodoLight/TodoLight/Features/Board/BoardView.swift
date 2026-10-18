@@ -11,7 +11,9 @@ struct BoardView: View {
     let onSwitchOrg: (String) -> Void
     let onOpen: (AppRoute) -> Void
     let invites: [OrgInvite]
-    let onRespond: (OrgInvite, Bool) async -> Void
+    let onRespond: (OrgInvite, Bool) async -> String?
+    /// 설정·조직 화면에서 돌아올 때마다 바뀐다 — 그 화면들이 바꾼 값(가계부 쓰기·완료 보기·멤버)을 다시 읽는 신호
+    let refreshToken: Int
 
     @Environment(SessionStore.self) private var session
     @Environment(ThemeStore.self) private var theme
@@ -31,8 +33,10 @@ struct BoardView: View {
     @State private var ledger: LedgerStore?
 
     init(org: OrganizationSummary, orgs: [OrganizationSummary], userId: String, invites: [OrgInvite],
+         refreshToken: Int,
          onSwitchOrg: @escaping (String) -> Void, onOpen: @escaping (AppRoute) -> Void,
-         onRespond: @escaping (OrgInvite, Bool) async -> Void) {
+         onRespond: @escaping (OrgInvite, Bool) async -> String?) {
+        self.refreshToken = refreshToken
         self.org = org
         self.orgs = orgs
         self.invites = invites
@@ -91,6 +95,7 @@ struct BoardView: View {
         }
         .task { await start() }
         .onDisappear { Task { await store.stopRealtime() } }
+        .onChange(of: refreshToken) { _, _ in Task { await store.load() } }
         .onChange(of: store.themePreference) { _, pref in if let pref { theme.preference = pref } }
         .onChange(of: store.localePreference) { _, pref in
             if let pref, let next = AppLang(rawValue: pref), next != lang.lang { lang.lang = next }
@@ -116,8 +121,10 @@ struct BoardView: View {
         }
         .sheet(isPresented: $menuOpen) {
             ProfileSheet(me: store.me, org: org, orgs: orgs, invites: invites, onRespond: { inv, accept in
-                await onRespond(inv, accept)
-                if accept { menuOpen = false }
+                let error = await onRespond(inv, accept)
+                // 수락이 실제로 됐을 때만 닫는다 — 실패했는데 닫으면 아무 일도 없던 것처럼 보인다
+                if accept && error == nil { menuOpen = false }
+                return error
             }, onSwitchOrg: { id in
                 menuOpen = false
                 onSwitchOrg(id)

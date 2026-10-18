@@ -58,8 +58,10 @@ struct NewOrgView: View {
 struct ReceivedInvites: View {
     @Environment(\.tokens) private var tk
     let invites: [OrgInvite]
-    let onRespond: (OrgInvite, Bool) async -> Void
+    /// 실패하면 이유를 돌려준다 — 이 목록 안에 적는다(바깥 토스트는 시트 뒤에 가려진다)
+    let onRespond: (OrgInvite, Bool) async -> String?
     @State private var busyId: String?
+    @State private var error: String?
 
     var body: some View {
         if !invites.isEmpty {
@@ -85,6 +87,7 @@ struct ReceivedInvites: View {
                     .padding(14)
                     .background(tk.accentSoft, in: RoundedRectangle(cornerRadius: 14))
                 }
+                if let error { Text(error).font(.tlCaption).foregroundStyle(tk.danger).padding(.horizontal, 4) }
             }
         }
     }
@@ -92,7 +95,7 @@ struct ReceivedInvites: View {
     private func respond(_ inv: OrgInvite, _ accept: Bool) {
         Task {
             busyId = inv.id
-            await onRespond(inv, accept)
+            error = await onRespond(inv, accept)
             busyId = nil
         }
     }

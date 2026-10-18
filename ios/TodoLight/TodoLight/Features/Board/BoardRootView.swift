@@ -12,6 +12,8 @@ struct BoardRootView: View {
     @State private var path: [AppRoute] = []
     /// 받은 초대 — 프로필 시트와 조직 0개 화면이 같이 본다. 있으면 탭바 아바타에 빨간 점
     @State private var invites: [OrgInvite] = []
+    /// 푸시한 화면에서 보드로 돌아올 때마다 올린다 — BoardView가 그 신호로 다시 읽는다
+    @State private var refreshToken = 0
     /// 언어를 바꾸면 루트가 새로 만들어진다 — 내 설정에서 바꿨으면 거기로 돌아와야 한다
     @SceneStorage("route") private var savedRoute = ""
 
@@ -24,18 +26,23 @@ struct BoardRootView: View {
             content
                 .toolbar(.hidden, for: .navigationBar)
                 .onAppear { if savedRoute == "me", path.isEmpty { path = [.me] } }
-                .onChange(of: path) { _, p in savedRoute = p.last == .me ? "me" : "" }
+                .onChange(of: path) { old, p in
+                    savedRoute = p.last == .me ? "me" : ""
+                    if p.isEmpty && !old.isEmpty { refreshToken += 1 }
+                }
                 .navigationDestination(for: AppRoute.self) { route in
                     switch route {
                     case .me: MeView(userId: userId).appTopBar(tr("내 설정", "Settings"))
                     case .team:
                         if let org = activeOrg {
-                            TeamView(org: org, userId: userId, onOrgsChanged: loadOrgs).appTopBar(tr("조직", "Org"))
+                            TeamView(org: org, userId: userId, onOrgsChanged: loadOrgs, onLeftOrg: leftOrg)
+                                .appTopBar(tr("조직", "Org"))
                         }
                     case .newOrg:
                         NewOrgView { id in
-                            await loadOrgs()
+                            // 고를 조직을 먼저 정한다 — 목록이 먼저 바뀌면 첫 조직의 보드가 잠깐 떴다가 버려진다
                             storedOrgId = id
+                            await loadOrgs()
                         }
                         .appTopBar(tr("새 조직 만들기", "New org"))
                     }
@@ -46,7 +53,7 @@ struct BoardRootView: View {
     @ViewBuilder private var content: some View {
         Group {
             if let org = activeOrg {
-                BoardView(org: org, orgs: orgs ?? [], userId: userId, invites: invites,
+                BoardView(org: org, orgs: orgs ?? [], userId: userId, invites: invites, refreshToken: refreshToken,
                           onSwitchOrg: { storedOrgId = $0 }, onOpen: { path.append($0) }, onRespond: respond)
                     // 조직을 바꾸면 상태·채널을 통째로 새로 — 다른 조직의 행이 섞일 틈을 없앤다
                     .id(org.id)
@@ -74,16 +81,25 @@ struct BoardRootView: View {
         if let mine = await mine { invites = mine.filter { $0.status == .pending } }
     }
 
-    /// 수락하면 그 조직으로 바로 옮긴다 — 조직을 바꾸는 곳과 초대를 받는 곳이 같아야 "어디서 하더라"가 없다
-    private func respond(_ inv: OrgInvite, _ accept: Bool) async {
+    /// 수락하면 그 조직으로 바로 옮긴다 — 조직을 바꾸는 곳과 초대를 받는 곳이 같아야 "어디서 하더라"가 없다.
+    /// 실패하면 이유를 돌려준다(초대 목록이 그 자리에 적는다).
+    private func respond(_ inv: OrgInvite, _ accept: Bool) async -> String? {
         do {
             let res = try await Backend.shared.api.respondToInvite(inviteId: inv.id, accept: accept)
             invites.removeAll { $0.id == inv.id }
-            await loadOrgs()
             if accept, let id = res.orgId { storedOrgId = id }
+            await loadOrgs()
+            return nil
         } catch {
-            self.error = BoardStore.message(error)
+            return BoardStore.message(error)
         }
+    }
+
+    /// 조직을 지웠거나 나왔다 — 조직 화면부터 닫고 목록을 다시 읽는다. 순서를 뒤집으면 마지막 조직일 때
+    /// 조직 화면이 먼저 사라져(활성 조직이 없다) 닫을 화면도 없이 빈 페이지에 남는다.
+    private func leftOrg() async {
+        path.removeAll()
+        await loadOrgs()
     }
 }
 
@@ -97,7 +113,7 @@ enum AppRoute: Hashable {
 private struct NoOrgView: View {
     @Environment(\.tokens) private var tk
     let invites: [OrgInvite]
-    let onRespond: (OrgInvite, Bool) async -> Void
+    let onRespond: (OrgInvite, Bool) async -> String?
     let onCreate: () -> Void
     let onSignOut: () -> Void
 

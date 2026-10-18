@@ -116,7 +116,7 @@ struct ProfileSheet: View {
     let org: OrganizationSummary
     let orgs: [OrganizationSummary]
     let invites: [OrgInvite]
-    let onRespond: (OrgInvite, Bool) async -> Void
+    let onRespond: (OrgInvite, Bool) async -> String?
     let onSwitchOrg: (String) -> Void
     let onOpen: (AppRoute) -> Void
     let onSignOut: () -> Void

@@ -14,6 +14,8 @@ struct TeamView: View {
     let userId: String
     /// 이름·역할·멤버 수가 바뀌면 루트의 조직 목록을 다시 읽는다
     let onOrgsChanged: () async -> Void
+    /// 조직을 지웠거나 나왔다 — 루트가 이 화면을 닫고 목록을 다시 읽는다
+    let onLeftOrg: () async -> Void
 
     @State private var members: [MemberSummary] = []
     @State private var invites: [OrgInvite] = []
@@ -56,14 +58,12 @@ struct TeamView: View {
                 await load()
                 await onOrgsChanged()
             } onLeft: {
-                await onOrgsChanged()
-                dismiss()
+                await onLeftOrg()
             }
         }
         .sheet(isPresented: $deleteOpen) {
             DeleteOrgSheet(org: org) {
-                await onOrgsChanged()
-                dismiss()
+                await onLeftOrg()
             }
         }
     }
