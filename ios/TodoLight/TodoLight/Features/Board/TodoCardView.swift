@@ -69,16 +69,40 @@ struct TodoCardView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .glassCard(alt: done)
+        .overlay { ViewingOutline(viewers: viewers) }
+        .overlay(alignment: .topTrailing) { viewerAvatars.offset(x: 8, y: -8) }
         .animation(reduce ? nil : Motion.quick, value: done)
+        .animation(reduce ? nil : Motion.quick, value: viewers.map(\.userId))
+    }
+
+    /// 지금 이 카드를 펼쳐 둔 다른 사람 — 노션처럼 테두리 + 아바타(내 신호는 PresenceStore가 이미 걸렀다)
+    private var viewers: [MemberSummary] {
+        (store.presence.viewers[todo.id] ?? []).compactMap { store.member($0.userId) }
+    }
+
+    @ViewBuilder private var viewerAvatars: some View {
+        if !viewers.isEmpty {
+            HStack(spacing: -8) {
+                ForEach(viewers.prefix(3), id: \.userId) { m in
+                    AvatarView(member: m, size: 20).overlay(Circle().strokeBorder(tk.surface, lineWidth: 2))
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(tr("\(viewers.map(\.displayName).joined(separator: ", "))님이 보는 중",
+                                   "\(viewers.map(\.displayName).joined(separator: ", ")) viewing"))
+        }
     }
 
     // MARK: 배지 줄
 
     @ViewBuilder private var badges: some View {
+        let titleTypers = (store.presence.typers[todo.id] ?? []).filter { $0.field == .title }
         let hasAny = todo.dueDate != nil || todo.isGivenByOther || todo.isRequestedByOther
             || (done && todo.isHandledByOther) || !todo.noteList.isEmpty || !todo.participants.isEmpty
+            || !titleTypers.isEmpty
         if hasAny {
             FlowLayout(spacing: 6) {
+                if !titleTypers.isEmpty { BadgeView(typingText(titleTypers)) }
                 if let due = todo.dueDate {
                     let tone: BadgeView<EmptyView>.Tone = switch Due.state(due) {
                     case .overdue: .danger
@@ -143,6 +167,11 @@ private struct TodoCardOpenContent: View {
     private var canManage: Bool { store.canManage(todo) }
     private var isMine: Bool { todo.ownerId == store.userId }
 
+    /// 입력 중 신호 — 이름은 받는 쪽이 조인하지 않고 그대로 띄운다(웹 페이로드와 같다)
+    private func typed(_ field: PresenceStore.Field) {
+        store.presence.typed(todo.id, field, displayName: store.member(store.userId)?.displayName ?? "")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Rectangle().fill(tk.hairline).frame(height: 1).padding(.top, 6)
@@ -151,6 +180,10 @@ private struct TodoCardOpenContent: View {
                 editForm
             } else {
                 ForEach(todo.noteList) { n in noteRow(n) }
+                let noteTypers = (store.presence.typers[todo.id] ?? []).filter { $0.field == .note }
+                if !noteTypers.isEmpty {
+                    Text(typingText(noteTypers)).font(.tlCaption).foregroundStyle(tk.inkFaint)
+                }
                 noteInput
                 actions
             }
@@ -221,6 +254,7 @@ private struct TodoCardOpenContent: View {
         let empty = note.trimmingCharacters(in: .whitespaces).isEmpty
         return HStack(spacing: 6) {
             TextField("", text: $note, prompt: placeholder(tr("메모 남기기", "Leave a note"), tk))
+                .onChange(of: note) { _, text in if !text.isEmpty { typed(.note) } }
                 .submitLabel(.send)
                 .onSubmit(sendNote)
                 .tlField(height: 40)
@@ -269,6 +303,7 @@ private struct TodoCardOpenContent: View {
         VStack(spacing: 8) {
             TextField("", text: $draftTitle)
                 .focused($titleFocused)
+                .onChange(of: draftTitle) { _, text in if editing && text != editBase { typed(.title) } }
                 .submitLabel(.done)
                 .onSubmit(submitEdit)
                 .tlField(height: 40)
@@ -344,5 +379,32 @@ struct FlowLayout: Layout {
         }
         if !current.items.isEmpty { rows.append(current) }
         return rows
+    }
+}
+
+/// "○○님이 입력 중..." — 웹 card.typingIndicator
+func typingText(_ typers: [PresenceStore.Typer]) -> String {
+    let names = typers.map(\.displayName).joined(separator: ", ")
+    return tr("\(names)님이 입력 중...", "\(names) is typing...")
+}
+
+/// 남이 보고 있는 카드의 테두리 — 먼저 들어온 한 사람의 색만 쓴다(여럿이면 색이 바뀌며 깜빡이는 것보다
+/// 아바타를 겹쳐 인원수를 보이는 쪽이 덜 어지럽다). 1.6초 주기로 숨 쉬듯 옅어진다(웹과 같다).
+private struct ViewingOutline: View {
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    let viewers: [MemberSummary]
+    @State private var dim = false
+
+    var body: some View {
+        if let first = viewers.first {
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(AvatarView.color(key: first.avatarColor, seed: first.userId).bg, lineWidth: 2)
+                .opacity(dim ? 0.45 : 1)
+                .allowsHitTesting(false)
+                .onAppear {
+                    guard !reduce else { return }
+                    withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) { dim = true }
+                }
+        }
     }
 }

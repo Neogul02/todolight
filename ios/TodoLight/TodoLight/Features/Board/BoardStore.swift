@@ -34,7 +34,12 @@ final class BoardStore {
     /// 연결을 기다리는 쓰기 수(화면에 "N개 보낼 준비" 같은 안내를 띄우는 데 쓴다)
     var queuedCount: Int { queue.count }
     /// 카드 펼침은 보드 전체에서 하나뿐이다
-    var openTodoId: String?
+    var openTodoId: String? {
+        // 펼친 카드는 곧 "보는 중" — 같은 조직 사람들 화면에 테두리로 뜬다(웹 BoardClient의 openTodoId 이펙트)
+        didSet { presence.setFocused(openTodoId) }
+    }
+    /// 보는 중 · 입력 중 표시(`presence-{orgId}`)
+    let presence: PresenceStore
     /// 화면 아래에 띄울 알림(에러·실행취소)
     var banner: Banner?
 
@@ -64,6 +69,7 @@ final class BoardStore {
     init(orgId: String, userId: String) {
         self.orgId = orgId
         self.userId = userId
+        presence = PresenceStore(orgId: orgId, userId: userId)
         // 마지막으로 본 보드를 먼저 그린다 — 서버 응답은 그 위에 덮는다
         if let snap = OfflineCache.load(BoardSnapshot.self, key: "board-\(orgId)") {
             todos = snap.todos
@@ -192,6 +198,7 @@ final class BoardStore {
     /// 토큰 없이 붙으면 RLS(`is_org_member`)에 막혀 아무 행도 안 온다(웹 P0-1과 같은 함정).
     func startRealtime() async {
         guard channel == nil else { return }
+        Task { await presence.start() }
         let supabase = Backend.shared.supabase
         let channel = supabase.channel("board-\(orgId)")
         let todoChanges = channel.postgresChange(AnyAction.self, table: "todos", filter: "org_id=eq.\(orgId)")
@@ -222,6 +229,7 @@ final class BoardStore {
     }
 
     func stopRealtime() async {
+        await presence.stop()
         listeners.forEach { $0.cancel() }
         listeners = []
         if let channel { await Backend.shared.supabase.removeChannel(channel) }
