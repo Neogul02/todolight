@@ -148,13 +148,33 @@ final class BoardStore {
         }
     }
 
-    /// 내 컬럼이 항상 첫 번째, 그다음은 내가 정해 둔 순서(`profiles.member_order`), 나머지는 서버 순서.
+    /// 내 컬럼이 항상 첫 번째, 그다음은 내가 정해 둔 순서(`profiles.member_order`),
+    /// 그 목록에 없는(새로 들어온) 사람은 이름순으로 끝에 — 웹 BoardClient의 orderedMembers와 같다.
     static func order(_ members: [MemberSummary], me: String, saved: [String]) -> [MemberSummary] {
-        let rank = Dictionary(uniqueKeysWithValues: saved.enumerated().map { ($1, $0) })
-        let others = members.filter { $0.userId != me }.enumerated().sorted { a, b in
-            (rank[a.element.userId] ?? saved.count + a.offset) < (rank[b.element.userId] ?? saved.count + b.offset)
-        }.map(\.element)
-        return members.filter { $0.userId == me } + others
+        let others = members.filter { $0.userId != me }
+        let byId = Dictionary(uniqueKeysWithValues: others.map { ($0.userId, $0) })
+        let inSaved = saved.compactMap { byId[$0] }
+        let savedIds = Set(inSaved.map(\.userId))
+        let rest = others.filter { !savedIds.contains($0.userId) }
+            .sorted { $0.displayName.localizedCompare($1.displayName) == .orderedAscending }
+        return members.filter { $0.userId == me } + inSaved + rest
+    }
+
+    /// 멤버 칩 순서 — 나는 늘 맨 앞이라 다른 사람들 순서만 저장한다(웹 updateMemberOrder).
+    /// 칩과 컬럼이 같은 `members`를 보므로 컬럼 순서도 같이 바뀐다. 실패하면 되돌린다.
+    func reorderMembers(_ others: [String]) {
+        let before = members
+        members = Self.order(members, me: userId, saved: others)
+        let api = api, orgId = orgId
+        Task {
+            do {
+                try await api.updateMemberOrder(orgId: orgId, orderedUserIds: others)
+                saveSnapshot()
+            } catch {
+                members = before
+                banner = Banner(message: Self.message(error))
+            }
+        }
     }
 
     private func resyncSoon() {

@@ -22,6 +22,8 @@ struct BoardView: View {
     @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var store: BoardStore
     @State private var page: String?
+    /// 멤버 칩 순서 바꾸기(꾹 눌러 가로로 끌기)
+    @State private var chipReorder = ReorderState(axis: .horizontal)
     @State private var handoffTodo: Todo?
     @State private var givingTodo: Todo?
     @State private var menuOpen = false
@@ -170,12 +172,14 @@ struct BoardView: View {
         await store.startRealtime()
     }
 
-    /// 멤버 칩 — 사람이 많을수록 미는 것보다 한 번 누르는 쪽이 빠르다(웹 「멤버 칩은 늘 띄운다」)
+    /// 멤버 칩 — 사람이 많을수록 미는 것보다 한 번 누르는 쪽이 빠르다(웹 「멤버 칩은 늘 띄운다」).
+    /// 다른 사람 칩은 꾹 눌러 옮길 수 있다 — 내 칩은 늘 맨 앞이라 움직이지도, 그 앞으로 넘어가지도 않는다.
     private var chips: some View {
-        ScrollViewReader { proxy in
+        let shown = chipReorder.order.map { ids in ids.compactMap { id in store.members.first { $0.userId == id } } } ?? store.members
+        return ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
-                    ForEach(store.members) { m in
+                    ForEach(shown) { m in
                         MemberChip(
                             member: m,
                             isMe: m.userId == store.userId,
@@ -184,11 +188,21 @@ struct BoardView: View {
                         ) {
                             Motion.run(.snappy(duration: 0.3), reduce: reduce) { page = m.userId }
                         }
+                        .modifier(ReorderHandle(
+                            id: m.userId, enabled: m.userId != store.userId,
+                            space: "chips", state: $chipReorder,
+                            order: { shown.map(\.userId) },
+                            canSwap: { $0 != store.userId },
+                            onCommit: { _, ids in store.reorderMembers(ids.filter { $0 != store.userId }) }
+                        ))
                         .id(m.userId)
                     }
                 }
+                .animation(reduce ? nil : Motion.quick, value: shown.map(\.userId))
+                .coordinateSpace(.named("chips"))
                 .padding(.horizontal, 12)
             }
+            .scrollDisabled(chipReorder.dragging != nil)
             .onChange(of: page) { _, id in
                 Motion.run(.snappy(duration: 0.3), reduce: reduce) { proxy.scrollTo(id, anchor: .center) }
             }

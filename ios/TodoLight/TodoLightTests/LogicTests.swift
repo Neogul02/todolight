@@ -99,3 +99,18 @@ struct PendingWriteTests {
         #expect(try JSONDecoder().decode([PendingWrite].self, from: data) == writes)
     }
 }
+
+/// 칩·컬럼 순서 — 웹 BoardClient의 orderedMembers와 같아야 같은 사람이 같은 자리에 선다
+@MainActor
+struct MemberOrderTests {
+    private func m(_ id: String, _ name: String) -> MemberSummary {
+        MemberSummary(userId: id, role: .member, displayName: name, avatarColor: nil, avatarUrl: nil, email: nil)
+    }
+
+    @Test func meFirstThenSavedThenByName() {
+        let list = [m("c", "다연"), m("me", "나"), m("a", "가람"), m("b", "나래"), m("d", "라온")]
+        let ordered = BoardStore.order(list, me: "me", saved: ["d", "gone", "b"])
+        // 저장된 순서(d, b) — 없는 id(gone)는 건너뛴다 — 그다음 처음 보는 사람은 이름순(a 가람, c 다연)
+        #expect(ordered.map(\.userId) == ["me", "d", "b", "a", "c"])
+    }
+}
