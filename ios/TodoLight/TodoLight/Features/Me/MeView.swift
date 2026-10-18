@@ -321,7 +321,7 @@ struct MeView: View {
         }
     }
 
-    private static func squareJPEG(_ data: Data, side: CGFloat) -> Data? {
+    static func squareJPEG(_ data: Data, side: CGFloat) -> Data? {
         guard let image = UIImage(data: data) else { return nil }
         let s = min(image.size.width, image.size.height)
         let crop = CGRect(x: (image.size.width - s) / 2, y: (image.size.height - s) / 2, width: s, height: s)
@@ -378,6 +378,7 @@ private struct DeleteAccountSheet: View {
             .disabled(deleting)
         }
         .padding(20)
+        .frame(maxHeight: .infinity, alignment: .top)
         .presentationDetents([.medium, .large])
         .presentationBackground(tk.glassBgStrong)
         .presentationDragIndicator(.visible)

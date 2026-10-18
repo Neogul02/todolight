@@ -10,6 +10,8 @@ struct BoardView: View {
     let orgs: [OrganizationSummary]
     let onSwitchOrg: (String) -> Void
     let onOpen: (AppRoute) -> Void
+    let invites: [OrgInvite]
+    let onRespond: (OrgInvite, Bool) async -> Void
 
     @Environment(SessionStore.self) private var session
     @Environment(ThemeStore.self) private var theme
@@ -28,12 +30,15 @@ struct BoardView: View {
     @State private var calendar: CalendarStore?
     @State private var ledger: LedgerStore?
 
-    init(org: OrganizationSummary, orgs: [OrganizationSummary], userId: String,
-         onSwitchOrg: @escaping (String) -> Void, onOpen: @escaping (AppRoute) -> Void) {
+    init(org: OrganizationSummary, orgs: [OrganizationSummary], userId: String, invites: [OrgInvite],
+         onSwitchOrg: @escaping (String) -> Void, onOpen: @escaping (AppRoute) -> Void,
+         onRespond: @escaping (OrgInvite, Bool) async -> Void) {
         self.org = org
         self.orgs = orgs
+        self.invites = invites
         self.onSwitchOrg = onSwitchOrg
         self.onOpen = onOpen
+        self.onRespond = onRespond
         _store = State(initialValue: BoardStore(orgId: org.id, userId: userId))
     }
 
@@ -80,6 +85,7 @@ struct BoardView: View {
                 banner
                 // 가계부를 끄면 칸이 사라진다 — 다만 보고 있는 동안에는 남긴다(다른 기기에서 끄면 나갈 길이 없어진다)
                 TabBar(pane: $pane, me: store.me, showLedger: store.showLedger || pane == .ledger,
+                       hasInvites: !invites.isEmpty,
                        onProfile: { menuOpen = true })
             }
         }
@@ -109,7 +115,10 @@ struct BoardView: View {
             }
         }
         .sheet(isPresented: $menuOpen) {
-            ProfileSheet(me: store.me, org: org, orgs: orgs, onSwitchOrg: { id in
+            ProfileSheet(me: store.me, org: org, orgs: orgs, invites: invites, onRespond: { inv, accept in
+                await onRespond(inv, accept)
+                if accept { menuOpen = false }
+            }, onSwitchOrg: { id in
                 menuOpen = false
                 onSwitchOrg(id)
             }, onOpen: { route in
@@ -243,6 +252,7 @@ private struct TabBar: View {
     @Binding var pane: AppPane
     let me: MemberSummary?
     let showLedger: Bool
+    let hasInvites: Bool
     let onProfile: () -> Void
 
     var body: some View {
@@ -254,6 +264,14 @@ private struct TabBar: View {
             Button(action: onProfile) {
                 VStack(spacing: 2) {
                     AvatarView(member: me, size: 24).frame(height: 22)
+                        // 대기 중인 초대 — 숫자 배지 대신 작은 빨간 점. 버튼이 아니라 사진 가장자리에 붙인다
+                        .overlay(alignment: .topTrailing) {
+                            if hasInvites {
+                                Circle().fill(tk.danger).frame(width: 10, height: 10)
+                                    .overlay(Circle().strokeBorder(tk.canvas, lineWidth: 2))
+                                    .offset(x: 2, y: -1)
+                            }
+                        }
                     Text(tr("나", "Me")).font(.tl(10, .medium))
                 }
                 .foregroundStyle(tk.inkMuted)
@@ -261,7 +279,7 @@ private struct TabBar: View {
                 .padding(.vertical, 6)
             }
             .buttonStyle(PressScale(scale: 0.95))
-            .accessibilityLabel(tr("메뉴", "Menu"))
+            .accessibilityLabel(hasInvites ? tr("메뉴 · 받은 초대 있음", "Menu · pending invites") : tr("메뉴", "Menu"))
         }
         .padding(6)
         .background(.ultraThinMaterial, in: Capsule())

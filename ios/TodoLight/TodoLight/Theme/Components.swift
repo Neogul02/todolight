@@ -292,7 +292,8 @@ enum Due {
             f.locale = AppLang.locale
             f.dateTimeStyle = .named
             f.calendar = kst
-            return f.localizedString(from: DateComponents(day: diff))
+            let text = f.localizedString(from: DateComponents(day: diff))
+            return AppLang.current == .en ? text.prefix(1).uppercased() + text.dropFirst() : text
         }
         let f = DateFormatter()
         f.locale = AppLang.locale

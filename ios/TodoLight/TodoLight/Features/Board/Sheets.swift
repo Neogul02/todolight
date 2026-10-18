@@ -115,46 +115,80 @@ struct ProfileSheet: View {
     let me: MemberSummary?
     let org: OrganizationSummary
     let orgs: [OrganizationSummary]
+    let invites: [OrgInvite]
+    let onRespond: (OrgInvite, Bool) async -> Void
     let onSwitchOrg: (String) -> Void
     let onOpen: (AppRoute) -> Void
     let onSignOut: () -> Void
 
     var body: some View {
+        // 받은 초대 → 조직 전환 → 관리 → 로그아웃 (웹 아바타 메뉴와 같은 순서)
         SheetScaffold(title: me?.displayName ?? tr("내 계정", "My account")) {
+            ReceivedInvites(invites: invites, onRespond: onRespond).padding(.bottom, invites.isEmpty ? 0 : 20)
+
             Text(tr("조직", "Orgs")).font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary).padding(.horizontal, 4).padding(.bottom, 8)
             VStack(spacing: 4) {
                 ForEach(orgs) { o in
                     Button { onSwitchOrg(o.id) } label: {
                         HStack(spacing: 12) {
-                            Text(o.name).font(.tl(15, .medium)).foregroundStyle(tk.ink)
+                            OrgIconView(name: o.name, imageUrl: o.imageUrl, seed: o.id, size: 32)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(o.name).font(.tl(15, .medium)).foregroundStyle(tk.ink).lineLimit(1)
+                                Text(tr("멤버 \(o.memberCount)명 · \(roleLabel(o.role))", "\(plural(o.memberCount, "member")) · \(roleLabel(o.role))"))
+                                    .font(.tl(12)).foregroundStyle(tk.inkFaint)
+                            }
                             Spacer()
                             if o.id == org.id {
                                 Image(systemName: "checkmark").font(.system(size: 15, weight: .semibold)).foregroundStyle(tk.ink)
                             }
                         }
                         .padding(.horizontal, 12)
-                        .frame(minHeight: 48)
+                        .frame(minHeight: 56)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(RowPress())
                     .disabled(o.id == org.id)
                 }
+                Button { onOpen(.newOrg) } label: {
+                    Text(tr("+ 새 조직 만들기", "+ New org")).font(.tl(15, .medium)).foregroundStyle(tk.inkMuted)
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(tk.hairlineStrong, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                }
+                .buttonStyle(RowPress())
+                .padding(.top, 4)
             }
             Text(tr("관리", "Manage")).font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary)
                 .padding(.horizontal, 4).padding(.top, 20).padding(.bottom, 8)
-            Button { onOpen(.me) } label: {
-                Text(tr("내 설정", "Settings")).font(.tl(15, .medium)).foregroundStyle(tk.ink)
-                .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                .padding(.horizontal, 12)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(RowPress())
+            manageRow(tr("멤버 · 조직 설정", "Members & org settings")) { onOpen(.team) }
+            manageRow(tr("내 설정", "Settings")) { onOpen(.me) }
 
             Button(tr("로그아웃", "Log out"), action: onSignOut)
                 .buttonStyle(TLButtonStyle(variant: .outline, fill: true))
                 .padding(.top, 16)
         }
         .presentationDetents([.medium, .large])
+    }
+
+    private func manageRow(_ label: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(label).font(.tl(15, .medium)).foregroundStyle(tk.ink)
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(tk.inkFaint)
+            }
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .padding(.horizontal, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(RowPress())
+    }
+
+    private func roleLabel(_ role: MemberRole) -> String {
+        switch role {
+        case .owner: tr("방장", "Owner")
+        case .admin: tr("관리자", "Admin")
+        case .member: tr("팀원", "Member")
+        }
     }
 }
 

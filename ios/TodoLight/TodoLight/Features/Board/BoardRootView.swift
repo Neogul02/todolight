@@ -10,6 +10,8 @@ struct BoardRootView: View {
     @State private var orgs: [OrganizationSummary]?
     @State private var error: String?
     @State private var path: [AppRoute] = []
+    /// 받은 초대 — 프로필 시트와 조직 0개 화면이 같이 본다. 있으면 탭바 아바타에 빨간 점
+    @State private var invites: [OrgInvite] = []
     /// 언어를 바꾸면 루트가 새로 만들어진다 — 내 설정에서 바꿨으면 거기로 돌아와야 한다
     @SceneStorage("route") private var savedRoute = ""
 
@@ -26,6 +28,16 @@ struct BoardRootView: View {
                 .navigationDestination(for: AppRoute.self) { route in
                     switch route {
                     case .me: MeView(userId: userId).appTopBar(tr("내 설정", "Settings"))
+                    case .team:
+                        if let org = activeOrg {
+                            TeamView(org: org, userId: userId, onOrgsChanged: loadOrgs).appTopBar(tr("조직", "Org"))
+                        }
+                    case .newOrg:
+                        NewOrgView { id in
+                            await loadOrgs()
+                            storedOrgId = id
+                        }
+                        .appTopBar(tr("새 조직 만들기", "New org"))
                     }
                 }
         }
@@ -34,17 +46,13 @@ struct BoardRootView: View {
     @ViewBuilder private var content: some View {
         Group {
             if let org = activeOrg {
-                BoardView(org: org, orgs: orgs ?? [], userId: userId, onSwitchOrg: { storedOrgId = $0 }, onOpen: { path.append($0) })
+                BoardView(org: org, orgs: orgs ?? [], userId: userId, invites: invites,
+                          onSwitchOrg: { storedOrgId = $0 }, onOpen: { path.append($0) }, onRespond: respond)
                     // 조직을 바꾸면 상태·채널을 통째로 새로 — 다른 조직의 행이 섞일 틈을 없앤다
                     .id(org.id)
             } else if orgs != nil {
-                ContentUnavailableView {
-                    Label(tr("아직 조직이 없어요", "No orgs yet"), systemImage: "person.3")
-                } description: {
-                    Text(tr("웹에서 조직을 만들거나 초대를 받아 주세요.", "Create an org on the web or accept an invite."))
-                } actions: {
-                    Button(tr("로그아웃", "Log out")) { Task { await session.signOut() } }
-                }
+                NoOrgView(invites: invites, onRespond: respond,
+                          onCreate: { path.append(.newOrg) }, onSignOut: { Task { await session.signOut() } })
             } else if let error {
                 ContentUnavailableView {
                     Label(error, systemImage: "wifi.exclamationmark")
@@ -60,14 +68,57 @@ struct BoardRootView: View {
 
     private func loadOrgs() async {
         error = nil
-        do { orgs = try await Backend.shared.api.fetchMyOrgs() } catch { self.error = BoardStore.message(error) }
+        async let list = Backend.shared.api.fetchMyOrgs()
+        async let mine = try? Backend.shared.api.fetchMyInvites()
+        do { orgs = try await list } catch { self.error = BoardStore.message(error) }
+        if let mine = await mine { invites = mine.filter { $0.status == .pending } }
+    }
+
+    /// 수락하면 그 조직으로 바로 옮긴다 — 조직을 바꾸는 곳과 초대를 받는 곳이 같아야 "어디서 하더라"가 없다
+    private func respond(_ inv: OrgInvite, _ accept: Bool) async {
+        do {
+            let res = try await Backend.shared.api.respondToInvite(inviteId: inv.id, accept: accept)
+            invites.removeAll { $0.id == inv.id }
+            await loadOrgs()
+            if accept, let id = res.orgId { storedOrgId = id }
+        } catch {
+            self.error = BoardStore.message(error)
+        }
     }
 }
 
 /// 보드 밖의 화면들. 웹에서 팀·내 설정·새 조직이 따로 라우트인 것과 같은 묶음이다 —
 /// 어쩌다 한 번 들어와 볼일 보고 나가는 화면이라 평범한 상단 바(뒤로가기)를 둔다.
 enum AppRoute: Hashable {
-    case me
+    case me, team, newOrg
+}
+
+/// 조직이 하나도 없을 때 — 막다른 길이 되지 않게 받은 초대와 새 조직 만들기를 같이 둔다
+private struct NoOrgView: View {
+    @Environment(\.tokens) private var tk
+    let invites: [OrgInvite]
+    let onRespond: (OrgInvite, Bool) async -> Void
+    let onCreate: () -> Void
+    let onSignOut: () -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(tr("먼저 조직이 필요해요", "You need an org first")).font(.tl(22, .bold)).foregroundStyle(tk.ink)
+                    Text(tr("할 일은 조직 단위로 나눠 봐요. 조직을 만들거나 받은 초대를 수락해 주세요.",
+                            "To-dos are shared within an org. Create one or accept an invite."))
+                        .font(.tlBodySm).foregroundStyle(tk.inkMuted)
+                }
+                ReceivedInvites(invites: invites, onRespond: onRespond)
+                Button(tr("조직 만들기", "Create an org"), action: onCreate).buttonStyle(TLButtonStyle(fill: true))
+                Button(tr("로그아웃", "Log out"), action: onSignOut).buttonStyle(TLButtonStyle(variant: .outline, fill: true))
+            }
+            .padding(24)
+            .padding(.top, 40)
+        }
+        .background(CanvasBackground())
+    }
 }
 
 extension View {
