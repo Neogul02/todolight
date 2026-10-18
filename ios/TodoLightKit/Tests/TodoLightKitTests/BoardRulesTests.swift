@@ -123,3 +123,52 @@ struct ParticleTests {
         #expect(BoardRules.initial(of: "  ") == "?")
     }
 }
+
+@Suite("실시간 병합과 배지")
+struct BoardMergeTests {
+
+    @Test("실시간 행에는 메모가 없다 — 들고 있던 메모를 지킨다")
+    func keepsNotes() throws {
+        var cached = try makeTodo("a")
+        cached.notes = []
+        cached.participantIds = ["x"]
+        var row = try makeTodo("a")
+        row.title = "새 제목"
+        row.notes = nil
+        row.participantIds = nil
+
+        let merged = BoardRules.merge([cached], row: row)
+        #expect(merged.count == 1)
+        #expect(merged[0].title == "새 제목")
+        #expect(merged[0].participants == ["x"])
+    }
+
+    @Test("소프트 삭제(deletedAt이 찬 UPDATE)는 목록에서 걷어낸다")
+    func softDeleteRemoves() throws {
+        var row = try makeTodo("a")
+        row.deletedAt = Date()
+        #expect(BoardRules.merge([try makeTodo("a"), try makeTodo("b")], row: row).map(\.id) == ["b"])
+    }
+
+    @Test("처음 보는 행은 더한다")
+    func appendsNew() throws {
+        #expect(BoardRules.merge([try makeTodo("a")], row: try makeTodo("b")).map(\.id) == ["a", "b"])
+    }
+
+    @Test("넘겨받은 할 일은 부탁 배지 대신 넘김 배지")
+    func givenBeatsRequested() throws {
+        var t = try makeTodo("a")   // owner u, created_by u
+        t.ownerId = "c"             // A(u)가 만든 걸 B가 C에게 넘김
+        t.givenBy = "b"
+        #expect(t.isGivenByOther)
+        #expect(!t.isRequestedByOther)
+    }
+
+    @Test("낙관적으로 만든 할 일은 미완료·메모 없음으로 시작한다")
+    func optimisticInit() {
+        let t = Todo(id: "n", orgId: "o", ownerId: "u", title: "새", dueDate: nil, position: -1, createdBy: "u")
+        #expect(t.status == .todo)
+        #expect(t.noteList.isEmpty)
+        #expect(!t.isRequestedByOther)
+    }
+}

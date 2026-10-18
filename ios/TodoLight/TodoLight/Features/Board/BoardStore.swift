@@ -1,0 +1,324 @@
+import Foundation
+import Observation
+import Supabase
+import TodoLightKit
+
+/// 한 조직의 보드 상태와 모든 쓰기 — 웹 `useOrgBoard` + `useTodoMutations`를 합친 자리.
+///
+/// 규칙은 웹과 같다(CLAUDE.md 「할 일 쓰기 동작」):
+/// - 추가·체크·삭제·대신 처리·넘기기는 **낙관적으로** 먼저 그리고, 실패하면 되돌리고 알린다.
+/// - 추가할 행 id는 **여기서 정한다** — 실시간 INSERT가 같은 행으로 합쳐져 카드가 둘이 되지 않는다.
+/// - 요청이 날아다니는 행은 실시간 병합에서 건너뛴다(`pending`). 커밋 전 값이 낙관적 값을 덮는다.
+/// - 끝나면 400ms 모아 한 번 재조회해 서버 상태로 수렴한다.
+@MainActor
+@Observable
+final class BoardStore {
+    enum Phase: Equatable { case loading, ready, failed(String) }
+
+    let orgId: String
+    let userId: String
+
+    private(set) var phase: Phase = .loading
+    private(set) var members: [MemberSummary] = []
+    private(set) var todos: [Todo] = []
+    private(set) var doneTotals: [String: Int] = [:]
+    private(set) var showDone = true
+    /// 카드 펼침은 보드 전체에서 하나뿐이다
+    var openTodoId: String?
+    /// 화면 아래에 띄울 알림(에러·실행취소)
+    var banner: Banner?
+
+    struct Banner: Identifiable {
+        let id = UUID()
+        let message: String
+        var undo: (@MainActor () -> Void)?
+    }
+
+    /// 행 id → 날아다니는 요청 수. **Set이면 안 된다** — 체크를 연달아 누르면 먼저 끝난 요청이
+    /// 표시를 지워, 아직 날아다니는 두 번째 요청의 낙관적 값을 실시간 행이 덮는다(웹 `pending-todos.ts`).
+    @ObservationIgnored private var pending: [String: Int] = [:]
+    /// 쓰기가 시작될 때마다 올린다. 그보다 먼저 출발한 `load()`의 결과는 낙관적 값을 덮으므로 버린다
+    /// — 웹 `onMutate`가 `cancelQueries`를 먼저 기다리는 것과 같은 일.
+    @ObservationIgnored private var writeGeneration = 0
+    @ObservationIgnored private var resyncTask: Task<Void, Never>?
+    @ObservationIgnored private var channel: RealtimeChannelV2?
+    @ObservationIgnored private var listeners: [Task<Void, Never>] = []
+
+    private var api: APIClient { Backend.shared.api }
+
+    init(orgId: String, userId: String) {
+        self.orgId = orgId
+        self.userId = userId
+    }
+
+    var me: MemberSummary? { members.first { $0.userId == userId } }
+    func member(_ id: String?) -> MemberSummary? { members.first { $0.userId == id } }
+    var isManager: Bool { me?.role == .owner || me?.role == .admin }
+
+    /// 이 사람 컬럼에 놓일 할 일. 같이하기로 참여한 남의 할 일도 내 컬럼에 함께 뜬다(웹과 같다).
+    func column(for memberId: String) -> (open: [Todo], done: [Todo]) {
+        BoardRules.split(todos.filter { $0.ownerId == memberId || $0.participants.contains(memberId) })
+    }
+
+    /// 주인 · 만든 사람 · 방장/관리자 — 서버 `canManageTodo`와 같은 규칙
+    func canManage(_ todo: Todo) -> Bool {
+        todo.ownerId == userId || todo.createdBy == userId || isManager
+    }
+
+    // MARK: - 읽기
+
+    func load() async {
+        let startedAt = writeGeneration
+        do {
+            async let board = api.fetchBoard(orgId: orgId)
+            async let list = api.fetchMembers(orgId: orgId)
+            async let profile = api.fetchMyProfile()
+            let (b, m, p) = try await (board, list, profile)
+            // 출발한 뒤 쓰기가 있었거나 아직 날아다니면 목록은 낡았다 — 그 쓰기가 끝날 때 다시 읽는다
+            if writeGeneration == startedAt && pending.isEmpty {
+                todos = b.todos
+                doneTotals = b.doneTotals
+            }
+            showDone = p.showDone
+            members = Self.order(m, me: userId, saved: p.memberOrder[orgId] ?? [])
+            phase = .ready
+        } catch {
+            if phase != .ready { phase = .failed(Self.message(error)) }
+        }
+    }
+
+    /// 내 컬럼이 항상 첫 번째, 그다음은 내가 정해 둔 순서(`profiles.member_order`), 나머지는 서버 순서.
+    static func order(_ members: [MemberSummary], me: String, saved: [String]) -> [MemberSummary] {
+        let rank = Dictionary(uniqueKeysWithValues: saved.enumerated().map { ($1, $0) })
+        let others = members.filter { $0.userId != me }.enumerated().sorted { a, b in
+            (rank[a.element.userId] ?? saved.count + a.offset) < (rank[b.element.userId] ?? saved.count + b.offset)
+        }.map(\.element)
+        return members.filter { $0.userId == me } + others
+    }
+
+    private func resyncSoon() {
+        resyncTask?.cancel()
+        resyncTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+            await self?.load()
+        }
+    }
+
+    // MARK: - 실시간
+
+    /// `board-{orgId}` 채널. 웹소켓 인증은 supabase-swift가 세션 토큰으로 맞춰 준다 —
+    /// 토큰 없이 붙으면 RLS(`is_org_member`)에 막혀 아무 행도 안 온다(웹 P0-1과 같은 함정).
+    func startRealtime() async {
+        guard channel == nil else { return }
+        let supabase = Backend.shared.supabase
+        let channel = supabase.channel("board-\(orgId)")
+        let todoChanges = channel.postgresChange(AnyAction.self, table: "todos", filter: "org_id=eq.\(orgId)")
+        let noteChanges = channel.postgresChange(AnyAction.self, table: "todo_notes")
+        let joinChanges = channel.postgresChange(AnyAction.self, table: "todo_participants", filter: "org_id=eq.\(orgId)")
+        self.channel = channel
+
+        listeners = [
+            Task { [weak self] in
+                for await action in todoChanges { self?.apply(action) }
+            },
+            // 메모는 작성자 조인, 참여자는 participant_ids가 필요해서 다시 읽는다
+            Task { [weak self] in
+                for await _ in noteChanges { self?.resyncSoon() }
+            },
+            Task { [weak self] in
+                for await _ in joinChanges { self?.resyncSoon() }
+            },
+        ]
+        do {
+            try await channel.subscribeWithError()
+        } catch {
+            // 조용히 죽은 채로 두지 않는다 — 웹에서 실시간이 몰래 끊겨 있던 일이 있었다(CLAUDE.md 「실시간」).
+            // 채널을 비워 다음 진입에서 다시 붙게 하고, 놓친 변경은 한 번 읽어 맞춘다.
+            await stopRealtime()
+            resyncSoon()
+        }
+    }
+
+    func stopRealtime() async {
+        listeners.forEach { $0.cancel() }
+        listeners = []
+        if let channel { await Backend.shared.supabase.removeChannel(channel) }
+        channel = nil
+    }
+
+    private func apply(_ action: AnyAction) {
+        switch action {
+        case .delete(let del):
+            if case .string(let id)? = del.oldRecord["id"] { todos.removeAll { $0.id == id } }
+        case .insert(let ins):
+            merge { try ins.decodeRecord(as: Todo.self, decoder: $0) }
+        case .update(let upd):
+            merge { try upd.decodeRecord(as: Todo.self, decoder: $0) }
+        }
+    }
+
+    private func merge(_ decode: (JSONDecoder) throws -> Todo) {
+        do {
+            let row = try decode(TodoLightCoding.makeDecoder())
+            guard pending[row.id] == nil else { return }
+            todos = BoardRules.merge(todos, row: row)
+        } catch {
+            // 형식을 못 읽으면 통째로 다시 받는다 — 놓치는 것보다 왕복 한 번이 낫다
+            resyncSoon()
+        }
+    }
+
+    // MARK: - 쓰기
+
+    /// 낙관적으로 바꾸고, 요청이 실패하면 되돌린다.
+    private func mutate(
+        _ id: String,
+        optimistic: (inout [Todo]) -> Void,
+        request: @escaping @Sendable () async throws -> Void,
+        onSuccess: (@MainActor () -> Void)? = nil
+    ) {
+        resyncTask?.cancel()
+        writeGeneration += 1
+        let snapshot = todos
+        optimistic(&todos)
+        pending[id, default: 0] += 1
+        Task {
+            do {
+                try await request()
+                onSuccess?()
+            } catch {
+                todos = snapshot
+                banner = Banner(message: Self.message(error))
+            }
+            if let n = pending[id], n > 1 { pending[id] = n - 1 } else { pending[id] = nil }
+            resyncSoon()
+        }
+    }
+
+    private func update(_ id: String, in list: inout [Todo], _ change: (inout Todo) -> Void) {
+        if let i = list.firstIndex(where: { $0.id == id }) { change(&list[i]) }
+    }
+
+    func create(title: String, ownerId: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let top = todos.filter { $0.ownerId == ownerId }.map(\.position).min() ?? 1
+        let todo = Todo(
+            id: UUID().uuidString.lowercased(), orgId: orgId, ownerId: ownerId,
+            title: trimmed, dueDate: nil, position: top - 1, createdBy: userId
+        )
+        let api = api, orgId = orgId
+        mutate(todo.id, optimistic: { $0.append(todo) }) {
+            _ = try await api.createTodo(orgId: orgId, title: trimmed, ownerId: ownerId, id: todo.id)
+        }
+    }
+
+    /// 내 할 일 체크·되돌리기. 남의 할 일을 끝내는 건 `handOff`(메모 필수)로만 간다.
+    func toggle(_ todo: Todo) {
+        let done = todo.status != .done
+        let next: TodoStatus = done ? .done : .todo
+        let api = api, userId = userId
+        mutate(todo.id, optimistic: { list in
+            update(todo.id, in: &list) {
+                $0.status = next
+                // 서버와 같은 규칙으로 미리 채워야 "대신 처리" 배지가 깜빡이지 않는다
+                $0.handledBy = done ? userId : nil
+                $0.completedAt = done ? Date() : nil
+            }
+        }) {
+            _ = try await api.setTodoStatus(todoId: todo.id, status: next)
+        }
+    }
+
+    func remove(_ todo: Todo) {
+        let api = api
+        mutate(todo.id, optimistic: { $0.removeAll { $0.id == todo.id } }, request: {
+            try await api.deleteTodo(todoId: todo.id)
+        }, onSuccess: { [weak self] in
+            // 소프트 삭제라 확인 창 대신 실행취소를 준다
+            self?.banner = Banner(message: "할 일을 지웠어요") { [weak self] in self?.restore(todo) }
+        })
+    }
+
+    private func restore(_ todo: Todo) {
+        banner = nil
+        Task {
+            do { try await api.restoreTodo(todoId: todo.id) } catch { banner = Banner(message: Self.message(error)) }
+            await load()
+        }
+    }
+
+    func handOff(_ todo: Todo, note: String) {
+        let api = api, userId = userId
+        mutate(todo.id, optimistic: { list in
+            update(todo.id, in: &list) {
+                $0.status = .done
+                $0.handledBy = userId
+                $0.completedAt = Date()
+            }
+        }, request: {
+            _ = try await api.handleForMember(todoId: todo.id, note: note)
+        }, onSuccess: { [weak self] in
+            self?.banner = Banner(message: "대신 처리했어요")
+        })
+    }
+
+    func give(_ todo: Todo, to member: MemberSummary, note: String?, isUndo: Bool = false) {
+        let api = api, userId = userId
+        let from = todo.ownerId
+        let top = todos.filter { $0.ownerId == member.userId && $0.id != todo.id }.map(\.position).min() ?? 1
+        openTodoId = nil
+        mutate(todo.id, optimistic: { list in
+            update(todo.id, in: &list) {
+                $0.ownerId = member.userId
+                $0.givenBy = userId
+                $0.position = top - 1
+                $0.participantIds = $0.participants.filter { $0 != member.userId }
+            }
+        }, request: {
+            _ = try await api.giveTodo(todoId: todo.id, toUserId: member.userId, note: note)
+        }, onSuccess: { [weak self] in
+            guard let self, !isUndo, let original = self.member(from) else { return }
+            var moved = todo
+            moved.ownerId = member.userId
+            self.banner = Banner(message: "\(member.displayName)님에게 넘겼어요") { [weak self] in
+                self?.banner = nil
+                self?.give(moved, to: original, note: nil, isUndo: true)
+            }
+        })
+    }
+
+    func addNote(_ todo: Todo, content: String) {
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        // 메모는 작성자 이름·아바타 조인이 필요해서 낙관적으로 그리지 않는다
+        Task {
+            do { _ = try await api.addNote(todoId: todo.id, content: trimmed) } catch {
+                banner = Banner(message: Self.message(error))
+            }
+            await load()
+        }
+    }
+
+    func setJoined(_ todo: Todo, _ join: Bool) {
+        let api = api, userId = userId
+        mutate(todo.id, optimistic: { list in
+            update(todo.id, in: &list) {
+                $0.participantIds = join ? $0.participants + [userId] : $0.participants.filter { $0 != userId }
+            }
+        }) {
+            if join { try await api.joinTodo(todoId: todo.id) } else { try await api.leaveTodo(todoId: todo.id) }
+        }
+    }
+
+    /// 서버가 준 해요체 문구는 그대로, 나머지는 사람이 읽을 말로.
+    static func message(_ error: any Error) -> String {
+        switch error {
+        case APIError.server(let text): text
+        case APIError.unauthorized: "다시 로그인해 주세요."
+        case APIError.rateLimited: "잠시 후에 다시 시도해 주세요."
+        default: "연결이 불안정해요. 잠시 후에 다시 시도해 주세요."
+        }
+    }
+}

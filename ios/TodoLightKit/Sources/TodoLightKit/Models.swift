@@ -88,31 +88,56 @@ public struct TodoNote: Decodable, Sendable, Identifiable {
     public let authorAvatarUrl: String?
 }
 
+/// 서버가 정하는 칸(`id`·`orgId`·`createdBy`·시각)은 `let`, 화면이 낙관적으로 먼저 바꾸는 칸은
+/// `var`다 — 앱이 응답을 기다리지 않고 체크·넘기기를 그릴 수 있어야 한다(웹 `useTodoMutations`).
 public struct Todo: Decodable, Sendable, Identifiable {
     public let id: String
     public let orgId: String
     /// 보드에서 어느 컬럼에 놓일지를 정하는 값. `createdBy`와 다르면 남이 부탁한 할 일이다.
-    public let ownerId: String
-    public let title: String
-    public let status: TodoStatus
+    public var ownerId: String
+    public var title: String
+    public var status: TodoStatus
     /// `YYYY-MM-DD` 또는 nil. **Date로 바꾸지 말 것** — 기기 시간대에 따라 하루가 밀린다.
-    public let dueDate: String?
-    public let position: Double
+    public var dueDate: String?
+    public var position: Double
     public let createdBy: String
     /// 마지막으로 넘긴 사람(`todos/give`). `ownerId`와 다르면 "OOO이 넘김" 배지.
-    public let givenBy: String?
+    public var givenBy: String?
     /// 남이 대신 처리했으면 그 사람. 본인 처리면 `ownerId`와 같다.
-    public let handledBy: String?
-    public let completedAt: Date?
+    public var handledBy: String?
+    public var completedAt: Date?
     public let createdAt: Date
     public let updatedAt: Date
     /// 소프트 삭제 시각. 목록 조회에는 애초에 안 실려 오지만, 실시간 UPDATE로는 온다.
-    public let deletedAt: Date?
+    public var deletedAt: Date?
 
     /// 조인해서 채우는 필드들. **상태 변경류 응답에는 안 담긴다** — 그래서 옵셔널이고,
     /// 캐시에 병합할 때 기존 값을 유지해야 한다(웹 `useBoardRealtime`과 같은 규칙).
-    public let notes: [TodoNote]?
-    public let participantIds: [String]?
+    public var notes: [TodoNote]?
+    public var participantIds: [String]?
+
+    /// 낙관적으로 그릴 새 할 일. id는 **클라이언트가 정해** `createTodo(id:)`에도 같은 값을 넘긴다.
+    public init(
+        id: String, orgId: String, ownerId: String, title: String, dueDate: String?,
+        position: Double, createdBy: String, now: Date = Date()
+    ) {
+        self.id = id
+        self.orgId = orgId
+        self.ownerId = ownerId
+        self.title = title
+        self.status = .todo
+        self.dueDate = dueDate
+        self.position = position
+        self.createdBy = createdBy
+        self.givenBy = nil
+        self.handledBy = nil
+        self.completedAt = nil
+        self.createdAt = now
+        self.updatedAt = now
+        self.deletedAt = nil
+        self.notes = []
+        self.participantIds = []
+    }
 
     public var noteList: [TodoNote] { notes ?? [] }
     public var participants: [String] { participantIds ?? [] }

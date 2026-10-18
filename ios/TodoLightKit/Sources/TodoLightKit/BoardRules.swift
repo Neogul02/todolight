@@ -47,6 +47,22 @@ public enum BoardRules {
         return lhs.position < rhs.position
     }
 
+    /// 실시간으로 온 행 하나를 목록에 합친다 — 웹 `useBoardRealtime`과 같은 규칙.
+    ///
+    /// - 소프트 삭제는 DELETE가 아니라 `deletedAt`이 찬 UPDATE로 온다 → 목록에서 걷어낸다.
+    /// - 메모·참여자는 실시간 행에 없다 → 이미 들고 있던 값을 지킨다(안 그러면 메모가 사라진다).
+    /// - 처음 보는 행이면 더한다. 정렬은 화면이 `split`으로 하므로 여기서는 하지 않는다.
+    public static func merge(_ todos: [Todo], row: Todo) -> [Todo] {
+        if row.deletedAt != nil { return todos.filter { $0.id != row.id } }
+        guard let i = todos.firstIndex(where: { $0.id == row.id }) else { return todos + [row] }
+        var merged = row
+        merged.notes = row.notes ?? todos[i].notes
+        merged.participantIds = row.participantIds ?? todos[i].participantIds
+        var next = todos
+        next[i] = merged
+        return next
+    }
+
     /// 사람 이름 뒤에 붙는 주격 조사. 받침이 있으면 "이", 없으면 "가".
     ///
     /// "최진형**이** 부탁" / "최진우**가** 부탁". 하나로 고정하면 반드시 한쪽이 어색해진다.

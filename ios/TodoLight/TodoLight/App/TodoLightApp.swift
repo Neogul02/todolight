@@ -12,7 +12,7 @@ struct TodoLightApp: App {
     }
 }
 
-/// 로그인 여부로만 가른다. 조직·보드는 M2 다음 단계에서 SmokeView 자리를 대신한다.
+/// 로그인 여부로만 가른다.
 struct RootView: View {
     @Environment(SessionStore.self) private var session
 
@@ -22,8 +22,8 @@ struct RootView: View {
             ProgressView()
         case .signedOut:
             LoginView()
-        case .signedIn:
-            SmokeView()
+        case .signedIn(let userId):
+            BoardRootView(userId: userId)
         }
     }
 }

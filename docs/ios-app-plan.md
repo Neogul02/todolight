@@ -734,8 +734,8 @@ Group 확정, `ios/` 스캐폴딩). 그리고 Supabase의 **이메일 확인이 
 - [x] 이메일 로그인·가입 + SmokeView (2026-10-17)
 - [ ] Sign in with Apple + 이메일 로그인
 - [x] `TodoLightKit` 모델 + `APIClient` + `APIResponse` — 2026-09-08 완료
-- [ ] 보드 화면 (가로 캐러셀, 카드, 체크, 추가) — 낙관적 반영 포함
-- [ ] Realtime 구독 + 캐시 병합 (`useBoardRealtime` 규칙 이식)
+- [x] 보드 화면 (가로 캐러셀, 카드, 체크, 추가, 지우기·실행취소, 대신 처리, 넘기기, 같이하기, 메모) — 낙관적 반영 포함 · 2026-10-18 (마감 선택은 M3 DuePicker)
+- [x] Realtime 구독 + 캐시 병합 (`useBoardRealtime` 규칙 이식, `BoardRules.merge`) — 2026-10-18, INSERT·소프트 삭제가 2초 안에 반영되는 것 실측
 - [ ] 테마 생성기 + 6종 적용
 
 ✅ **완료 기준**: 실기기에서 웹과 동시에 열어 두고, 한쪽에서 체크하면 반대쪽이 1초 안에 따라온다.
