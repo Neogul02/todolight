@@ -94,7 +94,12 @@ struct BoardView: View {
             }
         }
         .task { await start() }
-        .onDisappear { Task { await store.stopRealtime() } }
+        .onDisappear {
+            Task {
+                await store.stopRealtime()
+                await ledger?.stopRealtime()
+            }
+        }
         .onChange(of: refreshToken) { _, _ in Task { await store.load() } }
         .onChange(of: store.themePreference) { _, pref in if let pref { theme.preference = pref } }
         .onChange(of: store.localePreference) { _, pref in

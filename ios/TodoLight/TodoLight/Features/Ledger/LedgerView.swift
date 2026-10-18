@@ -1,3 +1,4 @@
+import Supabase
 import SwiftUI
 import TodoLightKit
 
@@ -15,6 +16,9 @@ final class LedgerStore {
     private(set) var loading = true
     private(set) var error: String?
     @ObservationIgnored let banner: (BoardStore.Banner) -> Void
+    @ObservationIgnored private var channel: RealtimeChannelV2?
+    @ObservationIgnored private var listener: Task<Void, Never>?
+    @ObservationIgnored private var reloadTask: Task<Void, Never>?
 
     private var api: APIClient { Backend.shared.api }
 
@@ -58,6 +62,44 @@ final class LedgerStore {
         }
         // 이미 떠난 달의 응답이면 로딩을 끝내지 않는다 — 끝내면 지금 달이 잠깐 ₩0으로 보인다
         if asked == month { loading = false }
+    }
+
+    // MARK: 실시간 — 웹 useLedgerRealtime과 같다
+
+    /// 팀원이 적은 지출이 바로 보이게 `ledger-{orgId}`를 구독한다.
+    /// 들어온 행을 목록에 직접 끼우지 않고 **다시 읽는다** — 그 행이 지금 보는 달인지 가리는 분기를 넣으면
+    /// 달을 넘길 때 어긋날 거리가 하나 는다(CLAUDE.md 「가계부」). 한 달치는 몇십 줄이다.
+    func startRealtime() async {
+        guard channel == nil else { return }
+        let channel = Backend.shared.supabase.channel("ledger-\(orgId)")
+        let changes = channel.postgresChange(AnyAction.self, table: "ledger_entries", filter: "org_id=eq.\(orgId)")
+        self.channel = channel
+        listener = Task { [weak self] in
+            for await _ in changes { self?.reloadSoon() }
+        }
+        do {
+            try await channel.subscribeWithError()
+        } catch {
+            // 조용히 죽은 채로 두지 않는다 — 비워 두면 다음에 패널이 보일 때 다시 붙는다
+            await stopRealtime()
+        }
+    }
+
+    func stopRealtime() async {
+        listener?.cancel()
+        listener = nil
+        if let channel { await Backend.shared.supabase.removeChannel(channel) }
+        channel = nil
+    }
+
+    /// 여러 줄이 연달아 들어와도(한 사람이 몇 건을 몰아 적는 경우) 한 번만 읽는다
+    private func reloadSoon() {
+        reloadTask?.cancel()
+        reloadTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            await self?.load()
+        }
     }
 
     func add(amount: Int64, title: String, spentOn: String) async -> Bool {
@@ -127,7 +169,10 @@ struct LedgerView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .refreshable { await store.load() }
-        .task { await store.load() }
+        .task {
+            await store.load()
+            await store.startRealtime()
+        }
         .onAppear { spentOn = Self.defaultDay(of: store.month) }
         .onChange(of: store.month) { _, m in spentOn = Self.defaultDay(of: m) }
         // 팀원이 적은 지출 — 실시간 채널 대신 앱이 앞으로 돌아올 때 다시 읽는다
