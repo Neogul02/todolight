@@ -736,16 +736,18 @@ Group 확정, `ios/` 스캐폴딩). 그리고 Supabase의 **이메일 확인이 
 - [x] `TodoLightKit` 모델 + `APIClient` + `APIResponse` — 2026-09-08 완료
 - [x] 보드 화면 (가로 캐러셀, 카드, 체크, 추가, 지우기·실행취소, 대신 처리, 넘기기, 같이하기, 메모) — 낙관적 반영 포함 · 2026-10-18 (마감 선택은 M3 DuePicker)
 - [x] Realtime 구독 + 캐시 병합 (`useBoardRealtime` 규칙 이식, `BoardRules.merge`) — 2026-10-18, INSERT·소프트 삭제가 2초 안에 반영되는 것 실측
-- [ ] 테마 생성기 + 6종 적용
+- [x] 테마 생성기 + 6종 적용 — 2026-10-18 `scripts/gen-ios-theme.mjs` → `Tokens.swift`, Pretendard 번들, 웹과 같은 카드·칩·탭바·모션
 
 ✅ **완료 기준**: 실기기에서 웹과 동시에 열어 두고, 한쪽에서 체크하면 반대쪽이 1초 안에 따라온다.
 
 ### M3 — 나머지 화면 + 오프라인 · 2주
 
+> 순서와 화면별 완료 기준은 `.omc/plans/ios-m3-screens.md` — 심사를 막는 계정 삭제부터 한다.
+
 - [ ] 달력, 가계부, 팀, 내 설정
-- [ ] `DuePicker` Swift판
+- [x] `DuePicker` Swift판 — 2026-10-18 (`Theme/Components.swift`의 `DuePillView`·`DuePicker`)
 - [ ] SwiftData 캐시 + 오프라인 큐
-- [ ] 계정 삭제 화면 (심사 필수)
+- [x] 계정 삭제 화면 (심사 필수) — 2026-10-18 내 설정 맨 아래 + 확인 시트(무슨 일이 벌어지는지 적는다)
 - [ ] Privacy Manifest (`PrivacyInfo.xcprivacy`) — 2024년 5월부터 필수
 
 ✅ **완료 기준**: 비행기 모드로 앱을 열면 마지막 상태가 보이고, 체크한 게 온라인 복귀 후 반영된다.

@@ -9,6 +9,7 @@ struct BoardView: View {
     let org: OrganizationSummary
     let orgs: [OrganizationSummary]
     let onSwitchOrg: (String) -> Void
+    let onOpen: (AppRoute) -> Void
 
     @Environment(SessionStore.self) private var session
     @Environment(ThemeStore.self) private var theme
@@ -20,10 +21,12 @@ struct BoardView: View {
     @State private var givingTodo: Todo?
     @State private var menuOpen = false
 
-    init(org: OrganizationSummary, orgs: [OrganizationSummary], userId: String, onSwitchOrg: @escaping (String) -> Void) {
+    init(org: OrganizationSummary, orgs: [OrganizationSummary], userId: String,
+         onSwitchOrg: @escaping (String) -> Void, onOpen: @escaping (AppRoute) -> Void) {
         self.org = org
         self.orgs = orgs
         self.onSwitchOrg = onSwitchOrg
+        self.onOpen = onOpen
         _store = State(initialValue: BoardStore(orgId: org.id, userId: userId))
     }
 
@@ -69,6 +72,9 @@ struct BoardView: View {
             ProfileSheet(me: store.me, org: org, orgs: orgs, onSwitchOrg: { id in
                 menuOpen = false
                 onSwitchOrg(id)
+            }, onOpen: { route in
+                menuOpen = false
+                onOpen(route)
             }, onSignOut: { Task { await session.signOut() } })
         }
     }

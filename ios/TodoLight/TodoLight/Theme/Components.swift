@@ -149,6 +149,8 @@ struct TLButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
     var variant: Variant = .primary
     var size: Size = .md
+    /// 폭을 꽉 채운다(웹 `w-full`). 바깥 `.frame(maxWidth:)`로는 버튼의 배경이 안 늘어난다.
+    var fill = false
 
     func makeBody(configuration: Configuration) -> some View {
         let (bg, fg, border): (Color, Color, Color?) = switch variant {
@@ -161,7 +163,7 @@ struct TLButtonStyle: ButtonStyle {
             .font(.tl(size == .sm ? 13 : 15, .medium))
             .foregroundStyle(fg)
             .padding(.horizontal, size == .sm ? 14 : 16)
-            .frame(minHeight: size == .sm ? 40 : 48)
+            .frame(maxWidth: fill ? .infinity : nil, minHeight: size == .sm ? 40 : 48)
             .background(bg, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay {
                 if let border {

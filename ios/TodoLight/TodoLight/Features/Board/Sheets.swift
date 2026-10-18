@@ -51,9 +51,9 @@ struct HandoffSheet: View {
                     onSubmit(trimmed)
                     dismiss()
                 }
-                .buttonStyle(TLButtonStyle())
+                .buttonStyle(TLButtonStyle(fill: true))
                 .disabled(trimmed.isEmpty)
-                Button("취소") { dismiss() }.buttonStyle(TLButtonStyle(variant: .outline))
+                Button("취소") { dismiss() }.buttonStyle(TLButtonStyle(variant: .outline, fill: true))
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 12)
@@ -116,6 +116,7 @@ struct ProfileSheet: View {
     let org: OrganizationSummary
     let orgs: [OrganizationSummary]
     let onSwitchOrg: (String) -> Void
+    let onOpen: (AppRoute) -> Void
     let onSignOut: () -> Void
 
     var body: some View {
@@ -139,9 +140,18 @@ struct ProfileSheet: View {
                     .disabled(o.id == org.id)
                 }
             }
+            Text("관리").font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary)
+                .padding(.horizontal, 4).padding(.top, 20).padding(.bottom, 8)
+            Button { onOpen(.me) } label: {
+                Text("내 설정").font(.tl(15, .medium)).foregroundStyle(tk.ink)
+                .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                .padding(.horizontal, 12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(RowPress())
+
             Button("로그아웃", action: onSignOut)
-                .buttonStyle(TLButtonStyle(variant: .outline))
-                .frame(maxWidth: .infinity)
+                .buttonStyle(TLButtonStyle(variant: .outline, fill: true))
                 .padding(.top, 16)
         }
         .presentationDetents([.medium, .large])

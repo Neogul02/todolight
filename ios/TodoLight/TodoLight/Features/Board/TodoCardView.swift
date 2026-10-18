@@ -223,7 +223,7 @@ private struct TodoCardOpenContent: View {
                 .onSubmit(submitEdit)
                 .tlField(height: 40)
             HStack(spacing: 6) {
-                Button("취소") { editing = false }.buttonStyle(TLButtonStyle(variant: .outline)).frame(maxWidth: .infinity)
+                Button("취소") { editing = false }.buttonStyle(TLButtonStyle(variant: .outline, fill: true))
                 Button("저장", action: submitEdit).buttonStyle(TLButtonStyle())
                     .disabled(draftTitle.trimmingCharacters(in: .whitespaces).isEmpty)
             }

@@ -58,6 +58,17 @@ public struct MemberSummary: Decodable, Sendable, Identifiable {
     public let email: String?
 
     public var id: String { userId }
+
+    /// 서버 응답이 아닌 자리(내 설정의 미리보기 아바타 등)에서 같은 모양을 쓰려고
+    public init(userId: String, role: MemberRole, displayName: String,
+                avatarColor: String?, avatarUrl: String?, email: String?) {
+        self.userId = userId
+        self.role = role
+        self.displayName = displayName
+        self.avatarColor = avatarColor
+        self.avatarUrl = avatarUrl
+        self.email = email
+    }
 }
 
 public struct OrgInvite: Decodable, Sendable, Identifiable {
