@@ -91,7 +91,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var T=['ink','ink-dark','solarized','nord','dracula'];var DARK=['ink-dark','nord','dracula'];var p=localStorage.getItem('todolight_theme')||'system';var t=T.indexOf(p)>=0?p:(matchMedia('(prefers-color-scheme: dark)').matches?'ink-dark':'ink');document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');if(m)m.content=DARK.indexOf(t)>=0?'black':'default'}catch(e){}})()`,
+            __html: `(function(){try{var T=['ink','ink-dark'];var DARK=['ink-dark'];var p=localStorage.getItem('todolight_theme')||'system';var t=T.indexOf(p)>=0?p:(matchMedia('(prefers-color-scheme: dark)').matches?'ink-dark':'ink');document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');if(m)m.content=DARK.indexOf(t)>=0?'black':'default'}catch(e){}})()`,
           }}
         />
       </head>

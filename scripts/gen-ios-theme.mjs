@@ -16,8 +16,8 @@ const TOKENS = [
   'glass-bg', 'glass-bg-strong', 'glass-border', 'glass-sheen',
   'glass-card-bg', 'glass-card-bg-alt', 'canvas-tint-a', 'canvas-tint-b',
 ];
-const THEMES = ['ink', 'ink-dark', 'solarized', 'nord', 'dracula'];
-const DARK = ['ink-dark', 'nord', 'dracula'];
+const THEMES = ['ink', 'ink-dark'];
+const DARK = ['ink-dark'];
 
 /** 선택자 목록 → 그 블록의 `--x: v;` 선언들 */
 function blocks() {

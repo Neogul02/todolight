@@ -91,7 +91,7 @@ struct MeView: View {
     private var themeCard: some View {
         card {
             Text("테마").font(.tlTitle).foregroundStyle(tk.ink)
-            // 3열 두 줄 — 개수를 바꾸면 격자가 어그러진다(CLAUDE.md 「디자인 시스템」)
+            // 시스템 · 화이트 · 다크 — 3열 한 줄
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
                 ForEach(Self.themes, id: \.key) { t in
                     let on = theme.preference == t.key
@@ -306,9 +306,6 @@ struct MeView: View {
         ("system", "시스템", ["#ffffff", "#101010", "#8a8a8a"]),
         ("ink", "화이트", ["#ffffff", "#f4f2ee", "#14120f"]),
         ("ink-dark", "다크", ["#101010", "#232221", "#f5f2ec"]),
-        ("solarized", "Solarized", ["#fdf6e3", "#eee8d5", "#073642"]),
-        ("nord", "Nord", ["#2e3440", "#3b4252", "#88c0d0"]),
-        ("dracula", "Dracula", ["#282a36", "#44475a", "#bd93f9"]),
     ]
 }
 

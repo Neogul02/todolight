@@ -5,22 +5,20 @@ export interface ThemeDef {
 }
 
 /** 실제로 화면에 칠해지는 테마. data-theme 값이 된다 */
-export const RESOLVED_THEMES = ['ink', 'ink-dark', 'solarized', 'nord', 'dracula'] as const;
+export const RESOLVED_THEMES = ['ink', 'ink-dark'] as const;
 export type ResolvedTheme = (typeof RESOLVED_THEMES)[number];
 
 /**
  * 고를 수 있는 값.
- * 윗줄은 기본 3종(맡기기·밝게·어둡게), 아랫줄은 널리 쓰이는 팔레트 3종이다.
- * 3열 격자에 두 줄로 딱 맞는다.
+ * 맡기기(시스템) · 밝게(화이트) · 어둡게(다크) 세 가지 — 3열 격자 한 줄이다.
+ * 팔레트 테마 3종은 2026-10-18에 걷어 냈다(그때 고르고 있던 사람은 없었다). DB에 모르는 값이
+ * 남아 있어도 resolveTheme이 기기 설정으로 떨어뜨린다.
  * 이름은(로케일별) messages/*.json의 me.theme.names.{key}에 있다.
  */
 export const THEMES: ThemeDef[] = [
   { key: 'system', swatch: ['#ffffff', '#101010', '#8a8a8a'] },
   { key: 'ink', swatch: ['#ffffff', '#f4f2ee', '#14120f'] },
   { key: 'ink-dark', swatch: ['#101010', '#232221', '#f5f2ec'] },
-  { key: 'solarized', swatch: ['#fdf6e3', '#eee8d5', '#073642'] },
-  { key: 'nord', swatch: ['#2e3440', '#3b4252', '#88c0d0'] },
-  { key: 'dracula', swatch: ['#282a36', '#44475a', '#bd93f9'] },
 ];
 
 export const DEFAULT_THEME = 'system';
@@ -32,7 +30,7 @@ export const DEFAULT_THEME = 'system';
   이 묶음을 기준으로 그 메타 태그도 직접 맞춰 줘야 한다(app/layout.tsx의 인라인 스크립트,
   app/providers.tsx의 paint 참고).
 */
-const DARK_THEMES: readonly ResolvedTheme[] = ['ink-dark', 'nord', 'dracula'];
+const DARK_THEMES: readonly ResolvedTheme[] = ['ink-dark'];
 
 export function isDarkTheme(theme: ResolvedTheme): boolean {
   return DARK_THEMES.includes(theme);

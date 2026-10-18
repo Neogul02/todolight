@@ -49,7 +49,7 @@ export function splashSlug(screen: SplashScreen, dark: boolean): string {
  * 어두운 테마를 쓰는 사람에게 흰 판이 번쩍이는 게 이 작업의 본래 목적이라,
  * 밝은 쪽에도 `(prefers-color-scheme: light)`를 명시해 둘이 동시에 맞는 일이 없게 한다.
  *
- * 앱 안에서 고른 테마(Solarized 등)가 아니라 **기기 설정**을 따른다 —
+ * 앱 안에서 고른 테마(화이트·다크)가 아니라 **기기 설정**을 따른다 —
  * 스플래시는 앱 코드가 실행되기 전에 뜨는 그림이라 그때는 저장된 테마를 알 길이 없다.
  */
 export function splashMedia(screen: SplashScreen, dark: boolean): string {

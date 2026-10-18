@@ -21,10 +21,7 @@
       "names": {
         "system": "시스템",
         "ink": "화이트",
-        "ink-dark": "다크",
-        "solarized": "Solarized",
-        "nord": "Nord",
-        "dracula": "Dracula"
+        "ink-dark": "다크"
       }
     },
     "viewTitle": "화면",

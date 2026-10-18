@@ -21,10 +21,7 @@
       "names": {
         "system": "System",
         "ink": "Light",
-        "ink-dark": "Dark",
-        "solarized": "Solarized",
-        "nord": "Nord",
-        "dracula": "Dracula"
+        "ink-dark": "Dark"
       }
     },
     "viewTitle": "What to show",

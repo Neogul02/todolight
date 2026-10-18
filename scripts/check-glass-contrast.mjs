@@ -13,7 +13,7 @@
  */
 import { readFileSync } from 'node:fs';
 
-const THEMES = ['ink', 'ink-dark', 'solarized', 'nord', 'dracula'];
+const THEMES = ['ink', 'ink-dark'];
 const rawCss = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');
 /* 주석을 먼저 걷어낸다 — 선택자 바로 앞 주석이 선택자 문자열에 붙어 버리고,
    주석 안의 쉼표까지 선택자 구분자로 읽혀 테마 블록을 놓친다. */

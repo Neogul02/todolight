@@ -30,7 +30,7 @@
 - **서버 액션 41개의 로직** — 가드, zod 검증, Discord 알림, `position` 계산. 재작성 대상이 아니다.
 - **`CLAUDE.md`에 적힌 결정들** — 이게 제일 값나가는 자산이다. 컬럼 정렬 규칙(지난 마감 → 오늘 →
   나중 → 마감 없음), "부탁" 배지 조건, `subjectParticle` 조사 처리, 소프트 삭제 + 실행취소,
-  카드 펼침은 한 번에 하나, 테마 토큰 6종. **코드는 못 옮기지만 결정은 1:1로 옮긴다.**
+  카드 펼침은 한 번에 하나, 테마 토큰 3종. **코드는 못 옮기지만 결정은 1:1로 옮긴다.**
   Swift로 다시 짜면서 이걸 안 보면 반드시 다른 앱이 된다.
 - **`messages/{ko,en}.json`** — String Catalog(`.xcstrings`)로 변환 가능. [§8](#8-웹에서-못-가져오는-것)
 
@@ -553,7 +553,7 @@ Vercel → APNs보다 Supabase 내부에서 나가는 게 짧다), Next 요청 �
 
 ### 테마 — 생성으로 동기화한다
 
-테마는 6종이고 **유료화 계획이 있다**(`THEMES`의 `free: false`). 손으로 옮기면 테마를
+테마는 3종(2026-10-18에 6종에서 줄였다)이고 **유료화 계획이 있었다**(`THEMES`의 `free: false`). 손으로 옮기면 테마를
 추가할 때 두 곳을 고쳐야 하고, 반드시 한쪽만 고친 채로 출시된다.
 
 `ios/Tools/generate-theme.ts`가 `app/globals.css`의 `:root[data-theme=...]` 블록과
@@ -736,7 +736,7 @@ Group 확정, `ios/` 스캐폴딩). 그리고 Supabase의 **이메일 확인이 
 - [x] `TodoLightKit` 모델 + `APIClient` + `APIResponse` — 2026-09-08 완료
 - [x] 보드 화면 (가로 캐러셀, 카드, 체크, 추가, 지우기·실행취소, 대신 처리, 넘기기, 같이하기, 메모) — 낙관적 반영 포함 · 2026-10-18 (마감 선택은 M3 DuePicker)
 - [x] Realtime 구독 + 캐시 병합 (`useBoardRealtime` 규칙 이식, `BoardRules.merge`) — 2026-10-18, INSERT·소프트 삭제가 2초 안에 반영되는 것 실측
-- [x] 테마 생성기 + 6종 적용 — 2026-10-18 `scripts/gen-ios-theme.mjs` → `Tokens.swift`, Pretendard 번들, 웹과 같은 카드·칩·탭바·모션
+- [x] 테마 생성기 + 3종(시스템·화이트·다크) 적용 — 2026-10-18 `scripts/gen-ios-theme.mjs` → `Tokens.swift`, Pretendard 번들, 웹과 같은 카드·칩·탭바·모션
 
 ✅ **완료 기준**: 실기기에서 웹과 동시에 열어 두고, 한쪽에서 체크하면 반대쪽이 1초 안에 따라온다.
 
