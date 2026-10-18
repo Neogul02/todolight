@@ -92,7 +92,8 @@ public struct TodoNote: Codable, Sendable, Identifiable {
     public let id: String
     public let todoId: String
     public let authorId: String
-    public let content: String
+    /// 내 메모를 고치면 화면이 먼저 바꾼다(작성자는 그대로라 낙관적으로 그릴 수 있다)
+    public var content: String
     public let createdAt: Date
     public let authorName: String?
     public let authorColor: String?

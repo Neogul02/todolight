@@ -394,6 +394,34 @@ final class BoardStore {
         }
     }
 
+    /// 내 메모 고치기 — 작성자·아바타는 그대로라 낙관적으로 바꾼다(웹 editNote)
+    func editNote(_ todo: Todo, noteId: String, content: String) {
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let api = api
+        mutate(todo.id, optimistic: { list in
+            update(todo.id, in: &list) { t in
+                t.notes = t.notes?.map { n in
+                    var n = n
+                    if n.id == noteId { n.content = trimmed }
+                    return n
+                }
+            }
+        }) {
+            _ = try await api.updateNote(noteId: noteId, content: trimmed)
+        }
+    }
+
+    /// 내 메모 지우기 — **하드 삭제**라 되살릴 수 없다. 짧은 메모 한 줄이라 할 일과 달리 실행취소 없이 바로(웹과 같다)
+    func deleteNote(_ todo: Todo, noteId: String) {
+        let api = api
+        mutate(todo.id, optimistic: { list in
+            update(todo.id, in: &list) { $0.notes = $0.notes?.filter { $0.id != noteId } }
+        }) {
+            try await api.deleteNote(noteId: noteId)
+        }
+    }
+
     func setJoined(_ todo: Todo, _ join: Bool) {
         let api = api, userId = userId
         mutate(todo.id, optimistic: { list in

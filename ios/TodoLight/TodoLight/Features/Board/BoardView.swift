@@ -93,6 +93,9 @@ struct BoardView: View {
                        hasInvites: !invites.isEmpty,
                        onProfile: { menuOpen = true })
             }
+            // 키보드가 올라와도 탭바는 화면 밑에 남는다(키보드 뒤로 숨는다). 따라 올라오면
+            // 메모 고치기의 저장 버튼처럼 바로 위의 입력 줄을 덮는다.
+            .ignoresSafeArea(.keyboard, edges: .bottom)
         }
         .task { await start() }
         .onDisappear {

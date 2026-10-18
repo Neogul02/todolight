@@ -135,6 +135,10 @@ private struct TodoCardOpenContent: View {
     @State private var editBase = ""
     @State private var dueOpen = false
     @FocusState private var titleFocused: Bool
+    /// 고치는 중인 내 메모 — 한 번에 하나
+    @State private var editingNoteId: String?
+    @State private var noteDraft = ""
+    @FocusState private var noteFocused: Bool
 
     private var canManage: Bool { store.canManage(todo) }
     private var isMine: Bool { todo.ownerId == store.userId }
@@ -154,10 +158,54 @@ private struct TodoCardOpenContent: View {
         .padding(.bottom, 6)
     }
 
-    private func noteRow(_ n: TodoNote) -> some View {
+    @ViewBuilder private func noteRow(_ n: TodoNote) -> some View {
+        let mine = n.authorId == store.userId
+        if editingNoteId == n.id {
+            VStack(spacing: 6) {
+                TextField("", text: $noteDraft)
+                    .focused($noteFocused)
+                    .submitLabel(.done)
+                    .onSubmit { submitNoteEdit(n) }
+                    .tlField(height: 36)
+                HStack(spacing: 6) {
+                    Button(tr("취소", "Cancel")) { editingNoteId = nil }
+                        .buttonStyle(TLButtonStyle(variant: .outline, size: .sm, fill: true))
+                    Button(tr("저장", "Save")) { submitNoteEdit(n) }
+                        .buttonStyle(TLButtonStyle(size: .sm, fill: true))
+                        .disabled(noteDraft.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+            .padding(.horizontal, 10).padding(.vertical, 8)
+            .background(tk.canvasSoft, in: RoundedRectangle(cornerRadius: 8))
+        } else {
+            noteBody(n, mine: mine)
+        }
+    }
+
+    /// 내 메모는 누르면 고치고 옆 X로 지운다. 남의 메모는 읽기만 — 누를 거리도 X도 없다.
+    private func noteBody(_ n: TodoNote, mine: Bool) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(n.content).font(.tlCaption).foregroundStyle(tk.inkSecondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(alignment: .top, spacing: 6) {
+                Text(n.content).font(.tlCaption).foregroundStyle(tk.inkSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        guard mine else { return }
+                        noteDraft = n.content
+                        editingNoteId = n.id
+                        noteFocused = true
+                    }
+                    .accessibilityAddTraits(mine ? .isButton : [])
+                    .accessibilityHint(mine ? tr("눌러서 고치기", "Tap to edit") : "")
+                if mine {
+                    Button { store.deleteNote(todo, noteId: n.id) } label: {
+                        Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(tk.inkFaint)
+                            .frame(width: 24, height: 24)
+                    }
+                    .buttonStyle(PressScale())
+                    .accessibilityLabel(tr("메모 지우기", "Delete note"))
+                }
+            }
             HStack(spacing: 6) {
                 AvatarView(member: store.member(n.authorId), size: 16)
                 Text("\(n.authorName ?? tr("알 수 없음", "Unknown")) · \(Due.relative(Due.format(n.createdAt))) \(n.createdAt.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).locale(AppLang.locale)))")
@@ -243,6 +291,12 @@ private struct TodoCardOpenContent: View {
         editing = false
         guard draftTitle.trimmingCharacters(in: .whitespaces) != editBase else { return }
         store.rename(todo, to: draftTitle)
+    }
+
+    private func submitNoteEdit(_ n: TodoNote) {
+        editingNoteId = nil
+        guard noteDraft.trimmingCharacters(in: .whitespaces) != n.content else { return }
+        store.editNote(todo, noteId: n.id, content: noteDraft)
     }
 
     private func sendNote() {
