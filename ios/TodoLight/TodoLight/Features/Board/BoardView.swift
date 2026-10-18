@@ -61,6 +61,7 @@ struct BoardView: View {
                     }
                     .frame(maxHeight: .infinity)
                 case .ready:
+                    if store.offline { offlineStrip }
                     ZStack {
                         VStack(spacing: 0) {
                             chips
@@ -101,6 +102,8 @@ struct BoardView: View {
             }
         }
         .onChange(of: refreshToken) { _, _ in Task { await store.load() } }
+        // 연결이 돌아오는 순간 쌓아 둔 쓰기를 보내고 서버 상태로 맞춘다(load가 먼저 보낸다)
+        .onChange(of: Connectivity.shared.online) { _, up in if up { Task { await store.load() } } }
         .onChange(of: store.themePreference) { _, pref in if let pref { theme.preference = pref } }
         .onChange(of: store.localePreference) { _, pref in
             if let pref, let next = AppLang(rawValue: pref), next != lang.lang { lang.lang = next }
@@ -138,6 +141,22 @@ struct BoardView: View {
                 onOpen(route)
             }, onSignOut: { Task { await session.signOut() } })
         }
+    }
+
+    /// 오프라인 띠 — 지금 보는 게 마지막 상태라는 것, 쌓아 둔 쓰기가 몇 개인지를 한 줄로
+    private var offlineStrip: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "wifi.slash").font(.system(size: 11, weight: .semibold))
+            Text(store.queuedCount > 0
+                 ? tr("오프라인 · 연결되면 \(store.queuedCount)개를 보낼게요", "Offline · \(store.queuedCount) to send when you're back")
+                 : tr("오프라인 · 마지막으로 받은 화면이에요", "Offline · showing the last synced board"))
+                .font(.tl(12, .medium))
+        }
+        .foregroundStyle(tk.warning)
+        .padding(.horizontal, 12).frame(height: 28)
+        .background(tk.warningSoft, in: Capsule())
+        .padding(.top, 4)
+        .transition(.opacity)
     }
 
     /// 첫 진입과 "다시 시도"가 같은 순서를 탄다 — 읽기만 다시 하면 페이지도 실시간도 안 잡힌다.

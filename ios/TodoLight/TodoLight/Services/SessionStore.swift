@@ -37,6 +37,7 @@ final class SessionStore {
     }
 
     func signOut() async {
+        OfflineCache.clear()
         try? await Backend.shared.supabase.auth.signOut()
     }
 }

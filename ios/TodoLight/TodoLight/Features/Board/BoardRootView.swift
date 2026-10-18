@@ -77,7 +77,18 @@ struct BoardRootView: View {
         error = nil
         async let list = Backend.shared.api.fetchMyOrgs()
         async let mine = try? Backend.shared.api.fetchMyInvites()
-        do { orgs = try await list } catch { self.error = BoardStore.message(error) }
+        do {
+            let fresh = try await list
+            orgs = fresh
+            OfflineCache.save(fresh, as: "orgs")
+        } catch {
+            // 오프라인이면 마지막으로 받은 목록으로 보드까지 간다(보드는 자기 캐시로 그린다)
+            if orgs == nil, APIError.isOffline(error), let cached = OfflineCache.load([OrganizationSummary].self, key: "orgs") {
+                orgs = cached
+            } else if orgs == nil {
+                self.error = BoardStore.message(error)
+            }
+        }
         if let mine = await mine { invites = mine.filter { $0.status == .pending } }
     }
 

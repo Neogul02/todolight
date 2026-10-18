@@ -29,6 +29,10 @@ final class BoardStore {
     private(set) var localePreference: String?
     /// `profiles.show_ledger` — 끄면 탭바에서 가계부 칸이 사라진다
     private(set) var showLedger = true
+    /// 서버에 닿지 못하고 있다 — 화면은 마지막 상태(기기 캐시)와 쌓아 둔 쓰기로 그린다
+    private(set) var offline = false
+    /// 연결을 기다리는 쓰기 수(화면에 "N개 보낼 준비" 같은 안내를 띄우는 데 쓴다)
+    var queuedCount: Int { queue.count }
     /// 카드 펼침은 보드 전체에서 하나뿐이다
     var openTodoId: String?
     /// 화면 아래에 띄울 알림(에러·실행취소)
@@ -49,12 +53,54 @@ final class BoardStore {
     @ObservationIgnored private var resyncTask: Task<Void, Never>?
     @ObservationIgnored private var channel: RealtimeChannelV2?
     @ObservationIgnored private var listeners: [Task<Void, Never>] = []
+    /// 연결이 돌아오면 보낼 쓰기 — 기기에 저장해 앱을 껐다 켜도 남는다
+    private var queue: [PendingWrite] = [] {
+        didSet { OfflineCache.save(queue, as: "queue-\(orgId)") }
+    }
+    @ObservationIgnored private var flushing = false
 
     private var api: APIClient { Backend.shared.api }
 
     init(orgId: String, userId: String) {
         self.orgId = orgId
         self.userId = userId
+        // 마지막으로 본 보드를 먼저 그린다 — 서버 응답은 그 위에 덮는다
+        if let snap = OfflineCache.load(BoardSnapshot.self, key: "board-\(orgId)") {
+            todos = snap.todos
+            doneTotals = snap.doneTotals
+            members = snap.members
+            showDone = snap.showDone
+            showLedger = snap.showLedger
+            phase = .ready
+        }
+        queue = OfflineCache.load([PendingWrite].self, key: "queue-\(orgId)") ?? []
+    }
+
+    private func saveSnapshot() {
+        OfflineCache.save(
+            BoardSnapshot(todos: todos, doneTotals: doneTotals, members: members, showDone: showDone, showLedger: showLedger),
+            as: "board-\(orgId)"
+        )
+    }
+
+    /// 쌓아 둔 쓰기를 순서대로 보낸다. 다시 닿지 못하면 멈추고(다음 기회에), 서버가 거절한 것은 버리고 알린다.
+    func flush() async {
+        guard !queue.isEmpty, !flushing else { return }
+        flushing = true
+        defer { flushing = false }
+        while let next = queue.first {
+            do {
+                try await next.send(api)
+                queue.removeFirst()
+            } catch where APIError.isOffline(error) {
+                offline = true
+                return
+            } catch {
+                // 그 사이 남이 지웠거나 권한이 바뀌었다 — 다시 보내도 같은 답이라 버린다
+                queue.removeFirst()
+                banner = Banner(message: Self.message(error))
+            }
+        }
     }
 
     var me: MemberSummary? { members.first { $0.userId == userId } }
@@ -74,6 +120,7 @@ final class BoardStore {
     // MARK: - 읽기
 
     func load() async {
+        await flush()
         let startedAt = writeGeneration
         do {
             async let board = api.fetchBoard(orgId: orgId)
@@ -81,7 +128,8 @@ final class BoardStore {
             async let profile = api.fetchMyProfile()
             let (b, m, p) = try await (board, list, profile)
             // 출발한 뒤 쓰기가 있었거나 아직 날아다니면 목록은 낡았다 — 그 쓰기가 끝날 때 다시 읽는다
-            if writeGeneration == startedAt && pending.isEmpty {
+            // 아직 못 보낸 쓰기가 있으면 서버 목록은 그걸 모른다 — 덮으면 오프라인에서 한 체크가 풀린다
+            if writeGeneration == startedAt && pending.isEmpty && queue.isEmpty {
                 todos = b.todos
                 doneTotals = b.doneTotals
             }
@@ -91,7 +139,11 @@ final class BoardStore {
             showLedger = p.showLedger
             members = Self.order(m, me: userId, saved: p.memberOrder[orgId] ?? [])
             phase = .ready
+            offline = false
+            saveSnapshot()
         } catch {
+            if APIError.isOffline(error) { offline = true }
+            // 캐시로 이미 그리고 있으면 그대로 둔다 — 오프라인에서 빈 화면·에러보다 마지막 상태가 낫다
             if phase != .ready { phase = .failed(Self.message(error)) }
         }
     }
@@ -181,8 +233,10 @@ final class BoardStore {
     // MARK: - 쓰기
 
     /// 낙관적으로 바꾸고, 요청이 실패하면 되돌린다.
+    /// `queued`를 주면 **닿지 못해서** 실패했을 때 되돌리지 않고 큐에 넣는다(연결되면 보낸다).
     private func mutate(
         _ id: String,
+        queued: PendingWrite? = nil,
         optimistic: (inout [Todo]) -> Void,
         request: @escaping @Sendable () async throws -> Void,
         onSuccess: (@MainActor () -> Void)? = nil
@@ -196,6 +250,14 @@ final class BoardStore {
             do {
                 try await request()
                 onSuccess?()
+            } catch where queued != nil && APIError.isOffline(error) {
+                let firstTime = queue.isEmpty
+                queue.append(queued!)
+                offline = true
+                saveSnapshot()
+                if firstTime {
+                    banner = Banner(message: tr("오프라인이에요. 연결되면 바로 보낼게요.", "You're offline. We'll send it once you're back online."))
+                }
             } catch {
                 todos = snapshot
                 banner = Banner(message: Self.message(error))
@@ -218,7 +280,8 @@ final class BoardStore {
             title: trimmed, dueDate: dueDate, position: top - 1, createdBy: userId
         )
         let api = api, orgId = orgId
-        mutate(todo.id, optimistic: { $0.append(todo) }) {
+        mutate(todo.id, queued: .create(id: todo.id, orgId: orgId, title: trimmed, ownerId: ownerId, dueDate: dueDate),
+               optimistic: { $0.append(todo) }) {
             _ = try await api.createTodo(orgId: orgId, title: trimmed, ownerId: ownerId, dueDate: dueDate, id: todo.id)
         }
     }
@@ -228,7 +291,8 @@ final class BoardStore {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed != todo.title else { return }
         let api = api
-        mutate(todo.id, optimistic: { list in update(todo.id, in: &list) { $0.title = trimmed } }) {
+        mutate(todo.id, queued: .rename(todoId: todo.id, title: trimmed),
+               optimistic: { list in update(todo.id, in: &list) { $0.title = trimmed } }) {
             _ = try await api.updateTodo(todoId: todo.id, title: trimmed)
         }
     }
@@ -237,7 +301,8 @@ final class BoardStore {
     func setDue(_ todo: Todo, _ due: String?) {
         guard due != todo.dueDate else { return }
         let api = api
-        mutate(todo.id, optimistic: { list in update(todo.id, in: &list) { $0.dueDate = due } }) {
+        mutate(todo.id, queued: .setDue(todoId: todo.id, dueDate: due),
+               optimistic: { list in update(todo.id, in: &list) { $0.dueDate = due } }) {
             _ = try await api.updateTodo(todoId: todo.id, dueDate: due.map { .set($0) } ?? .clear)
         }
     }
@@ -247,7 +312,7 @@ final class BoardStore {
         let done = todo.status != .done
         let next: TodoStatus = done ? .done : .todo
         let api = api, userId = userId
-        mutate(todo.id, optimistic: { list in
+        mutate(todo.id, queued: .setStatus(todoId: todo.id, status: next), optimistic: { list in
             update(todo.id, in: &list) {
                 $0.status = next
                 // 서버와 같은 규칙으로 미리 채워야 "대신 처리" 배지가 깜빡이지 않는다
@@ -261,7 +326,7 @@ final class BoardStore {
 
     func remove(_ todo: Todo) {
         let api = api
-        mutate(todo.id, optimistic: { $0.removeAll { $0.id == todo.id } }, request: {
+        mutate(todo.id, queued: .delete(todoId: todo.id), optimistic: { $0.removeAll { $0.id == todo.id } }, request: {
             try await api.deleteTodo(todoId: todo.id)
         }, onSuccess: { [weak self] in
             // 소프트 삭제라 확인 창 대신 실행취소를 준다

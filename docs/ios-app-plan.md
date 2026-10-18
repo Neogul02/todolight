@@ -746,7 +746,7 @@ Group 확정, `ios/` 스캐폴딩). 그리고 Supabase의 **이메일 확인이 
 
 - [x] 달력, 가계부, 팀, 내 설정 — 2026-10-18 (+ 받은 초대 · 새 조직 · 조직 0개 화면 · 언어 설정)
 - [x] `DuePicker` Swift판 — 2026-10-18 (`Theme/Components.swift`의 `DuePillView`·`DuePicker`)
-- [ ] SwiftData 캐시 + 오프라인 큐
+- [x] 오프라인 캐시 + 쓰기 큐 — 2026-10-18. SwiftData 대신 JSON 파일(Caches/offline): 조직 목록·보드 스냅숏·대기 쓰기. 체크·추가·삭제·제목·마감만 큐에 넣는다(다시 보내도 같은 결과인 것). 실측: 닿지 않는 서버로 켜서 체크 → 큐 1건 → 정상 실행 시 전송·서버 반영
 - [x] 계정 삭제 화면 (심사 필수) — 2026-10-18 내 설정 맨 아래 + 확인 시트(무슨 일이 벌어지는지 적는다)
 - [x] Privacy Manifest (`PrivacyInfo.xcprivacy`) — 2026-10-18, UserDefaults CA92.1 · 수집 5종(계정 연결·앱 기능용·추적 없음)
 

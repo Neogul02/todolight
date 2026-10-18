@@ -8,5 +8,12 @@ enum AppConfig {
     static let supabaseURL = URL(string: "https://rscexhqsilstyogzatye.supabase.co")!
     static let supabaseAnonKey = "sb_publishable_fFDR8SYpfWojTJIwRStLYA_IpzKoP1T"
     /// `/api/v1`은 빼고 준다 — APIClient가 붙인다.
-    static let apiBaseURL = URL(string: "https://todolight.vercel.app")!
+    static let apiBaseURL: URL = {
+        #if DEBUG
+        // 오프라인 동작 확인용 — 닿지 않는 주소를 주면 모든 API가 "연결 없음"으로 실패한다.
+        //   SIMCTL_CHILD_TODOLIGHT_API_BASE=http://127.0.0.1:9 xcrun simctl launch …
+        if let raw = ProcessInfo.processInfo.environment["TODOLIGHT_API_BASE"], let url = URL(string: raw) { return url }
+        #endif
+        return URL(string: "https://todolight.vercel.app")!
+    }()
 }

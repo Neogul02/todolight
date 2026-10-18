@@ -38,7 +38,7 @@ public struct Organization: Decodable, Sendable, Identifiable {
 }
 
 /// `orgs/list`가 주는 것 — 조직에 내 역할과 멤버 수가 얹혀 있다.
-public struct OrganizationSummary: Decodable, Sendable, Identifiable {
+public struct OrganizationSummary: Codable, Sendable, Identifiable {
     public let id: String
     public let name: String
     public let ownerId: String
@@ -49,7 +49,7 @@ public struct OrganizationSummary: Decodable, Sendable, Identifiable {
 }
 
 /// 보드 컬럼 하나 = 멤버 한 명.
-public struct MemberSummary: Decodable, Sendable, Identifiable {
+public struct MemberSummary: Codable, Sendable, Identifiable {
     public let userId: String
     public let role: MemberRole
     public let displayName: String
@@ -88,7 +88,7 @@ public struct OrgInvite: Decodable, Sendable, Identifiable {
     public let registered: Bool?
 }
 
-public struct TodoNote: Decodable, Sendable, Identifiable {
+public struct TodoNote: Codable, Sendable, Identifiable {
     public let id: String
     public let todoId: String
     public let authorId: String
@@ -99,9 +99,10 @@ public struct TodoNote: Decodable, Sendable, Identifiable {
     public let authorAvatarUrl: String?
 }
 
+/// **Codable**인 이유: 앱이 마지막 보드를 기기에 저장해 오프라인에서도 띄운다(쓰는 쪽은 앱 캐시뿐 — 서버로 보내지 않는다).
 /// 서버가 정하는 칸(`id`·`orgId`·`createdBy`·시각)은 `let`, 화면이 낙관적으로 먼저 바꾸는 칸은
 /// `var`다 — 앱이 응답을 기다리지 않고 체크·넘기기를 그릴 수 있어야 한다(웹 `useTodoMutations`).
-public struct Todo: Decodable, Sendable, Identifiable {
+public struct Todo: Codable, Sendable, Identifiable {
     public let id: String
     public let orgId: String
     /// 보드에서 어느 컬럼에 놓일지를 정하는 값. `createdBy`와 다르면 남이 부탁한 할 일이다.
