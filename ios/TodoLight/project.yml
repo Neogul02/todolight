@@ -22,7 +22,10 @@ targets:
   TodoLight:
     type: application
     platform: iOS
-    sources: [TodoLight]
+    sources:
+      - path: TodoLight
+        # 에디터 플러그인이 작업 폴더마다 만드는 상태 폴더 — 앱 번들에 섞이면 빌드가 깨진다
+        excludes: ["**/.omc/**"]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.neogul02.todolight

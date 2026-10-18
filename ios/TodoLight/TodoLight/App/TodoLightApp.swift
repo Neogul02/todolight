@@ -3,11 +3,15 @@ import SwiftUI
 @main
 struct TodoLightApp: App {
     @State private var session = SessionStore()
+    @State private var theme = ThemeStore()
+
+    init() { AppFont.register() }
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            ThemedRoot { RootView() }
                 .environment(session)
+                .environment(theme)
         }
     }
 }
@@ -19,7 +23,7 @@ struct RootView: View {
     var body: some View {
         switch session.state {
         case .loading:
-            ProgressView()
+            CanvasBackground()
         case .signedOut:
             LoginView()
         case .signedIn(let userId):

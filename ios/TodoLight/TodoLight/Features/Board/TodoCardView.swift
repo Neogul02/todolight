@@ -1,9 +1,13 @@
 import SwiftUI
 import TodoLightKit
 
-/// 할 일 카드 — 체크 · 제목(누르면 펼침) · X.
-/// 펼친 순서는 메모 목록 → 메모 입력 → 동작 줄. 자주 하는 일이 메모 한 줄이라 그게 먼저다.
+/// 할 일 카드 — 웹 `app/(app)/board/TodoCard.tsx`와 같은 모양·순서.
+///
+/// 체크 · 제목 · X 세 칸은 위 패딩(8)을 맞춰 첫 줄 기준선이 겹친다. 그 패딩이 곧 터치 영역이다.
+/// 펼친 순서는 메모 목록 → 메모 입력 → 동작 줄(마감 알약 · 제목 수정 · 넘기기 · 같이하기).
 struct TodoCardView: View {
+    @Environment(\.tokens) private var tk
+    @Environment(\.accessibilityReduceMotion) private var reduce
     let store: BoardStore
     let todo: Todo
     let open: Bool
@@ -11,114 +15,232 @@ struct TodoCardView: View {
     let onCheck: () -> Void
     let onGive: () -> Void
 
-    @State private var note = ""
-
     private var done: Bool { todo.status == .done }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: 10) {
+            HStack(alignment: .top, spacing: 0) {
                 Button(action: onCheck) {
-                    Image(systemName: done ? "checkmark.square.fill" : "square")
-                        .font(.title3)
-                        .foregroundStyle(done ? Color.accentColor : .secondary)
-                        // 시각 요소는 작게, 탭 영역은 44pt
-                        .frame(width: 44, height: 44)
+                    CheckBox(checked: done)
+                        .padding(.vertical, 8)
+                        .padding(.trailing, 10)
                 }
+                .buttonStyle(PressScale())
                 .accessibilityLabel(done ? "완료 취소" : "완료")
+                .sensoryFeedback(.impact(weight: .light), trigger: done) { _, now in now }
 
                 Button(action: onToggleOpen) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(todo.title)
-                            .strikethrough(done)
-                            .foregroundStyle(done ? .secondary : .primary)
+                            .font(.tlBodySm)
+                            .strikethrough(done, color: tk.inkFaint)
+                            .foregroundStyle(done ? tk.inkFaint : tk.ink)
                             .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
                         badges
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 11)
+                    .padding(.vertical, 8)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityAddTraits(open ? .isSelected : [])
 
                 // 소프트 삭제라 확인 없이 지우고 실행취소를 준다
                 if store.canManage(todo) {
                     Button { store.remove(todo) } label: {
-                        Image(systemName: "xmark").font(.footnote).foregroundStyle(.tertiary)
-                            .frame(width: 44, height: 44)
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(tk.inkFaint)
+                            .frame(width: 20, height: 20)
+                            .padding(.vertical, 8)
+                            .padding(.leading, 10)
                     }
+                    .buttonStyle(PressScale())
                     .accessibilityLabel("지우기")
                 }
             }
 
-            if open { expanded.padding(.horizontal, 12).padding(.bottom, 12) }
+            if open {
+                TodoCardOpenContent(store: store, todo: todo, done: done, onGive: onGive)
+                    .transition(.opacity)
+            }
         }
-        .background(Color(.secondarySystemBackground).opacity(done ? 0.5 : 1), in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .glassCard(alt: done)
+        .animation(reduce ? nil : Motion.quick, value: done)
     }
+
+    // MARK: 배지 줄
 
     @ViewBuilder private var badges: some View {
-        let chips = badgeTexts
-        if !chips.isEmpty {
-            HStack(spacing: 6) {
-                ForEach(chips, id: \.self) { text in
-                    Text(text).font(.caption2)
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Color(.tertiarySystemFill), in: Capsule())
+        let hasAny = todo.dueDate != nil || todo.isGivenByOther || todo.isRequestedByOther
+            || (done && todo.isHandledByOther) || !todo.noteList.isEmpty || !todo.participants.isEmpty
+        if hasAny {
+            FlowLayout(spacing: 6) {
+                if let due = todo.dueDate {
+                    let tone: BadgeView<EmptyView>.Tone = switch Due.state(due) {
+                    case .overdue: .danger
+                    case .today: .warning
+                    default: .neutral
+                    }
+                    BadgeView(Due.relative(due), tone: tone)
+                }
+                // "이거 왜 내 목록에 있지"를 카드에서 바로 — 넘김이 부탁보다 우선(넘긴 사람에게 물어야 한다)
+                if todo.isGivenByOther {
+                    personBadge(todo.givenBy, suffix: "넘김")
+                } else if todo.isRequestedByOther {
+                    personBadge(todo.createdBy, suffix: "부탁")
+                }
+                if done, todo.isHandledByOther {
+                    personBadge(todo.handledBy, suffix: "대신 처리", tone: .success)
+                }
+                if !todo.noteList.isEmpty { BadgeView("메모 \(todo.noteList.count)") }
+                if !todo.participants.isEmpty {
+                    HStack(spacing: -6) {
+                        ForEach(todo.participants, id: \.self) { id in
+                            AvatarView(member: store.member(id), size: 16)
+                                .overlay(Circle().strokeBorder(tk.surface, lineWidth: 1))
+                        }
+                    }
                 }
             }
         }
     }
 
-    private var badgeTexts: [String] {
-        var out: [String] = []
-        if let due = todo.dueDate { out.append(DueLabel.text(due)) }
-        // "이거 왜 내 목록에 있지"를 카드에서 바로 — 넘김이 부탁보다 우선(넘긴 사람에게 물어야 한다)
-        if todo.isGivenByOther, let m = store.member(todo.givenBy) {
-            out.append("\(m.displayName)\(BoardRules.subjectParticle(m.displayName)) 넘김")
-        } else if todo.isRequestedByOther, let m = store.member(todo.createdBy) {
-            out.append("\(m.displayName)\(BoardRules.subjectParticle(m.displayName)) 부탁")
+    private func personBadge(_ id: String?, suffix: String, tone: BadgeView<AvatarView>.Tone = .neutral) -> some View {
+        let m = store.member(id)
+        let name = m?.displayName ?? "누군가"
+        return BadgeView(text: "\(name)\(BoardRules.subjectParticle(name)) \(suffix)", tone: tone) {
+            AvatarView(member: m, size: 14)
         }
-        if done, todo.isHandledByOther, let m = store.member(todo.handledBy) {
-            out.append("\(m.displayName)\(BoardRules.subjectParticle(m.displayName)) 대신 처리")
-        }
-        if !todo.noteList.isEmpty { out.append("메모 \(todo.noteList.count)") }
-        return out
     }
+}
 
-    private var expanded: some View {
+/// 펼친 내용 — 이 안의 상태(편집 중·메모 초안)는 카드가 접히면 함께 사라진다.
+private struct TodoCardOpenContent: View {
+    @Environment(\.tokens) private var tk
+    let store: BoardStore
+    let todo: Todo
+    let done: Bool
+    let onGive: () -> Void
+
+    @State private var note = ""
+    @State private var editing = false
+    @State private var draftTitle = ""
+    /// 편집을 시작한 순간의 제목 — 지금 제목과 비교하면 그 사이 남이 고친 걸 내가 바꾼 것으로 오인한다
+    @State private var editBase = ""
+    @State private var dueOpen = false
+    @FocusState private var titleFocused: Bool
+
+    private var canManage: Bool { store.canManage(todo) }
+    private var isMine: Bool { todo.ownerId == store.userId }
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Divider()
-            ForEach(todo.noteList) { n in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(n.content).font(.footnote)
-                    Text(n.authorName ?? "알 수 없음").font(.caption2).foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(8)
-                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8))
-            }
-            HStack {
-                TextField("메모 남기기", text: $note)
-                    .font(.footnote)
-                    .submitLabel(.send)
-                    .onSubmit(sendNote)
-                Button(action: sendNote) { Image(systemName: "arrow.up.circle.fill").font(.title3) }
-                    .disabled(note.trimmingCharacters(in: .whitespaces).isEmpty)
-                    .accessibilityLabel("메모 보내기")
-            }
+            Rectangle().fill(tk.hairline).frame(height: 1).padding(.top, 6)
 
-            HStack(spacing: 8) {
-                // 넘기기 — 지울 수 있는 사람만, 끝낸 일은 안 넘긴다, 받을 사람이 있어야 한다
-                if store.canManage(todo) && !done && store.members.count > 1 {
-                    Button("넘기기", action: onGive).buttonStyle(.bordered)
-                }
-                if todo.ownerId != store.userId && !done {
-                    let joined = todo.participants.contains(store.userId)
-                    Button(joined ? "같이하기 그만" : "같이하기") { store.setJoined(todo, !joined) }
-                        .buttonStyle(.bordered)
-                }
+            if editing {
+                editForm
+            } else {
+                ForEach(todo.noteList) { n in noteRow(n) }
+                noteInput
+                actions
             }
-            .controlSize(.small)
         }
+        .padding(.bottom, 6)
+    }
+
+    private func noteRow(_ n: TodoNote) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(n.content).font(.tlCaption).foregroundStyle(tk.inkSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 6) {
+                AvatarView(member: store.member(n.authorId), size: 16)
+                Text("\(n.authorName ?? "알 수 없음") · \(Due.relative(Due.format(n.createdAt))) \(n.createdAt.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).locale(Locale(identifier: "ko_KR"))))")
+                    .font(.tl(11)).foregroundStyle(tk.inkFaint)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(tk.canvasSoft, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var noteInput: some View {
+        let empty = note.trimmingCharacters(in: .whitespaces).isEmpty
+        return HStack(spacing: 6) {
+            TextField("", text: $note, prompt: placeholder("메모 남기기", tk))
+                .submitLabel(.send)
+                .onSubmit(sendNote)
+                .tlField(height: 40)
+            Button(action: sendNote) {
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(tk.accentInk)
+                    .frame(width: 40, height: 40)
+                    .background(tk.accent, in: RoundedRectangle(cornerRadius: 12))
+                    .opacity(empty ? 0.3 : 1)
+            }
+            .buttonStyle(PressScale())
+            .disabled(empty)
+            .accessibilityLabel("메모 보내기")
+        }
+    }
+
+    @ViewBuilder private var actions: some View {
+        let canGive = canManage && !done && store.members.count > 1
+        let canJoin = !isMine && !done
+        if canManage || canJoin {
+            VStack(alignment: .leading, spacing: 6) {
+                FlowLayout(spacing: 6) {
+                    // 마감 알약이 맨 앞 — 지금 값을 보여 주는 것이 곧 고치는 버튼이고, 고르는 순간 저장된다
+                    if canManage && !done {
+                        DuePillView(value: todo.dueDate, onChange: { store.setDue(todo, $0) }, open: $dueOpen, height: 40)
+                    }
+                    if canManage {
+                        Button("제목 수정", action: startEditing).buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
+                    }
+                    if canGive {
+                        Button("넘기기", action: onGive).buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
+                    }
+                    if canJoin {
+                        let joined = todo.participants.contains(store.userId)
+                        Button(joined ? "같이하기 그만" : "같이하기") { store.setJoined(todo, !joined) }
+                            .buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
+                    }
+                }
+                DuePillView(value: todo.dueDate, onChange: { store.setDue(todo, $0) }, open: $dueOpen).rail()
+            }
+        }
+    }
+
+    private var editForm: some View {
+        VStack(spacing: 8) {
+            TextField("", text: $draftTitle)
+                .focused($titleFocused)
+                .submitLabel(.done)
+                .onSubmit(submitEdit)
+                .tlField(height: 40)
+            HStack(spacing: 6) {
+                Button("취소") { editing = false }.buttonStyle(TLButtonStyle(variant: .outline)).frame(maxWidth: .infinity)
+                Button("저장", action: submitEdit).buttonStyle(TLButtonStyle())
+                    .disabled(draftTitle.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+    }
+
+    private func startEditing() {
+        draftTitle = todo.title
+        editBase = todo.title
+        editing = true
+        titleFocused = true
+    }
+
+    private func submitEdit() {
+        editing = false
+        guard draftTitle.trimmingCharacters(in: .whitespaces) != editBase else { return }
+        store.rename(todo, to: draftTitle)
     }
 
     private func sendNote() {
@@ -127,35 +249,44 @@ struct TodoCardView: View {
     }
 }
 
-/// 마감 표시 — 날짜는 KST 기준 `YYYY-MM-DD` 문자열 그대로 비교한다(Date로 바꾸면 하루가 밀린다).
-enum DueLabel {
-    static func text(_ due: String) -> String {
-        let today = todayKST()
-        if due == today { return "오늘" }
-        if due == shift(today, 1) { return "내일" }
-        if due == shift(today, -1) { return "어제" }
-        let parts = due.split(separator: "-")
-        let md = parts.count == 3 ? "\(Int(parts[1]) ?? 0)/\(Int(parts[2]) ?? 0)" : due
-        return due < today ? "\(md) 지남" : md
+/// 넘치면 다음 줄로 — 웹 `flex flex-wrap gap-1.5`
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = arrange(proposal.width ?? .infinity, subviews)
+        let height = rows.reduce(0) { $0 + $1.height } + spacing * CGFloat(max(rows.count - 1, 0))
+        let width = rows.map(\.width).max() ?? 0
+        return CGSize(width: proposal.width ?? width, height: height)
     }
 
-    private static var kst: Calendar {
-        var c = Calendar(identifier: .gregorian)
-        c.timeZone = TimeZone(identifier: "Asia/Seoul")!
-        return c
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in arrange(bounds.width, subviews) {
+            var x = bounds.minX
+            for i in row.items {
+                let size = subviews[i].sizeThatFits(.unspecified)
+                subviews[i].place(at: CGPoint(x: x, y: y + (row.height - size.height) / 2), proposal: .unspecified)
+                x += size.width + spacing
+            }
+            y += row.height + spacing
+        }
     }
 
-    private static func format(_ date: Date) -> String {
-        let d = kst.dateComponents([.year, .month, .day], from: date)
-        return String(format: "%04d-%02d-%02d", d.year!, d.month!, d.day!)
-    }
-
-    static func todayKST() -> String { format(Date()) }
-
-    private static func shift(_ day: String, _ by: Int) -> String {
-        let p = day.split(separator: "-").compactMap { Int($0) }
-        guard p.count == 3, let base = kst.date(from: DateComponents(year: p[0], month: p[1], day: p[2])),
-              let moved = kst.date(byAdding: .day, value: by, to: base) else { return day }
-        return format(moved)
+    private func arrange(_ maxWidth: CGFloat, _ subviews: Subviews) -> [(items: [Int], width: CGFloat, height: CGFloat)] {
+        var rows: [(items: [Int], width: CGFloat, height: CGFloat)] = []
+        var current: (items: [Int], width: CGFloat, height: CGFloat) = ([], 0, 0)
+        for i in subviews.indices {
+            let size = subviews[i].sizeThatFits(.unspecified)
+            let needed = current.items.isEmpty ? size.width : current.width + spacing + size.width
+            if needed > maxWidth, !current.items.isEmpty {
+                rows.append(current)
+                current = ([i], size.width, size.height)
+            } else {
+                current = (current.items + [i], needed, max(current.height, size.height))
+            }
+        }
+        if !current.items.isEmpty { rows.append(current) }
+        return rows
     }
 }

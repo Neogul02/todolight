@@ -1,14 +1,19 @@
 import SwiftUI
 import TodoLightKit
 
-/// 한 사람의 컬럼 — 추가 칸 → 미완료(급한 순) → 완료(최근 끝낸 순).
+/// 한 사람의 컬럼 — 웹 `MemberColumn.tsx`. 머리(아바타·이름·남은 개수) → 추가 칸(+마감 알약) →
+/// 미완료(급한 순) → 완료(최근 끝낸 순, 3개만 펼침).
 struct MemberColumnView: View {
+    @Environment(\.tokens) private var tk
+    @Environment(\.accessibilityReduceMotion) private var reduce
     let store: BoardStore
     let member: MemberSummary
     let onHandoff: (Todo) -> Void
     let onGive: (Todo) -> Void
 
     @State private var draft = ""
+    @State private var due: String? = Due.today()
+    @State private var dueOpen = false
     @State private var showAllDone = false
     @FocusState private var adding: Bool
 
@@ -19,61 +24,118 @@ struct MemberColumnView: View {
 
     var body: some View {
         let (open, done) = store.column(for: member.userId)
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 8) {
-                addField
+        let shownDone = store.showDone ? (showAllDone ? done : Array(done.prefix(Self.visibleDone))) : []
+        let hiddenDone = store.showDone ? done.count - shownDone.count : 0
+        let notLoaded = BoardRules.notLoadedDoneCount(doneTotal: store.doneTotals[member.userId] ?? 0, loadedDone: done.count)
 
-                if open.isEmpty {
-                    Text(isMe ? "할 일이 비어 있어요" : "남은 할 일이 없어요")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity).padding(.vertical, 24)
-                }
-                ForEach(open) { card($0) }
-
-                if store.showDone {
-                    let shown = showAllDone ? done : Array(done.prefix(Self.visibleDone))
-                    ForEach(shown) { card($0) }
-                    if done.count > shown.count {
-                        Button("완료 \(done.count - shown.count)개 더 보기") { showAllDone = true }
-                            .font(.footnote).frame(maxWidth: .infinity).padding(.vertical, 6)
+        VStack(spacing: 0) {
+            header(openCount: open.count, doneTotal: store.doneTotals[member.userId] ?? done.count)
+            addField
+            ScrollView {
+                VStack(spacing: 8) {
+                    // 미완료와 완료를 한 ForEach에 — 체크하면 같은 카드가 자리를 옮기며 미끄러진다(웹 layout 애니메이션)
+                    ForEach(open + shownDone) { todo in
+                        card(todo).transition(.card)
                     }
-                    // 서버가 안 보낸 옛날 완료는 버튼이 아니라 사실만 적는다 — 눌러도 안 나오니까
-                    let notLoaded = BoardRules.notLoadedDoneCount(
-                        doneTotal: store.doneTotals[member.userId] ?? 0, loadedDone: done.count)
-                    if showAllDone || done.count <= Self.visibleDone, notLoaded > 0 {
+
+                    if hiddenDone > 0 {
+                        dashedButton("완료 \(hiddenDone)개 더 보기") { showAllDone = true }
+                    }
+                    if store.showDone && showAllDone && notLoaded > 0 {
                         Text("그 전에 끝낸 \(notLoaded)개는 여기 안 실려요")
-                            .font(.footnote).foregroundStyle(.tertiary).frame(maxWidth: .infinity)
+                            .font(.tlCaption).foregroundStyle(tk.inkFaint).padding(.top, 4)
+                    }
+                    if store.showDone && showAllDone && done.count > Self.visibleDone {
+                        dashedButton("완료 접기") { showAllDone = false }
+                    }
+                    if open.isEmpty && shownDone.isEmpty {
+                        Text(isMe ? "할 일이 비어 있어요" : "남은 할 일이 없어요")
+                            .font(.tlCaption).foregroundStyle(tk.inkFaint)
+                            .frame(maxWidth: .infinity).padding(.vertical, 32)
+                            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(tk.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
                     }
                 }
+                .animation(reduce ? nil : Motion.quick, value: (open + shownDone).map(\.id))
+                .padding(.horizontal, 12)
+                // 하단 탭바 알약이 콘텐츠 위에 뜬다 — 마지막 카드가 그 밑에 갇히지 않게(웹 pb-tabbar)
+                .padding(.bottom, 96)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 24)
+            .refreshable { await store.load() }
+            .scrollDismissesKeyboard(.interactively)
         }
-        .refreshable { await store.load() }
-        .scrollDismissesKeyboard(.interactively)
+        // 내 컬럼만 한 단계 진하게(웹 isMine → border-hairline-strong bg-surface-alt/70)
+        .background((isMe ? tk.surfaceAlt.opacity(0.7) : tk.canvasSoft.opacity(0.55)), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(isMe ? tk.hairlineStrong : tk.hairline, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal, 12)
     }
 
-    private var addField: some View {
+    private func header(openCount: Int, doneTotal: Int) -> some View {
         HStack(spacing: 8) {
-            TextField(isMe ? "할 일 추가" : "\(member.displayName)님에게 부탁하기", text: $draft)
-                .focused($adding)
-                .submitLabel(.done)
-                .onSubmit(submit)
-            if !draft.trimmingCharacters(in: .whitespaces).isEmpty {
-                Button(action: submit) {
-                    Image(systemName: "arrow.up.circle.fill").font(.title2)
+            AvatarView(member: member, size: 32)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 4) {
+                    Text(member.displayName).font(.tl(15, .semibold)).foregroundStyle(tk.ink).lineLimit(1)
+                    if isMe { Text("(나)").font(.tl(12)).foregroundStyle(tk.inkFaint) }
                 }
-                .accessibilityLabel("추가")
+                Text("남은 일 \(openCount)개" + (doneTotal > 0 ? " · 완료 \(doneTotal)" : ""))
+                    .font(.tl(12)).foregroundStyle(tk.inkFaint)
+            }
+            Spacer(minLength: 0)
+            if member.role != .member {
+                BadgeView(member.role == .owner ? "방장" : "관리자")
             }
         }
         .padding(.horizontal, 12)
-        .frame(minHeight: 44)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+    }
+
+    /// 추가 칸은 높이가 변하지 않는다 — 보내기 버튼이 칸 **안에** 늘 자리를 지키고,
+    /// 마감은 그 아래 알약 한 줄이 지킨다(누를 때만 레일이 열린다).
+    private var addField: some View {
+        let empty = draft.trimmingCharacters(in: .whitespaces).isEmpty
+        return VStack(alignment: .leading, spacing: 6) {
+            ZStack(alignment: .trailing) {
+                TextField("", text: $draft, prompt: placeholder(isMe ? "할 일 추가" : "\(member.displayName)님에게 부탁하기", tk))
+                    .focused($adding)
+                    .submitLabel(.done)
+                    .onSubmit(submit)
+                    .tlField(height: 44, trailingInset: 44)
+                Button(action: submit) {
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(empty ? tk.inkFaint : tk.accentInk)
+                        .frame(width: 36, height: 36)
+                        .background(empty ? Color.clear : tk.accent, in: RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(PressScale())
+                .disabled(empty)
+                .padding(.trailing, 4)
+                .accessibilityLabel("추가")
+            }
+            let pill = DuePillView(value: due, onChange: { due = $0 }, open: $dueOpen)
+            pill
+            pill.rail()
+        }
+        .padding(.horizontal, 12)
+        .padding(.bottom, 10)
+    }
+
+    private func dashedButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(.tlCaption).foregroundStyle(tk.inkMuted)
+                .frame(maxWidth: .infinity).padding(.vertical, 8)
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(tk.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+        }
+        .buttonStyle(PressScale(scale: 0.98))
     }
 
     private func submit() {
-        store.create(title: draft, ownerId: member.userId)
+        store.create(title: draft, ownerId: member.userId, dueDate: due)
         draft = ""
+        due = Due.today()
+        dueOpen = false
         // 연달아 적을 수 있게 칸을 비우고 포커스는 남긴다
         adding = true
     }
@@ -84,7 +146,7 @@ struct MemberColumnView: View {
             todo: todo,
             open: store.openTodoId == todo.id,
             onToggleOpen: {
-                withAnimation(.snappy(duration: 0.2)) {
+                Motion.run(Motion.quick, reduce: reduce) {
                     store.openTodoId = store.openTodoId == todo.id ? nil : todo.id
                 }
             },

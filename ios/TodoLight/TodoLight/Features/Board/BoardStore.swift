@@ -23,6 +23,8 @@ final class BoardStore {
     private(set) var todos: [Todo] = []
     private(set) var doneTotals: [String: Int] = [:]
     private(set) var showDone = true
+    /// `profiles.theme` — 앱 루트의 ThemeStore가 이 값을 따라간다
+    private(set) var themePreference: String?
     /// 카드 펼침은 보드 전체에서 하나뿐이다
     var openTodoId: String?
     /// 화면 아래에 띄울 알림(에러·실행취소)
@@ -80,6 +82,7 @@ final class BoardStore {
                 doneTotals = b.doneTotals
             }
             showDone = p.showDone
+            themePreference = p.theme
             members = Self.order(m, me: userId, saved: p.memberOrder[orgId] ?? [])
             phase = .ready
         } catch {
@@ -200,17 +203,36 @@ final class BoardStore {
         if let i = list.firstIndex(where: { $0.id == id }) { change(&list[i]) }
     }
 
-    func create(title: String, ownerId: String) {
+    func create(title: String, ownerId: String, dueDate: String? = nil) {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         let top = todos.filter { $0.ownerId == ownerId }.map(\.position).min() ?? 1
         let todo = Todo(
             id: UUID().uuidString.lowercased(), orgId: orgId, ownerId: ownerId,
-            title: trimmed, dueDate: nil, position: top - 1, createdBy: userId
+            title: trimmed, dueDate: dueDate, position: top - 1, createdBy: userId
         )
         let api = api, orgId = orgId
         mutate(todo.id, optimistic: { $0.append(todo) }) {
-            _ = try await api.createTodo(orgId: orgId, title: trimmed, ownerId: ownerId, id: todo.id)
+            _ = try await api.createTodo(orgId: orgId, title: trimmed, ownerId: ownerId, dueDate: dueDate, id: todo.id)
+        }
+    }
+
+    /// 제목만 고친다 — 바꾼 칸만 보내야 그 사이 실시간으로 들어온 남의 마감 수정을 덮지 않는다.
+    func rename(_ todo: Todo, to title: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != todo.title else { return }
+        let api = api
+        mutate(todo.id, optimistic: { list in update(todo.id, in: &list) { $0.title = trimmed } }) {
+            _ = try await api.updateTodo(todoId: todo.id, title: trimmed)
+        }
+    }
+
+    /// 마감은 고르는 순간 저장한다(웹 동작 줄의 마감 알약과 같다).
+    func setDue(_ todo: Todo, _ due: String?) {
+        guard due != todo.dueDate else { return }
+        let api = api
+        mutate(todo.id, optimistic: { list in update(todo.id, in: &list) { $0.dueDate = due } }) {
+            _ = try await api.updateTodo(todoId: todo.id, dueDate: due.map { .set($0) } ?? .clear)
         }
     }
 

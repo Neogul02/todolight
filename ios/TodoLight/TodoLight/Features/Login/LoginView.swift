@@ -15,57 +15,96 @@ struct LoginView: View {
     @State private var notice: String?
     @FocusState private var focus: Field?
 
+    @Environment(\.tokens) private var tk
+
+    /// 웹 `app/login/LoginForm.tsx` — 카드 안에 워드마크 · 두 칸 탭 · 라벨 붙은 칸 · 큰 버튼.
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("todolight").font(.largeTitle.bold())
+        ZStack {
+            CanvasBackground()
+            VStack(alignment: .leading, spacing: 0) {
+                Text("todolight").font(.tlTitle).foregroundStyle(tk.ink)
 
-            Picker("", selection: $mode) {
-                ForEach(Mode.allCases, id: \.self) { Text($0.rawValue) }
-            }
-            .pickerStyle(.segmented)
-
-            if mode == .signUp {
-                TextField("팀원에게 보일 이름", text: $name)
-                    .textContentType(.name)
-                    .focused($focus, equals: .name)
-                    .submitLabel(.next)
-                    .onSubmit { focus = .email }
-            }
-            // iOS가 첫 글자를 대문자로 바꿔 로그인이 실패한다 — 웹과 같은 규칙(CLAUDE.md 「그 밖의 iOS 대응」)
-            TextField("이메일", text: $email)
-                .keyboardType(.emailAddress)
-                .textContentType(.username)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .focused($focus, equals: .email)
-                .submitLabel(.next)
-                .onSubmit { focus = .password }
-            SecureField("비밀번호 (6자 이상)", text: $password)
-                .textContentType(mode == .signUp ? .newPassword : .password)
-                .focused($focus, equals: .password)
-                .submitLabel(.go)
-                .onSubmit { Task { await submit() } }
-
-            if let notice {
-                Text(notice).font(.footnote).foregroundStyle(.secondary)
-            }
-            if let error {
-                Text(error).font(.footnote).foregroundStyle(.red)
-            }
-
-            Button {
-                Task { await submit() }
-            } label: {
-                Group {
-                    if busy { ProgressView() } else { Text(mode.rawValue) }
+                HStack(spacing: 0) {
+                    ForEach(Mode.allCases, id: \.self) { m in
+                        Button { mode = m } label: {
+                            Text(m.rawValue).font(.tl(14, .medium))
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .foregroundStyle(mode == m ? tk.accentInk : tk.inkMuted)
+                                .background(mode == m ? tk.accent : tk.surface)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .frame(maxWidth: .infinity, minHeight: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(tk.hairline))
+                .padding(.top, 20)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    if mode == .signUp {
+                        labeled("이름") {
+                            TextField("", text: $name, prompt: placeholder("팀원에게 보일 이름", tk))
+                                .textContentType(.name)
+                                .focused($focus, equals: .name)
+                                .submitLabel(.next)
+                                .onSubmit { focus = .email }
+                                .tlField()
+                        }
+                    }
+                    // iOS가 첫 글자를 대문자로 바꿔 로그인이 실패한다 — 웹과 같은 규칙(CLAUDE.md 「그 밖의 iOS 대응」)
+                    labeled("이메일") {
+                        TextField("", text: $email)
+                            .keyboardType(.emailAddress)
+                            .textContentType(.username)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .focused($focus, equals: .email)
+                            .submitLabel(.next)
+                            .onSubmit { focus = .password }
+                            .tlField()
+                    }
+                    labeled("비밀번호") {
+                        SecureField("", text: $password, prompt: placeholder("6자 이상", tk))
+                            .textContentType(mode == .signUp ? .newPassword : .password)
+                            .focused($focus, equals: .password)
+                            .submitLabel(.go)
+                            .onSubmit { Task { await submit() } }
+                            .tlField()
+                    }
+
+                    if let notice {
+                        Text(notice).font(.tlCaption).foregroundStyle(tk.inkMuted)
+                    }
+                    if let error {
+                        Text(error).font(.tlCaption).foregroundStyle(tk.danger)
+                    }
+
+                    Button {
+                        Task { await submit() }
+                    } label: {
+                        Group {
+                            if busy { ProgressView().tint(tk.accentInk) } else { Text(mode.rawValue) }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(TLButtonStyle())
+                    .disabled(busy || email.isEmpty || password.count < 6)
+                    .padding(.top, 8)
+                }
+                .padding(.top, 16)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(busy || email.isEmpty || password.count < 6)
+            .padding(24)
+            .background(tk.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(tk.hairline))
+            .shadow(color: .black.opacity(0.04), radius: 9, y: 4)
+            .padding(.horizontal, 20)
         }
-        .textFieldStyle(.roundedBorder)
-        .padding(24)
+    }
+
+    private func labeled<Field: View>(_ label: String, @ViewBuilder field: () -> Field) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).font(.tl(13, .medium)).foregroundStyle(tk.inkSecondary)
+            field()
+        }
     }
 
     private func submit() async {
