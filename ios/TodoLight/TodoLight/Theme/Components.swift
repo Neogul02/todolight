@@ -425,3 +425,49 @@ struct DuePicker: View {
         .accessibilityLabel(date)
     }
 }
+
+// MARK: - 설정형 화면의 카드 (웹 Card — rounded-2xl border-hairline bg-surface p-5)
+
+struct PageCard<Content: View>: View {
+    @Environment(\.tokens) private var tk
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) { content }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(tk.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(tk.hairline))
+    }
+}
+
+// MARK: - 화면 아래 토스트 (3초 뒤 사라진다)
+
+struct Toast: View {
+    @Environment(\.tokens) private var tk
+    @Binding var message: String?
+
+    var body: some View {
+        if let message {
+            Text(message).font(.tl(14, .medium)).foregroundStyle(tk.ink)
+                .padding(.horizontal, 16).frame(minHeight: 48)
+                .glassCard(radius: 14)
+                .padding(.horizontal, 16).padding(.bottom, 24)
+                .transition(.opacity)
+                .task(id: message) {
+                    try? await Task.sleep(for: .seconds(3))
+                    if self.message == message { self.message = nil }
+                }
+        }
+    }
+}
+
+// MARK: - 목록 행 — 누르는 동안만 canvas-soft (웹 active:bg-canvas-soft)
+
+struct RowPressStyle: ButtonStyle {
+    @Environment(\.tokens) private var tk
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? tk.canvasSoft : .clear, in: RoundedRectangle(cornerRadius: 12))
+    }
+}

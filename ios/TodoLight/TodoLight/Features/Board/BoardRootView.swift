@@ -40,9 +40,9 @@ struct BoardRootView: View {
                         }
                     case .newOrg:
                         NewOrgView { id in
-                            // 고를 조직을 먼저 정한다 — 목록이 먼저 바뀌면 첫 조직의 보드가 잠깐 떴다가 버려진다
-                            storedOrgId = id
+                            // 목록을 먼저 받는다 — id를 먼저 정하면 아직 목록에 없어 첫 조직의 보드가 잠깐 섰다가 버려진다
                             await loadOrgs()
+                            storedOrgId = id
                         }
                         .appTopBar(tr("새 조직 만들기", "New org"))
                     }
@@ -87,8 +87,8 @@ struct BoardRootView: View {
         do {
             let res = try await Backend.shared.api.respondToInvite(inviteId: inv.id, accept: accept)
             invites.removeAll { $0.id == inv.id }
-            if accept, let id = res.orgId { storedOrgId = id }
             await loadOrgs()
+            if accept, let id = res.orgId { storedOrgId = id }
             return nil
         } catch {
             return BoardStore.message(error)

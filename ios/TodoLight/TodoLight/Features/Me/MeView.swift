@@ -43,7 +43,7 @@ struct MeView: View {
             .padding(.vertical, 20)
         }
         .background(CanvasBackground())
-        .overlay(alignment: .bottom) { toastView }
+        .overlay(alignment: .bottom) { Toast(message: $toast) }
         .task { await load() }
         .task(id: name) { await saveNameAfterPause() }
         .onChange(of: photoItem) { _, item in if let item { Task { await upload(item) } } }
@@ -55,7 +55,7 @@ struct MeView: View {
     // MARK: 카드들
 
     private var profileCard: some View {
-        card {
+        PageCard {
             // 이름은 아래 칸이 이미 보여 준다 — 아바타 옆에 또 적지 않는다
             HStack(spacing: 12) {
                 AvatarView(member: profile.map(meSummary), size: 56)
@@ -91,7 +91,7 @@ struct MeView: View {
     }
 
     private var themeCard: some View {
-        card {
+        PageCard {
             Text(tr("테마", "Theme")).font(.tlTitle).foregroundStyle(tk.ink)
             // 시스템 · 화이트 · 다크 — 3열 한 줄
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
@@ -123,7 +123,7 @@ struct MeView: View {
 
     /// 언어 — 고르는 순간 앱 전체가 그 언어로 다시 그려지고 계정에 저장된다(웹 /me와 같은 값)
     private var langCard: some View {
-        card {
+        PageCard {
             Text(tr("언어", "Language")).font(.tlTitle).foregroundStyle(tk.ink)
             HStack(spacing: 8) {
                 ForEach(AppLang.allCases, id: \.self) { l in
@@ -143,7 +143,7 @@ struct MeView: View {
     }
 
     private var viewCard: some View {
-        card {
+        PageCard {
             Text(tr("화면", "Display")).font(.tlTitle).foregroundStyle(tk.ink)
             VStack(spacing: 12) {
                 settingToggle(tr("완료한 할 일도 보기", "Show finished to-dos"), isOn: showDone) {
@@ -163,7 +163,7 @@ struct MeView: View {
 
     /// 약관 — 심사자는 앱 안에서도 닿을 수 있기를 본다. 웹 페이지를 그대로 연다(로그인 없이 열린다).
     private var legalCard: some View {
-        card {
+        PageCard {
             Text(tr("약관", "Legal")).font(.tlTitle).foregroundStyle(tk.ink)
             VStack(spacing: 0) {
                 legalLink(tr("이용약관", "Terms of Service"), "legal/terms")
@@ -175,7 +175,7 @@ struct MeView: View {
 
     /// 맨 아래 — 매일 만지는 설정과 평생 한 번 누를 버튼을 떨어뜨려 둔다.
     private var deleteCard: some View {
-        card {
+        PageCard {
             Text(tr("계정과 로그인 정보를 지워요. 되돌릴 수 없어요.", "Deletes your account and login. This can't be undone.")).font(.tlCaption).foregroundStyle(tk.inkMuted)
             Button(tr("계정 삭제", "Delete account")) { deleteOpen = true }
                 .buttonStyle(TLButtonStyle(variant: .danger, fill: true))
@@ -185,13 +185,6 @@ struct MeView: View {
 
     // MARK: 조각
 
-    private func card<C: View>(@ViewBuilder _ content: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 0, content: content)
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(tk.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(tk.hairline))
-    }
 
     private func settingToggle(_ label: String, isOn: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -217,19 +210,6 @@ struct MeView: View {
         }
     }
 
-    @ViewBuilder private var toastView: some View {
-        if let toast {
-            Text(toast).font(.tl(14, .medium)).foregroundStyle(tk.ink)
-                .padding(.horizontal, 16).frame(minHeight: 48)
-                .glassCard(radius: 14)
-                .padding(.bottom, 24)
-                .transition(.opacity)
-                .task(id: toast) {
-                    try? await Task.sleep(for: .seconds(3))
-                    if self.toast == toast { self.toast = nil }
-                }
-        }
-    }
 
     // MARK: 동작
 

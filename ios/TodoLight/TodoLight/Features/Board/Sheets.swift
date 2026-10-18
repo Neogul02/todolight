@@ -99,7 +99,7 @@ struct GiveSheet: View {
                             .padding(.vertical, 10)
                             .contentShape(Rectangle())
                         }
-                        .buttonStyle(RowPress())
+                        .buttonStyle(RowPressStyle())
                     }
                 }
                 .padding(.top, 12)
@@ -146,7 +146,7 @@ struct ProfileSheet: View {
                         .frame(minHeight: 56)
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(RowPress())
+                    .buttonStyle(RowPressStyle())
                     .disabled(o.id == org.id)
                 }
                 Button { onOpen(.newOrg) } label: {
@@ -154,7 +154,7 @@ struct ProfileSheet: View {
                         .frame(maxWidth: .infinity, minHeight: 48)
                         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(tk.hairlineStrong, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
                 }
-                .buttonStyle(RowPress())
+                .buttonStyle(RowPressStyle())
                 .padding(.top, 4)
             }
             Text(tr("관리", "Manage")).font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary)
@@ -180,7 +180,7 @@ struct ProfileSheet: View {
             .padding(.horizontal, 12)
             .contentShape(Rectangle())
         }
-        .buttonStyle(RowPress())
+        .buttonStyle(RowPressStyle())
     }
 
     private func roleLabel(_ role: MemberRole) -> String {
@@ -192,11 +192,3 @@ struct ProfileSheet: View {
     }
 }
 
-/// 목록 행 — 누르는 동안만 canvas-soft로(웹 active:bg-canvas-soft)
-private struct RowPress: ButtonStyle {
-    @Environment(\.tokens) private var tk
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(configuration.isPressed ? tk.canvasSoft : .clear, in: RoundedRectangle(cornerRadius: 12))
-    }
-}

@@ -56,7 +56,8 @@ final class LedgerStore {
                 self.error = BoardStore.message(error)
             }
         }
-        loading = false
+        // 이미 떠난 달의 응답이면 로딩을 끝내지 않는다 — 끝내면 지금 달이 잠깐 ₩0으로 보인다
+        if asked == month { loading = false }
     }
 
     func add(amount: Int64, title: String, spentOn: String) async -> Bool {
@@ -155,7 +156,7 @@ struct LedgerView: View {
     }
 
     private var summaryCard: some View {
-        card {
+        PageCard {
             Text(tr("쓴 돈", "Spent")).font(.tlCaption).foregroundStyle(tk.inkMuted)
             if store.loading {
                 RoundedRectangle(cornerRadius: 6).fill(tk.canvasSoft).frame(width: 160, height: 32).padding(.top, 4)
@@ -186,7 +187,7 @@ struct LedgerView: View {
     private var formCard: some View {
         let first = "\(store.month)-01"
         let days = CalendarMath.daysBetween(first, CalendarMath.lastDay(of: store.month))
-        return card {
+        return PageCard {
             VStack(spacing: 10) {
                 HStack(spacing: 8) {
                     // 숫자 키패드 + 천 단위 쉼표 — "12000"과 "120000"을 눈으로 구분하기 어려운 게 오입력의 큰 원인
@@ -267,13 +268,6 @@ struct LedgerView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(tk.hairline))
     }
 
-    private func card<C: View>(@ViewBuilder _ content: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 0, content: content)
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(tk.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(tk.hairline))
-    }
 
     // MARK: 동작
 

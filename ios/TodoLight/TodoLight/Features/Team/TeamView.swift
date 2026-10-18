@@ -9,7 +9,6 @@ import TodoLightKit
 /// 버튼밭이 되고 되돌릴 수 없는 빨간 버튼이 늘 떠 있게 된다 — 행을 누른 사람 것만 시트로 연다.
 struct TeamView: View {
     @Environment(\.tokens) private var tk
-    @Environment(\.dismiss) private var dismiss
     let org: OrganizationSummary
     let userId: String
     /// 이름·역할·멤버 수가 바뀌면 루트의 조직 목록을 다시 읽는다
@@ -48,7 +47,7 @@ struct TeamView: View {
             .padding(.vertical, 20)
         }
         .background(CanvasBackground())
-        .overlay(alignment: .bottom) { toastView }
+        .overlay(alignment: .bottom) { Toast(message: $toast) }
         .task { await load() }
         .onAppear { orgName = org.name }
         .onChange(of: imageItem) { _, item in if let item { Task { await uploadImage(item) } } }
@@ -84,7 +83,7 @@ struct TeamView: View {
     // MARK: 초대
 
     private var inviteCard: some View {
-        card {
+        PageCard {
             Text(tr("팀원 초대", "Invite teammates")).font(.tlTitle).foregroundStyle(tk.ink)
             Text(tr("이메일을 넣으면 그 사람이 로그인할 때 초대장이 떠요.", "Enter an email — they see the invite next time they log in."))
                 .font(.tlCaption).foregroundStyle(tk.inkMuted).padding(.top, 4)
@@ -146,7 +145,7 @@ struct TeamView: View {
     // MARK: 멤버
 
     private var membersCard: some View {
-        card {
+        PageCard {
             Text(tr("멤버", "Members")).font(.tlTitle).foregroundStyle(tk.ink)
             VStack(spacing: 2) {
                 if loading {
@@ -183,7 +182,7 @@ struct TeamView: View {
     private var settingsCard: some View {
         let nameChanged = !orgName.trimmingCharacters(in: .whitespaces).isEmpty && orgName.trimmingCharacters(in: .whitespaces) != org.name
         let hookChanged = webhook != nil && webhook != savedWebhook
-        return card {
+        return PageCard {
             Text(tr("조직 설정", "Org settings")).font(.tlTitle).foregroundStyle(tk.ink)
             HStack(spacing: 12) {
                 OrgIconView(name: org.name, imageUrl: org.imageUrl, seed: org.id, size: 48)
@@ -219,7 +218,7 @@ struct TeamView: View {
 
     /// 맨 아래 — 카드 제목과 버튼이 같은 말이라 제목은 빼고 설명 + 버튼만 둔다
     private var deleteCard: some View {
-        card {
+        PageCard {
             Text(tr("이 조직과 안에 있는 모든 것을 지워요. 되돌릴 수 없어요.", "Deletes this organization and everything in it. This cannot be undone."))
                 .font(.tlCaption).foregroundStyle(tk.inkMuted)
             Button(tr("조직 삭제", "Delete organization")) { deleteOpen = true }
@@ -230,13 +229,6 @@ struct TeamView: View {
 
     // MARK: 조각
 
-    private func card<C: View>(@ViewBuilder _ content: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 0, content: content)
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(tk.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(tk.hairline))
-    }
 
     private func labeled<C: View>(_ label: String, @ViewBuilder _ content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -246,19 +238,6 @@ struct TeamView: View {
         .padding(.top, 16)
     }
 
-    @ViewBuilder private var toastView: some View {
-        if let toast {
-            Text(toast).font(.tl(14, .medium)).foregroundStyle(tk.ink)
-                .padding(.horizontal, 16).frame(minHeight: 48)
-                .glassCard(radius: 14)
-                .padding(.horizontal, 16).padding(.bottom, 24)
-                .transition(.opacity)
-                .task(id: toast) {
-                    try? await Task.sleep(for: .seconds(3))
-                    if self.toast == toast { self.toast = nil }
-                }
-        }
-    }
 
     // MARK: 동작
 
@@ -573,11 +552,3 @@ struct OrgIconView: View {
     }
 }
 
-/// 목록 행 — 누르는 동안만 canvas-soft
-struct RowPressStyle: ButtonStyle {
-    @Environment(\.tokens) private var tk
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(configuration.isPressed ? tk.canvasSoft : .clear, in: RoundedRectangle(cornerRadius: 12))
-    }
-}
