@@ -185,6 +185,8 @@ final class BoardStore {
         Task {
             do {
                 try await api.updateMemberOrder(orgId: orgId, orderedUserIds: others)
+                // 저장하는 사이 출발한 load는 옛 member_order를 읽었다 — 세대를 올려 그 응답도 거른다
+                memberOrderGeneration += 1
                 saveSnapshot()
             } catch {
                 // 스냅숏 통째가 아니라 순서만 되돌린다 — 그 사이 load가 받은 새 멤버를 지우지 않게
@@ -236,6 +238,8 @@ final class BoardStore {
         } catch {
             // 조용히 죽은 채로 두지 않는다 — 웹에서 실시간이 몰래 끊겨 있던 일이 있었다(CLAUDE.md 「실시간」).
             // 채널을 비워 다음 진입에서 다시 붙게 하고, 놓친 변경은 한 번 읽어 맞춘다.
+            // 그 사이 stop → 새 start가 지나갔으면 새 채널은 살려 둔다
+            guard self.channel === channel else { return }
             await stopRealtime()
             resyncSoon()
         }

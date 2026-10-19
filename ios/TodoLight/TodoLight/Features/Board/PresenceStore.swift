@@ -46,7 +46,8 @@ final class PresenceStore {
     }
 
     func start() async {
-        guard channel == nil else { return }
+        // 아직 돌기 전에 취소된 시작이 나중에 돌아 채널을 먼저 차지하지 않게
+        guard !Task.isCancelled, channel == nil else { return }
         let userId = userId
         let channel = Backend.shared.supabase.channel("presence-\(orgId)") { $0.presence.key = userId }
         self.channel = channel
@@ -78,7 +79,8 @@ final class PresenceStore {
             // 구독 전에 카드를 펼쳤으면 그 신호는 못 나갔다 — 붙자마자 다시 알린다
             if let focusedId { send("focus", ["userId": .string(userId), "todoId": .string(focusedId), "at": .integer(Self.now)]) }
         } catch {
-            await stop()
+            // 그 사이 다른 채널이 붙었으면 그건 건드리지 않는다
+            if self.channel === channel { await stop() } else { await Backend.shared.supabase.removeChannel(channel) }
         }
     }
 
