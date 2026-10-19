@@ -63,6 +63,10 @@ final class BoardStore {
         didSet { OfflineCache.save(queue, as: "queue-\(orgId)") }
     }
     @ObservationIgnored private var flushing = false
+    /// 내가 정한 다른 사람 순서 — 저장하는 사이 시작한 load가 옛 값(profile)으로 덮지 않게 여기를 진실로 둔다
+    @ObservationIgnored private var savedMemberOrder: [String] = []
+    @ObservationIgnored private var memberOrderGeneration = 0
+    @ObservationIgnored private var presenceStart: Task<Void, Never>?
 
     private var api: APIClient { Backend.shared.api }
 
@@ -128,6 +132,7 @@ final class BoardStore {
     func load() async {
         await flush()
         let startedAt = writeGeneration
+        let orderStartedAt = memberOrderGeneration
         do {
             async let board = api.fetchBoard(orgId: orgId)
             async let list = api.fetchMembers(orgId: orgId)
@@ -143,7 +148,9 @@ final class BoardStore {
             themePreference = p.theme
             localePreference = p.locale
             showLedger = p.showLedger
-            members = Self.order(m, me: userId, saved: p.memberOrder[orgId] ?? [])
+            // 출발한 뒤 칩 순서를 바꿨으면 이 프로필은 그걸 모른다
+            if memberOrderGeneration == orderStartedAt { savedMemberOrder = p.memberOrder[orgId] ?? [] }
+            members = Self.order(m, me: userId, saved: savedMemberOrder)
             phase = .ready
             offline = false
             saveSnapshot()
@@ -162,14 +169,17 @@ final class BoardStore {
         let inSaved = saved.compactMap { byId[$0] }
         let savedIds = Set(inSaved.map(\.userId))
         let rest = others.filter { !savedIds.contains($0.userId) }
-            .sorted { $0.displayName.localizedCompare($1.displayName) == .orderedAscending }
+            // 웹 localeCompare(앱 언어)와 같게 — 기기 언어로 정렬하면 한글·영문이 섞일 때 웹과 갈린다
+            .sorted { $0.displayName.compare($1.displayName, locale: Locale(identifier: AppLang.current.rawValue)) == .orderedAscending }
         return members.filter { $0.userId == me } + inSaved + rest
     }
 
     /// 멤버 칩 순서 — 나는 늘 맨 앞이라 다른 사람들 순서만 저장한다(웹 updateMemberOrder).
     /// 칩과 컬럼이 같은 `members`를 보므로 컬럼 순서도 같이 바뀐다. 실패하면 되돌린다.
     func reorderMembers(_ others: [String]) {
-        let before = members
+        let before = savedMemberOrder
+        memberOrderGeneration += 1
+        savedMemberOrder = others
         members = Self.order(members, me: userId, saved: others)
         let api = api, orgId = orgId
         Task {
@@ -177,7 +187,10 @@ final class BoardStore {
                 try await api.updateMemberOrder(orgId: orgId, orderedUserIds: others)
                 saveSnapshot()
             } catch {
-                members = before
+                // 스냅숏 통째가 아니라 순서만 되돌린다 — 그 사이 load가 받은 새 멤버를 지우지 않게
+                memberOrderGeneration += 1
+                savedMemberOrder = before
+                members = Self.order(members, me: userId, saved: before)
                 banner = Banner(message: Self.message(error))
             }
         }
@@ -198,7 +211,7 @@ final class BoardStore {
     /// 토큰 없이 붙으면 RLS(`is_org_member`)에 막혀 아무 행도 안 온다(웹 P0-1과 같은 함정).
     func startRealtime() async {
         guard channel == nil else { return }
-        Task { await presence.start() }
+        presenceStart = Task { await presence.start() }
         let supabase = Backend.shared.supabase
         let channel = supabase.channel("board-\(orgId)")
         let todoChanges = channel.postgresChange(AnyAction.self, table: "todos", filter: "org_id=eq.\(orgId)")
@@ -228,12 +241,17 @@ final class BoardStore {
         }
     }
 
+    /// await 전에 상태부터 비운다 — 기다리는 사이 화면이 돌아와 startRealtime이 돌면
+    /// `channel == nil`이어야 새로 붙는다(아니면 그냥 돌아가고, 이어서 이쪽이 채널을 지워 둘 다 끊긴다)
     func stopRealtime() async {
-        await presence.stop()
+        let old = channel
+        channel = nil
+        presenceStart?.cancel()
+        presenceStart = nil
         listeners.forEach { $0.cancel() }
         listeners = []
-        if let channel { await Backend.shared.supabase.removeChannel(channel) }
-        channel = nil
+        await presence.stop()
+        if let old { await Backend.shared.supabase.removeChannel(old) }
     }
 
     private func apply(_ action: AnyAction) {

@@ -72,7 +72,12 @@ struct ReorderState {
 }
 
 /// 꾹 누르면(0.45초) 그 자리에서 끌 수 있다 — 웹의 롱프레스 손잡이와 같다.
-/// 꾹 누르기 전에 움직이면 그건 스크롤이다(제스처가 실패하고 ScrollView가 가져간다).
+///
+/// **SwiftUI 제스처(LongPress → Drag)로 만들지 않는다.** 스크롤 안의 항목에 DragGesture를 붙이면
+/// 바깥 ScrollView가 세로로도 가로로도 스크롤하지 않는다(실제로 컬럼이 통째로 굳었다).
+/// UIKit의 UILongPressGestureRecognizer는 꾹 누르기 전에 움직이면 스스로 실패해 스크롤에 넘기고,
+/// 인식된 뒤에는 손을 뗄 때까지 위치를 계속 주며, 시스템이 끊으면 `.cancelled`가 와서 정리도 확실하다.
+/// 그걸 SwiftUI에 붙이는 수단이 iOS 18부터라, 17에서는 순서 바꾸기만 빠진다(스크롤은 산다).
 struct ReorderHandle: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduce
     let id: String
@@ -86,45 +91,92 @@ struct ReorderHandle: ViewModifier {
     /// 놓았을 때 바뀐 순서
     let onCommit: (String, [String]) -> Void
 
-    // 수식어는 늘 붙여 두고 제스처만 켜고 끈다 — if/else로 가르면 enabled가 바뀔 때(카드를 펼칠 때)
-    // 뷰 정체성이 바뀌어 안쪽 상태가 날아간다
     func body(content: Content) -> some View {
-        let active = state.dragging == id
-        let shift = state.offset(of: id)
-        content
-            // 동시 제스처라 손을 떼면 그 자리 버튼도 눌린다 — 끄는 동안과 막 놓은 순간엔 안쪽 버튼을 잠근다
-            .disabled(state.isLocked(id))
-            .offset(x: state.axis == .horizontal ? shift : 0, y: state.axis == .vertical ? shift : 0)
-            .scaleEffect(active ? 1.03 : 1)
-            .shadow(color: .black.opacity(active ? 0.12 : 0), radius: 12, y: 6)
-            .zIndex(active ? 10 : 0)
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(space)) } action: { state.frames[id] = $0 }
-            // 동시 제스처 — 높은 우선순위로 걸면 안쪽 버튼(펼치기·체크·X·칩 탭)이 탭을 아예 못 받는다.
-            // 대신 끄는 동안은 바깥 ScrollView가 scrollDisabled로 멈춘다.
-            .simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.45)
-                    .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named(space)))
-                    .onChanged { value in
-                        guard case .second(true, let drag) = value else { return }
-                        if state.dragging != id { state.start(id, order: order()) }
-                        guard let drag else { return }
-                        let point = state.axis == .vertical ? drag.location.y : drag.location.x
-                        if let next = state.move(to: point, canSwap: canSwap) {
-                            Motion.run(Motion.quick, reduce: reduce) { state.order = next }
-                        }
-                    }
-                    .onEnded { _ in
-                        guard state.dragging == id else { return }
-                        var result: (id: String, order: [String])?
-                        Motion.run(Motion.quick, reduce: reduce) { result = state.end() }
-                        if let result { onCommit(result.id, result.order) }
-                        Task {
-                            try? await Task.sleep(for: .milliseconds(250))
-                            state.settled()
-                        }
-                    },
-                including: enabled ? .all : .subviews
-            )
-            .sensoryFeedback(.impact(weight: .medium), trigger: active) { _, now in now }
+        if #available(iOS 18.0, *) {
+            let active = state.dragging == id
+            let shift = state.offset(of: id)
+            content
+                // 인식기가 손 뗌을 안쪽 버튼에 안 넘기지만(cancelsTouchesInView), 놓은 직후의 탭까지 막는다
+                .disabled(state.isLocked(id))
+                .offset(x: state.axis == .horizontal ? shift : 0, y: state.axis == .vertical ? shift : 0)
+                .scaleEffect(active ? 1.03 : 1)
+                .shadow(color: .black.opacity(active ? 0.12 : 0), radius: 12, y: 6)
+                .zIndex(active ? 10 : 0)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(space)) } action: { state.frames[id] = $0 }
+                .gesture(LongPressDrag(space: space, enabled: enabled, onBegan: begin, onMoved: move, onEnded: finish))
+                // 끄는 사이 카드가 사라지면(실시간으로 완료·넘김) 인식기 끝 신호가 안 올 수 있다
+                .onDisappear { finish() }
+                .sensoryFeedback(.impact(weight: .medium), trigger: active) { _, now in now }
+        } else {
+            content
+        }
+    }
+
+    private func begin() {
+        state.start(id, order: order())
+    }
+
+    private func move(_ point: CGPoint) {
+        guard state.dragging == id else { return }
+        let p = state.axis == .vertical ? point.y : point.x
+        if let next = state.move(to: p, canSwap: canSwap) {
+            Motion.run(Motion.quick, reduce: reduce) { state.order = next }
+        }
+    }
+
+    /// 놓기·취소 — 끄는 중일 때만 한 번 돈다
+    private func finish() {
+        guard state.dragging == id else { return }
+        var result: (id: String, order: [String])?
+        Motion.run(Motion.quick, reduce: reduce) { result = state.end() }
+        if let result { onCommit(result.id, result.order) }
+        Task {
+            try? await Task.sleep(for: .milliseconds(250))
+            state.settled()
+        }
+    }
+}
+
+@available(iOS 18.0, *)
+private struct LongPressDrag: UIGestureRecognizerRepresentable {
+    let space: String
+    let enabled: Bool
+    let onBegan: () -> Void
+    let onMoved: (CGPoint) -> Void
+    let onEnded: () -> Void
+
+    func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {
+        let g = UILongPressGestureRecognizer()
+        g.minimumPressDuration = 0.45
+        g.delegate = context.coordinator
+        return g
+    }
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator { Coordinator() }
+
+    /// 카드 안 버튼의 인식기와 같이 돈다 — 안 그러면 버튼이 손가락을 먼저 가져가 꾹 누르기가 영영 안 잡힌다
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+            !(other is UIPanGestureRecognizer)
+        }
+    }
+
+    func updateUIGestureRecognizer(_ g: UILongPressGestureRecognizer, context: Context) {
+        g.isEnabled = enabled
+    }
+
+    func handleUIGestureRecognizerAction(_ g: UILongPressGestureRecognizer, context: Context) {
+        let point = context.converter.location(in: .named(space))
+        switch g.state {
+        case .began:
+            onBegan()
+            onMoved(point)
+        case .changed:
+            onMoved(point)
+        case .ended, .cancelled, .failed:
+            onEnded()
+        default:
+            break
+        }
     }
 }

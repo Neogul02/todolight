@@ -64,11 +64,17 @@ final class PresenceStore {
         listeners.append(Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
-                self?.sweep()
+                guard let self else { return }
+                self.sweep()
             }
         })
         do {
             try await channel.subscribeWithError()
+            // 붙는 사이 stop이 지나갔으면(혹은 시작한 Task가 취소됐으면) 이 채널은 고아다 — 스스로 걷는다
+            if Task.isCancelled || self.channel !== channel {
+                if self.channel === channel { await stop() } else { await Backend.shared.supabase.removeChannel(channel) }
+                return
+            }
             // 구독 전에 카드를 펼쳤으면 그 신호는 못 나갔다 — 붙자마자 다시 알린다
             if let focusedId { send("focus", ["userId": .string(userId), "todoId": .string(focusedId), "at": .integer(Self.now)]) }
         } catch {
@@ -77,16 +83,17 @@ final class PresenceStore {
     }
 
     func stop() async {
+        let old = channel
+        channel = nil
         listeners.forEach { $0.cancel() }
         listeners = []
         heartbeatTask?.cancel()
         heartbeatTask = nil
         typingSent.values.forEach { $0.stop?.cancel() }
         typingSent = [:]
-        if let channel { await Backend.shared.supabase.removeChannel(channel) }
-        channel = nil
         viewers = [:]
         typers = [:]
+        if let old { await Backend.shared.supabase.removeChannel(old) }
     }
 
     /// 펼친 카드가 바뀔 때 — 앞 카드엔 unfocus, 새 카드엔 focus + 하트비트(웹 BoardClient의 openTodoId 이펙트)
