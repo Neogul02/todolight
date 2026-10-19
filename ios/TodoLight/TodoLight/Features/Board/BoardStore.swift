@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import Supabase
 import TodoLightKit
+import WidgetKit
 
 /// 한 조직의 보드 상태와 모든 쓰기 — 웹 `useOrgBoard` + `useTodoMutations`를 합친 자리.
 ///
@@ -16,6 +17,8 @@ final class BoardStore {
     enum Phase: Equatable { case loading, ready, failed(String) }
 
     let orgId: String
+    /// 위젯 머리에 적는다
+    let orgName: String
     let userId: String
 
     private(set) var phase: Phase = .loading
@@ -75,8 +78,9 @@ final class BoardStore {
 
     private var api: APIClient { Backend.shared.api }
 
-    init(orgId: String, userId: String) {
+    init(orgId: String, orgName: String, userId: String) {
         self.orgId = orgId
+        self.orgName = orgName
         self.userId = userId
         presence = PresenceStore(orgId: orgId, userId: userId)
         // 마지막으로 본 보드를 먼저 그린다 — 서버 응답은 그 위에 덮는다
@@ -98,6 +102,14 @@ final class BoardStore {
             BoardSnapshot(todos: todos, doneTotals: doneTotals, members: members, showDone: showDone, showLedger: showLedger),
             as: "board-\(orgId)"
         )
+        publishWidget()
+    }
+
+    /// 잠금화면·홈 위젯이 읽을 내 할 일 — 지금 보고 있는 조직 기준. 바뀌었을 때만 다시 그리게 한다
+    /// (앱이 앞에 있을 때의 갱신은 위젯 예산을 쓰지 않지만, 같은 그림을 다시 그릴 이유도 없다).
+    private func publishWidget() {
+        let snapshot = WidgetSnapshot.make(orgName: orgName, todos: todos, userId: userId, lang: AppLang.current.rawValue)
+        if SharedStore.save(snapshot) { WidgetCenter.shared.reloadAllTimelines() }
     }
 
     /// 쌓아 둔 쓰기를 순서대로 보낸다. 다시 닿지 못하면 멈추고(다음 기회에), 서버가 거절한 것은 버리고 알린다.

@@ -45,7 +45,7 @@ struct BoardView: View {
         self.onSwitchOrg = onSwitchOrg
         self.onOpen = onOpen
         self.onRespond = onRespond
-        _store = State(initialValue: BoardStore(orgId: org.id, userId: userId))
+        _store = State(initialValue: BoardStore(orgId: org.id, orgName: org.name, userId: userId))
     }
 
     var body: some View {

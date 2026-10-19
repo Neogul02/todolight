@@ -84,7 +84,6 @@ struct ReorderState {
 /// 바깥 ScrollView가 세로로도 가로로도 스크롤하지 않는다(실제로 컬럼이 통째로 굳었다).
 /// UIKit의 UILongPressGestureRecognizer는 꾹 누르기 전에 움직이면 스스로 실패해 스크롤에 넘기고,
 /// 인식된 뒤에는 손을 뗄 때까지 위치를 계속 주며, 시스템이 끊으면 `.cancelled`가 와서 정리도 확실하다.
-/// 그걸 SwiftUI에 붙이는 수단이 iOS 18부터라, 17에서는 순서 바꾸기만 빠진다(스크롤은 산다).
 struct ReorderHandle: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduce
     let id: String
@@ -99,26 +98,22 @@ struct ReorderHandle: ViewModifier {
     let onCommit: (String, [String]) -> Void
 
     func body(content: Content) -> some View {
-        if #available(iOS 18.0, *) {
-            let active = state.dragging == id
-            let shift = state.offset(of: id)
-            content
-                // 인식기가 손 뗌을 안쪽 버튼에 안 넘기지만(cancelsTouchesInView), 놓은 직후의 탭까지 막는다
-                .disabled(state.isLocked(id))
-                .offset(x: state.axis == .horizontal ? shift : 0, y: state.axis == .vertical ? shift : 0)
-                .scaleEffect(active ? 1.03 : 1)
-                .shadow(color: .black.opacity(active ? 0.12 : 0), radius: 12, y: 6)
-                .zIndex(active ? 10 : 0)
-                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(space)) } action: { state.frames[id] = $0 }
-                .gesture(LongPressDrag(space: space, enabled: enabled, onBegan: begin, onMoved: move,
-                                       onEnded: { finish(commit: true) }, onCancelled: { finish(commit: false) }))
-                // 끄는 사이 카드가 사라지면(실시간으로 넘김·지움) 인식기 끝 신호가 안 올 수 있다 —
-                // 그때는 저장하지 않는다(옛 컬럼의 이웃으로 계산한 자리를 남의 컬럼에 쓰게 된다)
-                .onDisappear { finish(commit: false) }
-                .sensoryFeedback(.impact(weight: .medium), trigger: active) { _, now in now }
-        } else {
-            content
-        }
+        let active = state.dragging == id
+        let shift = state.offset(of: id)
+        content
+            // 인식기가 손 뗌을 안쪽 버튼에 안 넘기지만(cancelsTouchesInView), 놓은 직후의 탭까지 막는다
+            .disabled(state.isLocked(id))
+            .offset(x: state.axis == .horizontal ? shift : 0, y: state.axis == .vertical ? shift : 0)
+            .scaleEffect(active ? 1.03 : 1)
+            .shadow(color: .black.opacity(active ? 0.12 : 0), radius: 12, y: 6)
+            .zIndex(active ? 10 : 0)
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(space)) } action: { state.frames[id] = $0 }
+            .gesture(LongPressDrag(space: space, enabled: enabled, onBegan: begin, onMoved: move,
+                                   onEnded: { finish(commit: true) }, onCancelled: { finish(commit: false) }))
+            // 끄는 사이 카드가 사라지면(실시간으로 넘김·지움) 인식기 끝 신호가 안 올 수 있다 —
+            // 그때는 저장하지 않는다(옛 컬럼의 이웃으로 계산한 자리를 남의 컬럼에 쓰게 된다)
+            .onDisappear { finish(commit: false) }
+            .sensoryFeedback(.impact(weight: .medium), trigger: active) { _, now in now }
     }
 
     private func begin() {
@@ -146,7 +141,6 @@ struct ReorderHandle: ViewModifier {
     }
 }
 
-@available(iOS 18.0, *)
 private struct LongPressDrag: UIGestureRecognizerRepresentable {
     let space: String
     let enabled: Bool

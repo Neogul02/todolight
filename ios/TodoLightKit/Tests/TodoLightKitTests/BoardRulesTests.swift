@@ -221,3 +221,22 @@ struct ReorderTests {
         #expect(!BoardRules.canMove(a, near: try makeTodo("d", status: .done, due: "2026-10-20")))
     }
 }
+
+@Suite("위젯 스냅숏")
+struct WidgetSnapshotTests {
+    @Test("내 미완료만, 보드와 같은 순서로, 앞의 몇 개만 — 개수는 전체")
+    func makesFromMyOpenColumn() throws {
+        let todos = [
+            try makeTodo("later", due: "2099-01-01"),
+            try makeTodo("overdue", due: "2000-01-01"),
+            try makeTodo("done", status: .done),
+            try makeTodo("none"),
+        ]
+        let s = WidgetSnapshot.make(orgName: "팀", todos: todos, userId: "u", lang: "ko", limit: 2)
+        #expect(s.openCount == 3)
+        #expect(s.items.map(\.id) == ["overdue", "later"])
+        // 남의 할 일은 세지 않는다
+        #expect(WidgetSnapshot.make(orgName: "팀", todos: todos, userId: "someone", lang: "ko").openCount == 0)
+    }
+}
+

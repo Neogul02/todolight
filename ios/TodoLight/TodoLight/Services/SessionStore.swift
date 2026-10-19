@@ -1,6 +1,8 @@
 import Foundation
 import Observation
 import Supabase
+import TodoLightKit
+import WidgetKit
 
 /// 로그인 상태 하나만 든다. 화면은 이 값으로 로그인 ↔ 앱을 가른다.
 @MainActor
@@ -38,6 +40,9 @@ final class SessionStore {
 
     func signOut() async {
         OfflineCache.clear()
+        // 잠금화면에 남의 할 일이 남으면 안 된다
+        SharedStore.clear()
+        WidgetCenter.shared.reloadAllTimelines()
         try? await Backend.shared.supabase.auth.signOut()
     }
 }
