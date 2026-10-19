@@ -26,8 +26,7 @@ struct MemberColumnView: View {
 
     var body: some View {
         let (sorted, done) = store.column(for: member.userId)
-        // 끄는 동안만 손끝 순서를 쓴다
-        let open = reorder.order.map { ids in ids.compactMap { id in sorted.first { $0.id == id } } } ?? sorted
+        let open = reorder.arrange(sorted, id: \.id)
         let shownDone = store.showDone ? (showAllDone ? done : Array(done.prefix(Self.visibleDone))) : []
         let hiddenDone = store.showDone ? done.count - shownDone.count : 0
         let notLoaded = BoardRules.notLoadedDoneCount(doneTotal: store.doneTotals[member.userId] ?? 0, loadedDone: done.count)

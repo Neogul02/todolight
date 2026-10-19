@@ -66,6 +66,8 @@ final class BoardStore {
     /// 내가 정한 다른 사람 순서 — 저장하는 사이 시작한 load가 옛 값(profile)으로 덮지 않게 여기를 진실로 둔다
     @ObservationIgnored private var savedMemberOrder: [String] = []
     @ObservationIgnored private var memberOrderGeneration = 0
+    /// 날아가는 중인 칩 순서 저장 — 그동안 읽은 프로필은 아직 옛 순서다
+    @ObservationIgnored private var memberOrderSaving = 0
     @ObservationIgnored private var presenceStart: Task<Void, Never>?
 
     private var api: APIClient { Backend.shared.api }
@@ -149,7 +151,7 @@ final class BoardStore {
             localePreference = p.locale
             showLedger = p.showLedger
             // 출발한 뒤 칩 순서를 바꿨으면 이 프로필은 그걸 모른다
-            if memberOrderGeneration == orderStartedAt { savedMemberOrder = p.memberOrder[orgId] ?? [] }
+            if memberOrderGeneration == orderStartedAt && memberOrderSaving == 0 { savedMemberOrder = p.memberOrder[orgId] ?? [] }
             members = Self.order(m, me: userId, saved: savedMemberOrder)
             phase = .ready
             offline = false
@@ -182,7 +184,9 @@ final class BoardStore {
         savedMemberOrder = others
         members = Self.order(members, me: userId, saved: others)
         let api = api, orgId = orgId
+        memberOrderSaving += 1
         Task {
+            defer { memberOrderSaving -= 1 }
             do {
                 try await api.updateMemberOrder(orgId: orgId, orderedUserIds: others)
                 // 저장하는 사이 출발한 load는 옛 member_order를 읽었다 — 세대를 올려 그 응답도 거른다

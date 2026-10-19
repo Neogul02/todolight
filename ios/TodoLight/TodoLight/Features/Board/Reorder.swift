@@ -20,6 +20,13 @@ struct ReorderState {
 
     init(axis: Axis) { self.axis = axis }
 
+    /// 끄는 동안은 손끝 순서로, 아니면 받은 순서 그대로
+    func arrange<T>(_ items: [T], id: (T) -> String) -> [T] {
+        guard let order else { return items }
+        let byId = Dictionary(items.map { (id($0), $0) }, uniquingKeysWith: { first, _ in first })
+        return order.compactMap { byId[$0] }
+    }
+
     func offset(of id: String) -> CGFloat { dragging == id ? offset : 0 }
     func isLocked(_ id: String) -> Bool { dragging == id || settling == id }
 

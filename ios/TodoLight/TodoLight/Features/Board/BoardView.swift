@@ -175,7 +175,7 @@ struct BoardView: View {
     /// 멤버 칩 — 사람이 많을수록 미는 것보다 한 번 누르는 쪽이 빠르다(웹 「멤버 칩은 늘 띄운다」).
     /// 다른 사람 칩은 꾹 눌러 옮길 수 있다 — 내 칩은 늘 맨 앞이라 움직이지도, 그 앞으로 넘어가지도 않는다.
     private var chips: some View {
-        let shown = chipReorder.order.map { ids in ids.compactMap { id in store.members.first { $0.userId == id } } } ?? store.members
+        let shown = chipReorder.arrange(store.members, id: \.userId)
         return ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
