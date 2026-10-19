@@ -69,6 +69,9 @@ final class BoardStore {
     /// 날아가는 중인 칩 순서 저장 — 그동안 읽은 프로필은 아직 옛 순서다
     @ObservationIgnored private var memberOrderSaving = 0
     @ObservationIgnored private var presenceStart: Task<Void, Never>?
+    /// 정리 중인 채널 — 같은 이름(board-·presence-{orgId})의 새 채널은 이게 끝난 뒤에 연다.
+    /// SDK가 채널을 이름으로 들고 있어서, 겹치면 옛 채널을 걷는 순간 새 구독까지 같이 걷힌다.
+    @ObservationIgnored private var stopping: Task<Void, Never>?
 
     private var api: APIClient { Backend.shared.api }
 
@@ -81,6 +84,8 @@ final class BoardStore {
             todos = snap.todos
             doneTotals = snap.doneTotals
             members = snap.members
+            // 첫 load 전에 칩을 옮겼다 실패해도 이름순이 아니라 지금 보이던 순서로 되돌아가게
+            savedMemberOrder = snap.members.map(\.userId).filter { $0 != userId }
             showDone = snap.showDone
             showLedger = snap.showLedger
             phase = .ready
@@ -193,6 +198,8 @@ final class BoardStore {
                 memberOrderGeneration += 1
                 saveSnapshot()
             } catch {
+                // 그 사이 또 옮겼으면(그쪽이 최신) 옛 실패로 되돌리지 않는다
+                guard savedMemberOrder == others else { return }
                 // 스냅숏 통째가 아니라 순서만 되돌린다 — 그 사이 load가 받은 새 멤버를 지우지 않게
                 memberOrderGeneration += 1
                 savedMemberOrder = before
@@ -216,6 +223,7 @@ final class BoardStore {
     /// `board-{orgId}` 채널. 웹소켓 인증은 supabase-swift가 세션 토큰으로 맞춰 준다 —
     /// 토큰 없이 붙으면 RLS(`is_org_member`)에 막혀 아무 행도 안 온다(웹 P0-1과 같은 함정).
     func startRealtime() async {
+        await stopping?.value
         guard channel == nil else { return }
         presenceStart = Task { await presence.start() }
         let supabase = Backend.shared.supabase
@@ -258,8 +266,14 @@ final class BoardStore {
         presenceStart = nil
         listeners.forEach { $0.cancel() }
         listeners = []
-        await presence.stop()
-        if let old { await Backend.shared.supabase.removeChannel(old) }
+        let presence = presence
+        let teardown = Task {
+            await presence.stop()
+            if let old { await Backend.shared.supabase.removeChannel(old) }
+        }
+        stopping = teardown
+        await teardown.value
+        if stopping == teardown { stopping = nil }
     }
 
     private func apply(_ action: AnyAction) {

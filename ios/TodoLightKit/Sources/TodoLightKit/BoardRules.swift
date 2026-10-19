@@ -118,6 +118,9 @@ public enum BoardRules {
         case (nil, nil): return nil
         case (nil, let n?): position = n - 1
         case (let p?, nil): position = p + 1
+        // 이웃 둘이 같은 값이면(동시 삽입이 같은 position을 남기던 옛 데이터) 사이가 없다 —
+        // 앞 이웃 바로 뒤의 고유한 값을 줘서 적어도 겹침에서 빠져나오게 한다(평균이면 셋이 다 같은 값이 된다)
+        case (let p?, let n?) where p >= n: position = p + max(abs(p), 1) * 1e-9
         case (let p?, let n?): position = (p + n) / 2
         }
         return position == order[i].position ? nil : position

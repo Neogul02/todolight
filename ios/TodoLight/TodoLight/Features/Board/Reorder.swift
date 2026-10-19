@@ -110,9 +110,11 @@ struct ReorderHandle: ViewModifier {
                 .shadow(color: .black.opacity(active ? 0.12 : 0), radius: 12, y: 6)
                 .zIndex(active ? 10 : 0)
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(space)) } action: { state.frames[id] = $0 }
-                .gesture(LongPressDrag(space: space, enabled: enabled, onBegan: begin, onMoved: move, onEnded: finish))
-                // 끄는 사이 카드가 사라지면(실시간으로 완료·넘김) 인식기 끝 신호가 안 올 수 있다
-                .onDisappear { finish() }
+                .gesture(LongPressDrag(space: space, enabled: enabled, onBegan: begin, onMoved: move,
+                                       onEnded: { finish(commit: true) }, onCancelled: { finish(commit: false) }))
+                // 끄는 사이 카드가 사라지면(실시간으로 넘김·지움) 인식기 끝 신호가 안 올 수 있다 —
+                // 그때는 저장하지 않는다(옛 컬럼의 이웃으로 계산한 자리를 남의 컬럼에 쓰게 된다)
+                .onDisappear { finish(commit: false) }
                 .sensoryFeedback(.impact(weight: .medium), trigger: active) { _, now in now }
         } else {
             content
@@ -131,12 +133,12 @@ struct ReorderHandle: ViewModifier {
         }
     }
 
-    /// 놓기·취소 — 끄는 중일 때만 한 번 돈다
-    private func finish() {
+    /// 놓기(commit) · 취소(원래 자리로) — 끄는 중일 때만 한 번 돈다
+    private func finish(commit: Bool) {
         guard state.dragging == id else { return }
         var result: (id: String, order: [String])?
         Motion.run(Motion.quick, reduce: reduce) { result = state.end() }
-        if let result { onCommit(result.id, result.order) }
+        if commit, let result { onCommit(result.id, result.order) }
         Task {
             try? await Task.sleep(for: .milliseconds(250))
             state.settled()
@@ -151,6 +153,8 @@ private struct LongPressDrag: UIGestureRecognizerRepresentable {
     let onBegan: () -> Void
     let onMoved: (CGPoint) -> Void
     let onEnded: () -> Void
+    /// 시스템이 끊음(전화, 제어센터) — 사람이 놓은 게 아니니 저장하지 않는다
+    let onCancelled: () -> Void
 
     func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {
         let g = UILongPressGestureRecognizer()
@@ -180,8 +184,10 @@ private struct LongPressDrag: UIGestureRecognizerRepresentable {
             onMoved(point)
         case .changed:
             onMoved(point)
-        case .ended, .cancelled, .failed:
+        case .ended:
             onEnded()
+        case .cancelled, .failed:
+            onCancelled()
         default:
             break
         }

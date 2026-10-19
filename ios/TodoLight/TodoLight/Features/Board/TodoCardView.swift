@@ -405,6 +405,8 @@ private struct ViewingOutline: View {
                     guard !reduce else { return }
                     withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) { dim = true }
                 }
+                // 이 뷰는 카드와 같이 살아 있어서, 다음에 누가 다시 볼 때 숨쉬기가 처음부터 돌게 되돌린다
+                .onDisappear { dim = false }
         }
     }
 }

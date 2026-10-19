@@ -206,6 +206,13 @@ struct ReorderTests {
         #expect(BoardRules.reorderedPosition(of: "m", in: order) == -128)
     }
 
+    @Test("이웃 둘의 position이 같으면 겹치지 않는 값을 준다")
+    func tiedNeighbours() throws {
+        let order = [try makeTodo("a", position: 1), try makeTodo("m", position: 1), try makeTodo("b", position: 1)]
+        let got = try #require(BoardRules.reorderedPosition(of: "m", in: order))
+        #expect(got > 1)
+    }
+
     @Test("마감일이 다르거나 완료면 옮길 수 없다")
     func groups() throws {
         let a = try makeTodo("a", due: "2026-10-20")

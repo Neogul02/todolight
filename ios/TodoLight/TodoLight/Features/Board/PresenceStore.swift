@@ -37,6 +37,9 @@ final class PresenceStore {
     @ObservationIgnored private var listeners: [Task<Void, Never>] = []
     @ObservationIgnored private var heartbeatTask: Task<Void, Never>?
     @ObservationIgnored private var focusedId: String?
+    /// 보드가 붙어 있는 동안 true — 구독이 실패하면 이 값을 보고 다시 붙는다(조용히 죽은 채로 두지 않는다)
+    @ObservationIgnored private var wanted = false
+    @ObservationIgnored private var retryTask: Task<Void, Never>?
     /// "할일id:칸" → 마지막 전송 시각 · 정지 타이머
     @ObservationIgnored private var typingSent: [String: (at: Date, stop: Task<Void, Never>?)] = [:]
 
@@ -48,6 +51,7 @@ final class PresenceStore {
     func start() async {
         // 아직 돌기 전에 취소된 시작이 나중에 돌아 채널을 먼저 차지하지 않게
         guard !Task.isCancelled, channel == nil else { return }
+        wanted = true
         let userId = userId
         let channel = Backend.shared.supabase.channel("presence-\(orgId)") { $0.presence.key = userId }
         self.channel = channel
@@ -76,15 +80,31 @@ final class PresenceStore {
                 if self.channel === channel { await stop() } else { await Backend.shared.supabase.removeChannel(channel) }
                 return
             }
-            // 구독 전에 카드를 펼쳤으면 그 신호는 못 나갔다 — 붙자마자 다시 알린다
-            if let focusedId { send("focus", ["userId": .string(userId), "todoId": .string(focusedId), "at": .integer(Self.now)]) }
+            // 펼친 채로 다시 붙었으면(구독 전에 펼쳤거나, 끊겼다 붙음) 알림과 하트비트를 다시 건다
+            if let focusedId { beginFocus(focusedId) }
         } catch {
             // 그 사이 다른 채널이 붙었으면 그건 건드리지 않는다
-            if self.channel === channel { await stop() } else { await Backend.shared.supabase.removeChannel(channel) }
+            guard self.channel === channel else {
+                await Backend.shared.supabase.removeChannel(channel)
+                return
+            }
+            await teardown()
+            retryTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(3))
+                guard !Task.isCancelled, let self, self.wanted, self.channel == nil else { return }
+                await self.start()
+            }
         }
     }
 
     func stop() async {
+        wanted = false
+        retryTask?.cancel()
+        retryTask = nil
+        await teardown()
+    }
+
+    private func teardown() async {
         let old = channel
         channel = nil
         listeners.forEach { $0.cancel() }
@@ -105,7 +125,12 @@ final class PresenceStore {
         heartbeatTask = nil
         if let old = focusedId { send("unfocus", ["userId": .string(userId), "todoId": .string(old)]) }
         focusedId = todoId
-        guard let todoId else { return }
+        if let todoId { beginFocus(todoId) }
+    }
+
+    /// focus를 보내고 4초마다 다시 보낸다
+    private func beginFocus(_ todoId: String) {
+        heartbeatTask?.cancel()
         let focus: () -> Void = { [weak self] in
             guard let self else { return }
             self.send("focus", ["userId": .string(self.userId), "todoId": .string(todoId), "at": .integer(Self.now)])
