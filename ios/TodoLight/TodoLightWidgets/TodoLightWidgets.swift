@@ -10,6 +10,7 @@ import WidgetKit
 struct TodoLightWidgetBundle: WidgetBundle {
     var body: some Widget {
         MyTodosWidget()
+        QuickAddControl()
     }
 }
 
@@ -138,10 +139,18 @@ struct MyTodosView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 제목 + 마감 — 지난 마감은 느낌표로(색을 못 쓰는 잠금화면에서도 보인다)
+    /// 체크 + 제목 + 마감 — 지난 마감은 느낌표로(색을 못 쓰는 잠금화면에서도 보인다).
+    /// 체크는 내 것에만 단다(남의 할 일을 끝내는 건 메모가 필요한 "대신 처리"라 앱에서 한다)
     private func row(_ item: WidgetSnapshot.Item, _ t: Words, font: Font) -> some View {
         let due = item.dueDate.map { DueLabel.state($0, today: entry.date) }
         return HStack(spacing: 4) {
+            if item.mine == true {
+                Button(intent: CompleteTodoIntent(todoId: item.id)) {
+                    Image(systemName: "circle").font(font)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(t.markDone(item.title))
+            }
             if due == .overdue { Image(systemName: "exclamationmark.circle.fill").font(font) }
             Text(item.title).font(font).lineLimit(1)
             Spacer(minLength: 4)
@@ -209,6 +218,7 @@ struct Words {
     var today: String { ko ? "오늘" : "Today" }
     var tomorrow: String { ko ? "내일" : "Tomorrow" }
     var openApp: String { ko ? "앱을 열어 로그인해 주세요" : "Open the app to sign in" }
+    func markDone(_ title: String) -> String { ko ? "\(title) 끝내기" : "Mark \(title) done" }
     func remaining(_ n: Int) -> String { ko ? "남은 할 일 \(n)" : "\(n) to-do\(n == 1 ? "" : "s") left" }
     func daysAgo(_ n: Int) -> String { ko ? "\(n)일 지남" : "\(n)d overdue" }
     func month(_ m: Int, day d: Int) -> String { ko ? "\(m)월 \(d)일" : "\(m)/\(d)" }
@@ -219,9 +229,9 @@ extension WidgetSnapshot {
     static let sample = WidgetSnapshot(
         orgName: "todolight", openCount: 3,
         items: [
-            .init(id: "1", title: "보고서 마무리", dueDate: DueLabel.day(.now)),
-            .init(id: "2", title: "장보기", dueDate: nil),
-            .init(id: "3", title: "택배 반품", dueDate: nil),
+            .init(id: "1", title: "보고서 마무리", dueDate: DueLabel.day(.now), mine: true),
+            .init(id: "2", title: "장보기", dueDate: nil, mine: true),
+            .init(id: "3", title: "택배 반품", dueDate: nil, mine: true),
         ],
         lang: Locale.current.language.languageCode?.identifier == "en" ? "en" : "ko"
     )

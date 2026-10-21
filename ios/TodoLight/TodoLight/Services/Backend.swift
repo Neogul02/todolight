@@ -10,12 +10,9 @@ final class Backend: Sendable {
     let api: APIClient
 
     private init() {
-        let supabase = SupabaseClient(
-            supabaseURL: AppConfig.supabaseURL,
-            supabaseKey: AppConfig.supabaseAnonKey,
-            // 저장된 세션을 만료 여부와 상관없이 첫 이벤트로 준다 — 만료는 SessionStore가 본다
-            options: SupabaseClientOptions(auth: .init(emitLocalSessionAsInitialSession: true))
-        )
+        // 세션은 위젯과 같이 쓰는 키체인 자리에 둔다(SharedAuth) — 옛 자리에 있으면 먼저 옮긴다
+        SharedAuth.migrateIfNeeded()
+        let supabase = SharedAuth.makeClient()
         self.supabase = supabase
         /*
           **갱신은 SDK가 한다.** `session`은 만료가 가까우면 refresh한 새 토큰을 돌려준다 —

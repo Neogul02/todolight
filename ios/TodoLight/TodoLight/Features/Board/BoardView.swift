@@ -107,6 +107,12 @@ struct BoardView: View {
             }
         }
         .onChange(of: refreshToken) { _, _ in Task { await store.load() } }
+        // 잠금화면 "할 일 추가" — 다른 패널·다른 사람 컬럼을 보고 있었어도 내 컬럼으로(추가 칸은 그 컬럼이 연다)
+        .onChange(of: QuickAdd.shared.pending) { _, now in
+            guard now else { return }
+            pane = .board
+            page = store.userId
+        }
         // 연결이 돌아오는 순간 쌓아 둔 쓰기를 보내고 서버 상태로 맞춘다(load가 먼저 보낸다)
         .onChange(of: Connectivity.shared.online) { _, up in if up { Task { await store.load() } } }
         .onChange(of: store.themePreference) { _, pref in if let pref { theme.preference = pref } }

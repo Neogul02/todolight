@@ -37,7 +37,14 @@ targets:
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
-    # 위젯과 같이 쓰는 저장소 — 앱이 쓰고 위젯이 읽는다(WidgetSnapshot)
+    # todolight://add — 잠금화면 "할 일 추가" 버튼이 연다(GENERATE_INFOPLIST_FILE와 합쳐진다)
+    info:
+      path: TodoLight/Info.plist
+      properties:
+        CFBundleURLTypes:
+          - CFBundleURLName: com.neogul02.todolight
+            CFBundleURLSchemes: [todolight]
+    # 위젯과 같이 쓰는 저장소 — 앱이 쓰고 위젯이 읽는다(WidgetSnapshot). 키체인 공유 그룹도 겸한다(SharedAuth)
     entitlements:
       path: TodoLight/TodoLight.entitlements
       properties:
@@ -50,7 +57,11 @@ targets:
   TodoLightWidgets:
     type: app-extension
     platform: iOS
-    sources: [TodoLightWidgets]
+    sources:
+      - TodoLightWidgets
+      # 앱과 같은 서버·같은 로그인 세션 — 두 타깃에 같이 컴파일한다
+      - TodoLight/App/AppConfig.swift
+      - TodoLight/Services/SharedAuth.swift
     info:
       path: TodoLightWidgets/Info.plist
       properties:
@@ -68,6 +79,8 @@ targets:
         CODE_SIGN_STYLE: Automatic
     dependencies:
       - package: TodoLightKit
+      - package: Supabase
+        product: Supabase
   TodoLightTests:
     type: bundle.unit-test
     platform: iOS

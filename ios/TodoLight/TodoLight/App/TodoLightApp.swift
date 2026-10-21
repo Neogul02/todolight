@@ -14,6 +14,8 @@ struct TodoLightApp: App {
                 .environment(session)
                 .environment(theme)
                 .environment(lang)
+                // 잠금화면 "할 일 추가" 버튼(위젯 확장의 QuickAddControl)
+                .onOpenURL { url in if url.host() == "add" { QuickAdd.shared.request() } }
         }
     }
 }

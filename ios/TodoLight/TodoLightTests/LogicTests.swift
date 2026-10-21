@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Supabase
 import Testing
 import TodoLightKit
 @testable import TodoLight
@@ -112,5 +113,52 @@ struct MemberOrderTests {
         let ordered = BoardStore.order(list, me: "me", saved: ["d", "gone", "b"])
         // 저장된 순서(d, b) — 없는 id(gone)는 건너뛴다 — 그다음 처음 보는 사람은 이름순(a 가람, c 다연)
         #expect(ordered.map(\.userId) == ["me", "d", "b", "a", "c"])
+    }
+}
+
+/// 업데이트 뒤 첫 실행 — 옛 자리(앱 전용 키체인)의 세션이 공유 자리로 옮겨져야 로그아웃되지 않는다
+@MainActor
+struct SharedAuthMigrationTests {
+    private let key = SharedAuth.storageKey
+
+    /// 그룹을 짚은 질의 — 그룹 없는 질의는 모든 그룹에 걸려 확인이 안 된다
+    private func items() -> [(group: String, data: Data)] {
+        var result: AnyObject?
+        let q: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: SharedAuth.service,
+            kSecAttrAccount as String: key, kSecMatchLimit as String: kSecMatchLimitAll,
+            kSecReturnAttributes as String: true, kSecReturnData as String: true,
+        ]
+        guard SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess, let list = result as? [[String: Any]] else { return [] }
+        return list.compactMap { i in
+            guard let g = i[kSecAttrAccessGroup as String] as? String, let d = i[kSecValueData as String] as? Data else { return nil }
+            return (g, d)
+        }
+    }
+
+    @Test func movesLegacySessionAndRemovesOnlyTheOldOne() throws {
+        let backup = items()
+        defer {
+            SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: SharedAuth.service,
+                           kSecAttrAccount as String: key] as CFDictionary)
+            for (g, d) in backup {
+                SecItemAdd([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: SharedAuth.service,
+                            kSecAttrAccount as String: key, kSecAttrAccessGroup as String: g, kSecValueData as String: d] as CFDictionary, nil)
+            }
+        }
+        SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: SharedAuth.service,
+                       kSecAttrAccount as String: key] as CFDictionary)
+        // 예전 빌드처럼 그룹 없이 넣는다 — 앱의 기본 그룹으로 들어간다
+        SecItemAdd([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: SharedAuth.service,
+                    kSecAttrAccount as String: key, kSecValueData as String: Data("session".utf8)] as CFDictionary, nil)
+        let legacyGroup = try #require(items().first?.group)
+        try #require(legacyGroup != SharedStore.appGroup, "기본 그룹이 공유 그룹이면 옮길 게 없다")
+
+        SharedAuth.migrateIfNeeded()
+
+        let after = items()
+        #expect(after.count == 1)
+        #expect(after.first?.group == SharedStore.appGroup)
+        #expect(after.first?.data == Data("session".utf8))
     }
 }

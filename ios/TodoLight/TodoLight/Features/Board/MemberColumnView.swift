@@ -76,6 +76,11 @@ struct MemberColumnView: View {
             .scrollDismissesKeyboard(.interactively)
             .scrollDisabled(reorder.dragging != nil)
         }
+        // 잠금화면 "할 일 추가" — 내 컬럼만 받는다
+        .onAppear { if isMe && QuickAdd.shared.consume() { adding = true } }
+        .onChange(of: QuickAdd.shared.pending) { _, now in
+            if now && isMe && QuickAdd.shared.consume() { adding = true }
+        }
         // 내 컬럼만 한 단계 진하게(웹 isMine → border-hairline-strong bg-surface-alt/70)
         .background((isMe ? tk.surfaceAlt.opacity(0.7) : tk.canvasSoft.opacity(0.55)), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(isMe ? tk.hairlineStrong : tk.hairline, lineWidth: 1))

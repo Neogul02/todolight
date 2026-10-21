@@ -11,11 +11,15 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
         public let title: String
         /// "yyyy-MM-dd"(KST) — 날짜 라벨은 위젯이 그리는 시점에 계산한다(자정이 지나면 "오늘"이 "어제"가 된다)
         public let dueDate: String?
+        /// 내가 주인인가 — 위젯에서 바로 끝낼 수 있는 건 내 것뿐이다. 같이하기로 참여한 남의 할 일은
+        /// 서버가 `setTodoStatus`를 막는다(대신 처리는 메모가 필요하다). 옛 스냅숏에는 없어서 nil이면 못 끈다.
+        public let mine: Bool?
 
-        public init(id: String, title: String, dueDate: String?) {
+        public init(id: String, title: String, dueDate: String?, mine: Bool) {
             self.id = id
             self.title = title
             self.dueDate = dueDate
+            self.mine = mine
         }
     }
 
@@ -36,11 +40,11 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
 
     /// 보드에서 내 컬럼의 미완료로 만든다 — 보드와 같은 정렬(`BoardRules.split`)을 쓴다
     public static func make(orgName: String, todos: [Todo], userId: String, lang: String, limit: Int = 4) -> WidgetSnapshot {
-        let mine = BoardRules.split(todos.filter { $0.ownerId == userId || $0.participants.contains(userId) }).open
+        let column = BoardRules.split(todos.filter { $0.ownerId == userId || $0.participants.contains(userId) }).open
         return WidgetSnapshot(
             orgName: orgName,
-            openCount: mine.count,
-            items: mine.prefix(limit).map { Item(id: $0.id, title: $0.title, dueDate: $0.dueDate) },
+            openCount: column.count,
+            items: column.prefix(limit).map { Item(id: $0.id, title: $0.title, dueDate: $0.dueDate, mine: $0.ownerId == userId) },
             lang: lang
         )
     }
@@ -64,6 +68,18 @@ public enum SharedStore {
         guard let url, let data = try? encoder.encode(snapshot) else { return false }
         if let old = try? Data(contentsOf: url), old == data { return false }
         return (try? data.write(to: url, options: .atomic)) != nil
+    }
+
+    /// 위젯에서 체크한 것을 서버 응답 전에 먼저 빼고(낙관적), 실패하면 돌려놓을 수 있게 앞의 값을 준다
+    public static func removeItem(_ id: String) -> WidgetSnapshot? {
+        guard let before = load(), before.items.contains(where: { $0.id == id }) else { return nil }
+        save(WidgetSnapshot(
+            orgName: before.orgName,
+            openCount: max(before.openCount - 1, 0),
+            items: before.items.filter { $0.id != id },
+            lang: before.lang
+        ))
+        return before
     }
 
     public static func load() -> WidgetSnapshot? {
