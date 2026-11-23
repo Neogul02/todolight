@@ -42,6 +42,10 @@ export default function MeClient() {
   const [showDone, setShowDone] = useState(profile?.show_done ?? true);
   const [showLedger, setShowLedger] = useState(profile?.show_ledger ?? true);
   const [showCalendar, setShowCalendar] = useState(profile?.show_calendar ?? true);
+  // 앱 푸시 묶음 — 알림은 iOS 앱으로 오지만, 켜고 끄는 건 어느 기기에서든 같은 값이다
+  const [notifyMy, setNotifyMy] = useState(profile?.notify_my_todos ?? true);
+  const [notifyOrg, setNotifyOrg] = useState(profile?.notify_org ?? true);
+  const [notifyTeam, setNotifyTeam] = useState(profile?.notify_team_todos ?? false);
   const [photo, setPhoto] = useState<string | null>(profile?.avatar_url ?? null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -114,6 +118,16 @@ export default function MeClient() {
     const next = !showDone;
     setShowDone(next);
     save({ showDone: next }, () => setShowDone(!next));
+  }
+
+  function toggleNotify(
+    value: boolean,
+    set: (v: boolean) => void,
+    key: 'notifyMyTodos' | 'notifyOrg' | 'notifyTeamTodos'
+  ) {
+    const next = !value;
+    set(next);
+    save({ [key]: next }, () => set(!next));
   }
 
   function toggleShowCalendar() {
@@ -313,6 +327,28 @@ export default function MeClient() {
             checked={showLedger}
             onChange={toggleShowLedger}
             label={t('showLedger')}
+          />
+        </div>
+      </Card>
+
+      {/* 앱 푸시 — 받는 곳은 iOS 앱이고, 여기서는 무엇을 받을지만 고른다 */}
+      <Card className="p-5">
+        <h2 className="text-title text-ink">{t('notify.title')}</h2>
+        <div className="mt-3 flex flex-col gap-3">
+          <SettingCheckbox
+            checked={notifyMy}
+            onChange={() => toggleNotify(notifyMy, setNotifyMy, 'notifyMyTodos')}
+            label={t('notify.my')}
+          />
+          <SettingCheckbox
+            checked={notifyOrg}
+            onChange={() => toggleNotify(notifyOrg, setNotifyOrg, 'notifyOrg')}
+            label={t('notify.org')}
+          />
+          <SettingCheckbox
+            checked={notifyTeam}
+            onChange={() => toggleNotify(notifyTeam, setNotifyTeam, 'notifyTeamTodos')}
+            label={t('notify.team')}
           />
         </div>
       </Card>

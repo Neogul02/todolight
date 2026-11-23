@@ -72,6 +72,12 @@ struct BoardRootView: View {
             }
         }
         .task { await loadOrgs() }
+        // 로그인한 뒤에 묻는다 — 로그인 화면에서 먼저 물으면 무엇의 알림인지 모른 채 거절한다
+        .task { Push.shared.start() }
+        // 알림을 눌러 열렸으면 그 조직으로(화면 안쪽 이동은 BoardView가 한다)
+        .onChange(of: Push.shared.pending) { _, route in
+            if let id = route?.orgId, orgs?.contains(where: { $0.id == id }) == true { storedOrgId = id }
+        }
     }
 
     private func loadOrgs() async {

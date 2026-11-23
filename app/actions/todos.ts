@@ -1,7 +1,9 @@
 'use server';
 
 import { z } from 'zod';
+import { after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { notify, orgMemberIds } from '@/lib/push';
 import { requireAuth, wrap } from './_base';
 import { assertMembers, requireMembership } from '@/lib/guards';
 import { type ActionT, getActionT } from '@/lib/server-i18n';
@@ -185,7 +187,31 @@ export async function createTodo(input: {
       .single<Todo>();
     if (error) throw new Error(error.message);
 
-    return { ...(data as Todo), notes: [] };
+    const created = data as Todo;
+    const params = { title, due: dueDate };
+    after(async () =>
+      ownerId !== user.id
+        ? notify({
+            kind: 'requested',
+            to: [ownerId],
+            actorId: user.id,
+            orgId: input.orgId,
+            params,
+            refId: created.id,
+            data: { todoId: created.id },
+          })
+        : notify({
+            kind: 'teamTodo',
+            to: await orgMemberIds(input.orgId),
+            actorId: user.id,
+            orgId: input.orgId,
+            params,
+            refId: created.id,
+            data: { todoId: created.id },
+          })
+    );
+
+    return { ...created, notes: [] };
   });
 }
 
@@ -225,6 +251,22 @@ export async function setTodoStatus(
       .select(TODO_COLUMNS)
       .single();
     if (error) throw new Error(error.message);
+
+    // 부탁받은 일을 끝냈으면 부탁한 사람에게(넘겨받은 일이면 넘긴 사람에게)
+    const asker = todo.given_by ?? todo.created_by;
+    if (next === 'done' && todo.status !== 'done' && asker && asker !== todo.owner_id) {
+      after(() =>
+        notify({
+          kind: 'requestDone',
+          to: [asker],
+          actorId: user.id,
+          orgId: todo.org_id,
+          params: { title: todo.title },
+          refId: todo.id,
+          data: { todoId: todo.id },
+        })
+      );
+    }
     return data as Todo;
   });
 }
@@ -274,6 +316,47 @@ export async function updateTodo(
       같이하기 참여자면 컬럼에 두 번 뜨는 것도 그대로였다.
     */
     if (reassign) result = (await giveTodoAs(user.id, todo.id, patch.ownerId!, null, t)).todo;
+
+    if (Object.keys(update).length > 0) {
+      const params = {
+        title: result.title,
+        due: patch.dueDate !== undefined ? result.due_date : null,
+      };
+      after(async () =>
+        todo.owner_id !== user.id
+          ? notify({
+              kind: 'edited',
+              to: [todo.owner_id],
+              actorId: user.id,
+              orgId: todo.org_id,
+              params,
+              refId: todo.id,
+              data: { todoId: todo.id },
+            })
+          : notify({
+              kind: 'teamTodoEdited',
+              to: await orgMemberIds(todo.org_id),
+              actorId: user.id,
+              orgId: todo.org_id,
+              params,
+              refId: todo.id,
+              data: { todoId: todo.id },
+            })
+      );
+    }
+    if (reassign) {
+      after(() =>
+        notify({
+          kind: 'given',
+          to: [patch.ownerId!],
+          actorId: user.id,
+          orgId: todo.org_id,
+          params: { title: result.title },
+          refId: todo.id,
+          data: { todoId: todo.id },
+        })
+      );
+    }
     return result;
   });
 }
@@ -326,6 +409,17 @@ export async function giveTodo(
 
     const result = await giveTodoAs(user.id, id, to, trimmed, t);
     const given = result.todo;
+    after(() =>
+      notify({
+        kind: 'given',
+        to: [to],
+        actorId: user.id,
+        orgId: given.org_id,
+        params: { title: given.title, note: trimmed },
+        refId: given.id,
+        data: { todoId: given.id },
+      })
+    );
 
     return result;
   });
@@ -387,6 +481,16 @@ export async function deleteTodo(todoId: string): Promise<ApiResponse<null>> {
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', todo.id);
     if (error) throw new Error(error.message);
+    after(() =>
+      notify({
+        kind: 'deleted',
+        to: [todo.owner_id],
+        actorId: user.id,
+        orgId: todo.org_id,
+        params: { title: todo.title },
+        refId: todo.id,
+      })
+    );
     return null;
   });
 }
@@ -443,6 +547,17 @@ export async function addTodoNote(todoId: string, content: string): Promise<ApiR
         .maybeSingle(),
     ]);
     if (error) throw new Error(error.message);
+    after(() =>
+      notify({
+        kind: 'noted',
+        to: [todo.owner_id],
+        actorId: user.id,
+        orgId: todo.org_id,
+        params: { title: todo.title, note: parsed },
+        refId: todo.id,
+        data: { todoId: todo.id },
+      })
+    );
 
     return {
       ...(data as TodoNote),
@@ -509,6 +624,17 @@ export async function handleForMember(
       throw new Error(error.message);
     }
     const todo = data.todo;
+    after(() =>
+      notify({
+        kind: 'handled',
+        to: [todo.owner_id],
+        actorId: user.id,
+        orgId: todo.org_id,
+        params: { title: todo.title, note: parsedNote },
+        refId: todo.id,
+        data: { todoId: todo.id },
+      })
+    );
 
     return data;
   });

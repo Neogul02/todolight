@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct TodoLightApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var session = SessionStore()
     @State private var theme = ThemeStore()
     @State private var lang = LangStore()

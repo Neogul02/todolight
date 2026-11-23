@@ -2,7 +2,9 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { notify, orgMemberIds } from '@/lib/push';
 import { requireAuth, wrap } from './_base';
 import { assertMembers, requireManager, requireMembership } from '@/lib/guards';
 import { isOwnStorageUrl } from '@/lib/storage-url';
@@ -216,6 +218,11 @@ export async function inviteMember(
       throw new Error(error.message);
     }
 
+    // 이미 가입한 사람이면 앱으로 바로 알린다(아직 안 했으면 받을 기기가 없다)
+    if (existingProfile) {
+      after(() => notify({ kind: 'invited', to: [existingProfile.id], actorId: user.id, orgId }));
+    }
+
     // 위에서 이미 읽은 값이다 — 이 사실 하나가 "따로 알려 줘야 하나"를 가른다
     return { ...(data as OrgInvite), registered: !!existingProfile };
   });
@@ -333,6 +340,17 @@ export async function respondToInvite(
       .from('org_invites')
       .update({ status: 'accepted', responded_at: new Date().toISOString() })
       .eq('id', inviteId);
+
+    if (!joinError) {
+      after(async () =>
+        notify({
+          kind: 'memberJoined',
+          to: await orgMemberIds(invite.org_id, true),
+          actorId: user.id,
+          orgId: invite.org_id,
+        })
+      );
+    }
 
     revalidatePath('/board');
     return { orgId: invite.org_id };
@@ -502,6 +520,7 @@ export async function transferOrgOwnership(
       p_new_owner: newOwnerId,
     });
     if (error) throw orgRpcError(error.message, t);
+    after(() => notify({ kind: 'owner', to: [newOwnerId], actorId: user.id, orgId }));
 
     revalidatePath('/board');
     return null;

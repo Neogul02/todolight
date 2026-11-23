@@ -28,6 +28,12 @@
     "showDone": "Show completed to-dos",
     "showCalendar": "Use the calendar",
     "showLedger": "Use the ledger",
+    "notify": {
+      "title": "Notifications",
+      "my": "My to-dos",
+      "org": "Org events and new members",
+      "team": "Teammates' to-dos"
+    },
     "legalTitle": "Legal",
     "terms": "Terms of Service",
     "privacy": "Privacy Policy",

@@ -169,7 +169,9 @@ type ApiResponse<T> = { success: true; data: T } | { success: false; error: stri
 | 경로 | 본문 | `data` |
 |---|---|---|
 | `profile/me` | `{}` | `Profile` |
-| `profile/update` | `{ displayName?, avatarUrl?, theme?, locale?, showDone?, showLedger?, showCalendar? }` | `Profile` |
+| `profile/update` | `{ displayName?, avatarUrl?, theme?, locale?, showDone?, showLedger?, showCalendar?, notifyMyTodos?, notifyOrg?, notifyTeamTodos? }` | `Profile` |
+| `devices/register` | `{ token }` (APNs 16진수) | `null` |
+| `devices/unregister` | `{ token }` | `null` |
 | `account/delete` | `{}` | `null` |
 
 - **`account/delete`는 되돌릴 수 없다.** App Store 5.1.1(v)가 요구하는 경로이고,

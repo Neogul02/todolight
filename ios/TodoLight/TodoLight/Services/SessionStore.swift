@@ -39,6 +39,7 @@ final class SessionStore {
     }
 
     func signOut() async {
+        await Push.shared.unregister()
         OfflineCache.clear()
         // 잠금화면에 남의 할 일이 남으면 안 된다
         SharedStore.clear()

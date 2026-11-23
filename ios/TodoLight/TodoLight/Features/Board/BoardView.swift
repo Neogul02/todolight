@@ -115,6 +115,10 @@ struct BoardView: View {
         }
         .onChange(of: refreshToken) { _, _ in Task { await store.load() } }
         // 잠금화면 "할 일 추가" — 다른 패널·다른 사람 컬럼을 보고 있었어도 내 컬럼으로(추가 칸은 그 컬럼이 연다)
+        // 알림을 눌러 열렸을 때 — 일정이면 달력, 초대면 메뉴, 나머지는 보드
+        // 조직을 바꾸며 새로 그려졌으면 onChange가 안 불리므로 나타날 때도 본다
+        .onChange(of: Push.shared.pending) { _, route in openFromPush(route) }
+        .onAppear { openFromPush(Push.shared.pending) }
         .onChange(of: QuickAdd.shared.pending) { _, now in
             guard now else { return }
             pane = .board
@@ -409,5 +413,19 @@ extension View {
         opacity(visible ? 1 : 0)
             .allowsHitTesting(visible)
             .accessibilityHidden(!visible)
+    }
+}
+
+
+extension BoardView {
+    /// 알림을 눌러 열렸을 때 — 일정이면 달력, 초대면 메뉴, 나머지는 보드
+    func openFromPush(_ route: Push.Route?) {
+        guard let route, route.orgId == nil || route.orgId == org.id || route.kind == "invited" else { return }
+        _ = Push.shared.consume()
+        switch route.kind {
+        case "eventNew", "eventChanged": pane = store.showCalendar ? .calendar : .board
+        case "invited": menuOpen = true
+        default: pane = .board
+        }
     }
 }

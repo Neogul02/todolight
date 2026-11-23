@@ -18,6 +18,10 @@ export interface Profile {
   show_ledger: boolean;
   /** 끄면 탭바에서 달력 칸이 사라진다(가계부와 같은 방식) */
   show_calendar: boolean;
+  /** 앱 푸시 묶음 — 내 할 일 소식 · 조직 소식 · 팀원이 올린 할 일(기본 끔) */
+  notify_my_todos: boolean;
+  notify_org: boolean;
+  notify_team_todos: boolean;
   /**
    * 조직별로 정한, 보드 캐러셀·대시보드에서 나 다음에 나올 팀원 순서(나를 뺀 user_id 배열).
    * 기기를 옮겨도 같아야 해서 계정에 붙였다. 정한 적 없는 조직은 키 자체가 없다(이름순으로 떨어진다).

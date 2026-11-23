@@ -234,11 +234,23 @@ extension APIClient {
                               avatarUrl: FieldPatch<String> = .unchanged,
                               theme: String? = nil, locale: String? = nil,
                               showDone: Bool? = nil, showLedger: Bool? = nil,
-                              showCalendar: Bool? = nil) async throws -> Profile {
+                              showCalendar: Bool? = nil,
+                              notifyMyTodos: Bool? = nil, notifyOrg: Bool? = nil,
+                              notifyTeamTodos: Bool? = nil) async throws -> Profile {
         try await call("profile/update", body: UpdateProfileBody(
             displayName: displayName, avatarUrl: avatarUrl,
-            theme: theme, locale: locale, showDone: showDone, showLedger: showLedger, showCalendar: showCalendar
+            theme: theme, locale: locale, showDone: showDone, showLedger: showLedger, showCalendar: showCalendar,
+            notifyMyTodos: notifyMyTodos, notifyOrg: notifyOrg, notifyTeamTodos: notifyTeamTodos
         ))
+    }
+
+    /// 이 기기로 푸시를 받는다(APNs 토큰, 16진수)
+    public func registerPushDevice(token: String) async throws {
+        let _: Empty = try await call("devices/register", body: ["token": token])
+    }
+
+    public func unregisterPushDevice(token: String) async throws {
+        let _: Empty = try await call("devices/unregister", body: ["token": token])
     }
 
     /// **되돌릴 수 없다.** 성공하면 그 토큰은 더 이상 쓸 수 없으므로, 앱은 즉시 로컬 세션을
@@ -349,9 +361,13 @@ struct UpdateProfileBody: Encodable, Sendable {
     let showDone: Bool?
     let showLedger: Bool?
     let showCalendar: Bool?
+    let notifyMyTodos: Bool?
+    let notifyOrg: Bool?
+    let notifyTeamTodos: Bool?
 
     enum CodingKeys: String, CodingKey {
         case displayName, avatarUrl, theme, locale, showDone, showLedger, showCalendar
+        case notifyMyTodos, notifyOrg, notifyTeamTodos
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -362,6 +378,9 @@ struct UpdateProfileBody: Encodable, Sendable {
         try c.encodeIfPresent(showDone, forKey: .showDone)
         try c.encodeIfPresent(showLedger, forKey: .showLedger)
         try c.encodeIfPresent(showCalendar, forKey: .showCalendar)
+        try c.encodeIfPresent(notifyMyTodos, forKey: .notifyMyTodos)
+        try c.encodeIfPresent(notifyOrg, forKey: .notifyOrg)
+        try c.encodeIfPresent(notifyTeamTodos, forKey: .notifyTeamTodos)
         try c.encodePatch(avatarUrl, forKey: .avatarUrl)
     }
 }

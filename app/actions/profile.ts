@@ -14,7 +14,7 @@ import type { Profile } from '@/types/db';
 const nameSchema = (t: ActionT) => z.string().trim().min(1, t('nameRequired')).max(30);
 
 const PROFILE_COLUMNS =
-  'id, email, display_name, avatar_color, avatar_url, theme, locale, show_done, show_ledger, show_calendar, member_order, created_at';
+  'id, email, display_name, avatar_color, avatar_url, theme, locale, show_done, show_ledger, show_calendar, notify_my_todos, notify_org, notify_team_todos, member_order, created_at';
 
 export async function fetchMyProfile(): Promise<ApiResponse<Profile>> {
   return wrap(async () => {
@@ -39,6 +39,9 @@ export async function updateMyProfile(patch: {
   showDone?: boolean;
   showLedger?: boolean;
   showCalendar?: boolean;
+  notifyMyTodos?: boolean;
+  notifyOrg?: boolean;
+  notifyTeamTodos?: boolean;
 }): Promise<ApiResponse<Profile>> {
   return wrap(async () => {
     const user = await requireAuth();
@@ -55,6 +58,9 @@ export async function updateMyProfile(patch: {
     if (patch.showDone !== undefined) update.show_done = patch.showDone;
     if (patch.showLedger !== undefined) update.show_ledger = patch.showLedger;
     if (patch.showCalendar !== undefined) update.show_calendar = patch.showCalendar;
+    if (patch.notifyMyTodos !== undefined) update.notify_my_todos = patch.notifyMyTodos;
+    if (patch.notifyOrg !== undefined) update.notify_org = patch.notifyOrg;
+    if (patch.notifyTeamTodos !== undefined) update.notify_team_todos = patch.notifyTeamTodos;
     if (patch.theme !== undefined) {
       if (!isValidTheme(patch.theme)) throw new Error(t('invalidTheme'));
       update.theme = patch.theme;

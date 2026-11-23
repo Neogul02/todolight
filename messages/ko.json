@@ -28,6 +28,12 @@
     "showDone": "완료한 할 일도 보기",
     "showCalendar": "달력 쓰기",
     "showLedger": "가계부 쓰기",
+    "notify": {
+      "title": "알림",
+      "my": "내 할 일 소식",
+      "org": "조직 일정·새 멤버",
+      "team": "팀원이 올린 할 일"
+    },
     "legalTitle": "약관",
     "terms": "이용약관",
     "privacy": "개인정보 처리방침",

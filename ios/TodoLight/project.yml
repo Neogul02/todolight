@@ -54,6 +54,8 @@ targets:
       path: TodoLight/TodoLight.entitlements
       properties:
         com.apple.security.application-groups: [group.com.neogul02.todolight]
+        # 앱 푸시(APNs). 출시 빌드는 Xcode가 production으로 바꿔 서명한다
+        aps-environment: development
     dependencies:
       - package: TodoLightKit
       - package: Supabase

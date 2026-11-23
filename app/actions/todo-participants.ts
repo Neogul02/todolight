@@ -1,6 +1,8 @@
 'use server';
 
+import { after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { notify } from '@/lib/push';
 import { requireAuth, wrap } from './_base';
 import { assertMember } from '@/lib/guards';
 import { getActionT } from '@/lib/server-i18n';
@@ -9,17 +11,17 @@ import type { ApiResponse } from '@/types/api';
 /** todo id로 조직·주인을 되짚는다. join/leave 둘 다 필요해서 공용으로 뺐다 */
 async function loadTodoOrgAndOwner(
   todoId: string
-): Promise<{ orgId: string; ownerId: string }> {
+): Promise<{ orgId: string; ownerId: string; title: string }> {
   const t = await getActionT();
   const { data, error } = await getSupabaseAdmin()
     .from('todos')
-    .select('org_id, owner_id')
+    .select('org_id, owner_id, title')
     .eq('id', todoId)
     .is('deleted_at', null)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new Error(t('todoNotFound'));
-  return { orgId: data.org_id, ownerId: data.owner_id };
+  return { orgId: data.org_id, ownerId: data.owner_id, title: data.title };
 }
 
 /** 같이하기 — 남의 할 일을 내 컬럼에도 띄운다. 완료 상태는 원본 그대로 공유한다 */
@@ -27,7 +29,7 @@ export async function joinTodo(todoId: string): Promise<ApiResponse<null>> {
   return wrap(async () => {
     const user = await requireAuth();
     const t = await getActionT();
-    const { orgId, ownerId } = await loadTodoOrgAndOwner(todoId);
+    const { orgId, ownerId, title } = await loadTodoOrgAndOwner(todoId);
     await assertMember(orgId, user.id);
     if (ownerId === user.id) throw new Error(t('cannotJoinOwnTodo'));
 
@@ -38,6 +40,17 @@ export async function joinTodo(todoId: string): Promise<ApiResponse<null>> {
       if (error.code === '23505') throw new Error(t('alreadyJoined'));
       throw new Error(error.message);
     }
+    after(() =>
+      notify({
+        kind: 'joined',
+        to: [ownerId],
+        actorId: user.id,
+        orgId,
+        params: { title },
+        refId: todoId,
+        data: { todoId },
+      })
+    );
     return null;
   });
 }

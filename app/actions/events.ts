@@ -1,7 +1,9 @@
 'use server';
 
 import { z } from 'zod';
+import { after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { notify, orgMemberIds, rangeText } from '@/lib/push';
 import { isValidEventColor } from '@/lib/event-colors';
 import { requireAuth, wrap } from './_base';
 import { assertMember, requireMembership } from '@/lib/guards';
@@ -73,7 +75,19 @@ export async function createOrgEvent(input: {
       .select(COLUMNS)
       .single();
     if (error) throw new Error(error.message);
-    return data as OrgEvent;
+    const created = data as OrgEvent;
+    after(async () =>
+      notify({
+        kind: 'eventNew',
+        to: await orgMemberIds(input.orgId),
+        actorId: user.id,
+        orgId: input.orgId,
+        params: { title, range: rangeText(start, end) },
+        refId: created.id,
+        data: { eventId: created.id },
+      })
+    );
+    return created;
   });
 }
 
@@ -132,12 +146,31 @@ export async function updateOrgEvent(
       .select(COLUMNS)
       .single();
     if (error) throw new Error(error.message);
-    return data as OrgEvent;
+    const saved = data as OrgEvent;
+    // 날짜가 바뀐 경우만 — 이름·색만 고친 건 알릴 만한 일이 아니다
+    if (saved.start_date !== event.start_date || saved.end_date !== event.end_date) {
+      after(async () =>
+        notify({
+          kind: 'eventChanged',
+          to: await orgMemberIds(saved.org_id),
+          actorId: user.id,
+          orgId: saved.org_id,
+          params: { title: saved.title, range: rangeText(saved.start_date, saved.end_date) },
+          refId: saved.id,
+          data: { eventId: saved.id },
+        })
+      );
+    }
+    return saved;
   });
 }
 
 /** 지우거나 되살릴 수 있는 사람: 일정을 만든 사람 · 방장/관리자 */
-async function assertCanRemoveEvent(event: OrgEvent, userId: string, role: MemberRole): Promise<void> {
+async function assertCanRemoveEvent(
+  event: OrgEvent,
+  userId: string,
+  role: MemberRole
+): Promise<void> {
   if (event.created_by === userId) return;
   if (role !== 'owner' && role !== 'admin') {
     const t = await getActionT();

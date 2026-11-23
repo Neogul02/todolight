@@ -41,6 +41,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY    publishable key (sb_publishable_...)
 SUPABASE_SERVICE_ROLE_KEY        secret key (sb_secret_...) — 서버 액션 전용, 절대 클라이언트 노출 금지
 NEXT_PUBLIC_SITE_URL             앱 절대 URL
 NEXT_PUBLIC_CONTACT_EMAIL        약관·개인정보 처리방침의 문의처 (선택 — 없으면 lib/legal.ts의 기본값)
+APNS_KEY_ID / APNS_TEAM_ID       앱 푸시 키 id와 Apple 팀 id (선택 — 없으면 푸시를 안 보낸다)
+APNS_KEY                         .p8 키 파일 내용 (줄바꿈은 \\n 글자여도 된다)
+APNS_PRODUCTION                  true면 운영 APNs, 아니면 sandbox(Xcode로 직접 설치한 빌드)
+CRON_SECRET                      아침 마감 알림 cron 비밀값 — Supabase Vault `cron_secret`과 같은 값
 ```
 
 ## 아키텍처
@@ -122,7 +126,10 @@ export async function fetchXxx(): Promise<ApiResponse<T>> {
 
 ```
 profiles        id, email, display_name, avatar_color, avatar_url,
-                theme, locale, show_done, show_ledger, member_order, deleted_at, created_at
+                theme, locale, show_done, show_ledger, show_calendar,
+                notify_my_todos, notify_org, notify_team_todos, member_order, deleted_at, created_at
+push_devices    token(PK), user_id, platform, updated_at
+push_log        id, user_id, kind, ref_id, created_at   — 연달아 고칠 때 알림 묶기
                 — show_avatars 컬럼이 남아 있지만 코드에서는 쓰지 않는다(설정을 없앴다)
                 — **id는 더 이상 auth.users를 참조하지 않는다.** 아래 「계정 삭제」 참고
 organizations   id, name, owner_id, image_url, created_at
@@ -446,11 +453,25 @@ export const POST = apiRoute<{ todoId: string; status: TodoStatus }>(b =>
   넣은 초대장의 주소**뿐이다. 임의의 이메일을 넣어 캐낼 수 있는 경로가 아니다.
   탈퇴한 사람은 `profiles.email`이 null이라 걸리지 않는다 — 계정이 없는 게 맞다.
 
-### 알림 — 앱 푸시(준비 중)
+### 알림 — 앱 푸시(APNs)
 
-Discord 웹훅 알림은 걷어 냈다(`20261123092443_drop_discord.sql`). 앱 푸시 알림으로 바꾼다.
-알림을 보낼 자리(할 일 부탁·넘기기·대신 처리 등)는 해당 서버 액션이다.
-원칙은 그대로다 — **알림 실패가 본래 작업을 되돌리면 안 되고, 응답을 막지 않는다**(`after()`).
+`lib/push.ts`의 `notify()` 하나가 보낸다 — SDK 없이 ES256 JWT + HTTP/2. 키 환경 변수
+(`APNS_KEY_ID` · `APNS_TEAM_ID` · `APNS_KEY`, 운영은 `APNS_PRODUCTION=true`)가 없으면 조용히
+아무것도 안 보낸다. Discord 웹훅은 걷어 냈다(`20261123092443_drop_discord.sql`).
+
+- **알림 실패가 본래 작업을 되돌리면 안 되고, 응답을 막지 않는다** — 액션은 늘
+  `after(() => notify(...))`로 부르고, `notify`는 throw하지 않는다.
+- **행동한 사람은 받는 사람에서 늘 빠진다.** 받는 사람의 언어(`profiles.locale`)로 쓴다.
+- 종류 15가지와 문구는 `pushText()` 한 곳에 있다(문구는 사용자와 확정한 표 그대로 —
+  `lib/push.test.ts`가 지킨다). 묶음 세 개(`profiles.notify_my_todos` · `notify_org` ·
+  `notify_team_todos`, 마지막은 기본 끔)로 켜고 끈다. 초대·방장 이양은 끌 수 없다.
+- 같은 할 일을 연달아 고치면 `push_log`로 5분에 한 번만 보낸다(서버리스라 메모리로는 못 센다).
+- 기기 토큰은 `push_devices`(토큰이 기본 키 — 다른 계정이 같은 폰에 로그인하면 주인이
+  바뀐다). 로그아웃할 때 앱이 먼저 지운다. APNs가 410을 주면 서버가 지운다.
+- 아침 9시 오늘 마감은 pg_cron `push-morning-digest` → `/api/cron/digest`(Vault
+  `cron_secret` = 환경 변수 `CRON_SECRET`). **도메인을 바꾸면 그 잡의 URL도 고칠 것.**
+- iOS는 로그인한 뒤에 권한을 묻는다(`Push.start()`). 알림을 누르면 그 조직으로 가고,
+  일정 알림은 달력, 초대는 메뉴를 연다(`BoardView.openFromPush`).
 
 ### 실시간
 

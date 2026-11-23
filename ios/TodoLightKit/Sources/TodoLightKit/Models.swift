@@ -26,6 +26,10 @@ public struct Profile: Decodable, Sendable, Identifiable {
     public let showLedger: Bool
     /// 끄면 탭바에서 달력 칸이 사라진다. 이 필드가 생기기 전 서버 응답도 읽히게 옵셔널(없으면 켬)
     public let showCalendar: Bool?
+    /// 앱 푸시 묶음. 옛 서버 응답에도 읽히게 옵셔널(없으면 내 할 일·조직은 켬, 팀원 할 일은 끔)
+    public let notifyMyTodos: Bool?
+    public let notifyOrg: Bool?
+    public let notifyTeamTodos: Bool?
     /// 조직 id → 나를 뺀 팀원 순서. 정한 적 없는 조직은 키 자체가 없다.
     public let memberOrder: [String: [String]]
     public let createdAt: Date

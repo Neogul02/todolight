@@ -22,6 +22,9 @@ struct MeView: View {
     @State private var showDone = true
     @State private var showLedger = true
     @State private var showCalendar = true
+    @State private var notifyMy = true
+    @State private var notifyOrg = true
+    @State private var notifyTeam = false
     @State private var photoURL: String?
     @State private var photoItem: PhotosPickerItem?
     @State private var uploading = false
@@ -41,6 +44,7 @@ struct MeView: View {
                 themeCard
                 langCard
                 viewCard
+                notifyCard
                 legalCard
                 deleteCard
             }
@@ -147,6 +151,31 @@ struct MeView: View {
         }
     }
 
+    /// 앱 푸시 — 웹 /me의 「알림」과 같은 값(계정에 저장)
+    private var notifyCard: some View {
+        PageCard {
+            Text(tr("알림", "Notifications")).font(.tlTitle).foregroundStyle(tk.ink)
+            VStack(spacing: 12) {
+                settingToggle(tr("내 할 일 소식", "My to-dos"), isOn: notifyMy) {
+                    notifyMy.toggle()
+                    let next = notifyMy
+                    Task { await save { try await api.updateProfile(notifyMyTodos: next) } onFail: { notifyMy = !next } }
+                }
+                settingToggle(tr("조직 일정·새 멤버", "Org events and new members"), isOn: notifyOrg) {
+                    notifyOrg.toggle()
+                    let next = notifyOrg
+                    Task { await save { try await api.updateProfile(notifyOrg: next) } onFail: { notifyOrg = !next } }
+                }
+                settingToggle(tr("팀원이 올린 할 일", "Teammates' to-dos"), isOn: notifyTeam) {
+                    notifyTeam.toggle()
+                    let next = notifyTeam
+                    Task { await save { try await api.updateProfile(notifyTeamTodos: next) } onFail: { notifyTeam = !next } }
+                }
+            }
+            .padding(.top, 12)
+        }
+    }
+
     private var viewCard: some View {
         PageCard {
             Text(tr("화면", "What to show")).font(.tlTitle).foregroundStyle(tk.ink)
@@ -236,6 +265,9 @@ struct MeView: View {
         showDone = p.showDone
         showLedger = p.showLedger
         showCalendar = p.showCalendar ?? true
+        notifyMy = p.notifyMyTodos ?? true
+        notifyOrg = p.notifyOrg ?? true
+        notifyTeam = p.notifyTeamTodos ?? false
         photoURL = p.avatarUrl
     }
 
