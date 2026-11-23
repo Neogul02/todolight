@@ -71,15 +71,21 @@ struct BoardView: View {
                         }
                         .paneVisible(pane == .board)
                         if mounted.contains(.calendar), let calendar {
-                            CalendarView(board: store, store: calendar, onHandoff: { handoffTodo = $0 })
-                                .paneVisible(pane == .calendar)
+                            Group {
+                                if store.showCalendar {
+                                    CalendarView(board: store, store: calendar, onHandoff: { handoffTodo = $0 })
+                                } else {
+                                    PanelOffNotice(title: tr("달력을 꺼 두셨어요", "The calendar is turned off")) { onOpen(.me) }
+                                }
+                            }
+                            .paneVisible(pane == .calendar)
                         }
                         if mounted.contains(.ledger), let ledger {
                             Group {
                                 if store.showLedger {
                                     LedgerView(board: store, store: ledger)
                                 } else {
-                                    LedgerOffNotice { onOpen(.me) }
+                                    PanelOffNotice(title: tr("가계부를 꺼 두셨어요", "The ledger is turned off")) { onOpen(.me) }
                                 }
                             }
                             .paneVisible(pane == .ledger)
@@ -91,7 +97,8 @@ struct BoardView: View {
             VStack(spacing: 8) {
                 banner
                 // 가계부를 끄면 칸이 사라진다 — 다만 보고 있는 동안에는 남긴다(다른 기기에서 끄면 나갈 길이 없어진다)
-                TabBar(pane: $pane, me: store.me, showLedger: store.showLedger || pane == .ledger,
+                TabBar(pane: $pane, me: store.me, showCalendar: store.showCalendar || pane == .calendar,
+                       showLedger: store.showLedger || pane == .ledger,
                        hasInvites: !invites.isEmpty,
                        onProfile: { menuOpen = true })
             }
@@ -305,6 +312,7 @@ private struct TabBar: View {
     @Namespace private var ns
     @Binding var pane: AppPane
     let me: MemberSummary?
+    let showCalendar: Bool
     let showLedger: Bool
     let hasInvites: Bool
     let onProfile: () -> Void
@@ -312,7 +320,7 @@ private struct TabBar: View {
     var body: some View {
         HStack(spacing: 4) {
             item(.board, tr("보드", "Board"), icon: "rectangle.split.2x1")
-            item(.calendar, tr("달력", "Calendar"), icon: "calendar")
+            if showCalendar { item(.calendar, tr("달력", "Calendar"), icon: "calendar") }
             if showLedger { item(.ledger, tr("가계부", "Ledger"), icon: "wonsign.circle") }
             Rectangle().fill(tk.hairlineStrong).frame(width: 1, height: 28).padding(.horizontal, 2)
             Button(action: onProfile) {

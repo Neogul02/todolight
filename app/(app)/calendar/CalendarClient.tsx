@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useOrgMembers, useOrgTodos } from '@/hooks/useOrgBoard';
 import { useOrgEvents } from '@/hooks/useOrgEvents';
 import { useApp } from '../OrgContext';
+import { PanelOffNotice } from '../PanelOffNotice';
 import { Card } from '@/components/ui';
 import type { Todo } from '@/types/db';
 import { CalendarView } from './CalendarView';
@@ -22,6 +23,7 @@ import { CalendarSkeleton } from './CalendarSkeleton';
 export default function CalendarClient({ onHandoff }: { onHandoff: (todo: Todo) => void }) {
   const { activeOrgId, userId, isManager, profile } = useApp();
   const t = useTranslations('board');
+  const tCal = useTranslations('calendar');
 
   const members = useOrgMembers(activeOrgId);
   const todos = useOrgTodos(activeOrgId);
@@ -32,6 +34,9 @@ export default function CalendarClient({ onHandoff }: { onHandoff: (todo: Todo) 
   // todos·members는 보드에서 이미 캐시돼 있을 때가 많지만, 달력부터 열면 처음 요청이다.
   const loading = members.isLoading || todos.isLoading || events.isLoading;
   const error = members.error ?? todos.error ?? events.error;
+
+  // 설정에서 끈 채로 `?view=calendar`를 열었을 때 — 가계부와 같은 안내
+  if (profile && !profile.show_calendar) return <PanelOffNotice title={tCal('disabledTitle')} />;
 
   return (
     <>

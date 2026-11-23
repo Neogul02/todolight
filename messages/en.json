@@ -26,6 +26,7 @@
     },
     "viewTitle": "What to show",
     "showDone": "Show completed to-dos",
+    "showCalendar": "Use the calendar",
     "showLedger": "Use the ledger",
     "legalTitle": "Legal",
     "terms": "Terms of Service",
@@ -170,9 +171,7 @@
     "addEntry": "Add",
     "empty": "Nothing logged yet",
     "unknownMember": "Unknown",
-    "disabledTitle": "The ledger is turned off",
-    "disabledDescription": "Turn it back on in your settings to use it again.",
-    "goToSettings": "Go to settings"
+    "disabledTitle": "The ledger is turned off"
   },
   "calendar": {
     "prevMonth": "Previous month",
@@ -187,7 +186,8 @@
     "selectedSummary": "{date}",
     "resizePanel": "Resize the list",
     "loadingAria": "Loading the calendar",
-    "selectedCounts": "{events} events · {todos} to-dos"
+    "selectedCounts": "{events} events · {todos} to-dos",
+    "disabledTitle": "The calendar is turned off"
   },
   "event": {
     "editTitle": "Edit event",
@@ -317,7 +317,8 @@
     "cancel": "Cancel",
     "undo": "Undo",
     "saved": "Saved.",
-    "delete": "Delete"
+    "delete": "Delete",
+    "goToSettings": "Go to settings"
   },
   "errors": {
     "unauthorized": "Please sign in.",

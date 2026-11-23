@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { useLedgerEntries, useLedgerMutations, useLedgerRealtime } from '@/hooks/useOrgLedger';
 import { useOrgMembers } from '@/hooks/useOrgBoard';
@@ -22,6 +21,7 @@ import {
 import type { Locale } from '@/lib/locales';
 import type { LedgerEntry } from '@/types/db';
 import { useApp } from '../OrgContext';
+import { PanelOffNotice } from '../PanelOffNotice';
 import { LedgerEntriesSkeleton, LedgerSummarySkeleton } from './LedgerSkeleton';
 
 /** 금액은 13자리(조 단위)까지만 — 그 위는 서버 검증에서 어차피 막힌다 */
@@ -98,7 +98,10 @@ export default function LedgerClient() {
     애초에 숫자 아닌 글자가 들어갈 길을 막으면 "왜 추가가 안 되지"가 사라진다.
   */
   function changeAmount(raw: string) {
-    const digits = raw.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '').slice(0, MAX_AMOUNT_DIGITS);
+    const digits = raw
+      .replace(/[^0-9]/g, '')
+      .replace(/^0+(?=\d)/, '')
+      .slice(0, MAX_AMOUNT_DIGITS);
     setAmount(digits ? Number(digits).toLocaleString(locale) : '');
   }
 
@@ -129,22 +132,7 @@ export default function LedgerClient() {
     "왜 안 열리지"가 되므로 어디서 켜는지 알려 준다.
     (조직이 하나도 없는 경우는 ViewPager가 트랙을 세우기 전에 먼저 안내한다)
   */
-  if (profile && !profile.show_ledger) {
-    return (
-      <Notice
-        title={t('disabledTitle')}
-        description={t('disabledDescription')}
-        action={
-          <Link
-            href="/me"
-            className="mt-7 flex h-13 items-center justify-center rounded-2xl bg-accent px-6 text-[16px] font-medium text-accent-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]"
-          >
-            {t('goToSettings')}
-          </Link>
-        }
-      />
-    );
-  }
+  if (profile && !profile.show_ledger) return <PanelOffNotice title={t('disabledTitle')} />;
 
   return (
     // 패널이 자기 안에서 스크롤한다 — 페이지가 늘어나는 게 아니라서, 보드에 다녀와도
@@ -171,7 +159,9 @@ export default function LedgerClient() {
           <LedgerSummarySkeleton />
         ) : (
           <>
-            <p className="mt-1 text-heading-1 text-ink tabular-nums">{formatMoney(total, locale)}</p>
+            <p className="mt-1 text-heading-1 text-ink tabular-nums">
+              {formatMoney(total, locale)}
+            </p>
             <p className="mt-0.5 text-caption text-ink-faint">
               {t('entryCount', { count: rows.length })}
             </p>
@@ -344,7 +334,13 @@ function EntryRow({
           aria-label={deleteLabel}
           className="-my-1 shrink-0 p-1.5 text-ink-faint transition-[color,transform] active:scale-90 pointer-fine:hover:text-danger"
         >
-          <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            viewBox="0 0 16 16"
+            className="size-3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <path d="m4 4 8 8M12 4l-8 8" strokeLinecap="round" />
           </svg>
         </button>
@@ -379,23 +375,5 @@ function MonthButton({
         <path d="m14 6-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </button>
-  );
-}
-
-function Notice({
-  title,
-  description,
-  action,
-}: {
-  title: string;
-  description: string;
-  action: React.ReactNode;
-}) {
-  return (
-    <main className="mx-auto flex max-w-[520px] flex-col items-center px-6 py-16 pb-safe text-center">
-      <h1 className="text-heading-1 text-ink">{title}</h1>
-      <p className="mt-2 text-body-sm text-ink-muted">{description}</p>
-      {action}
-    </main>
   );
 }

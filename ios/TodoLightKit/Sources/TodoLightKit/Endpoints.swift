@@ -233,10 +233,11 @@ extension APIClient {
     public func updateProfile(displayName: String? = nil,
                               avatarUrl: FieldPatch<String> = .unchanged,
                               theme: String? = nil, locale: String? = nil,
-                              showDone: Bool? = nil, showLedger: Bool? = nil) async throws -> Profile {
+                              showDone: Bool? = nil, showLedger: Bool? = nil,
+                              showCalendar: Bool? = nil) async throws -> Profile {
         try await call("profile/update", body: UpdateProfileBody(
             displayName: displayName, avatarUrl: avatarUrl,
-            theme: theme, locale: locale, showDone: showDone, showLedger: showLedger
+            theme: theme, locale: locale, showDone: showDone, showLedger: showLedger, showCalendar: showCalendar
         ))
     }
 
@@ -347,9 +348,10 @@ struct UpdateProfileBody: Encodable, Sendable {
     let locale: String?
     let showDone: Bool?
     let showLedger: Bool?
+    let showCalendar: Bool?
 
     enum CodingKeys: String, CodingKey {
-        case displayName, avatarUrl, theme, locale, showDone, showLedger
+        case displayName, avatarUrl, theme, locale, showDone, showLedger, showCalendar
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -359,6 +361,7 @@ struct UpdateProfileBody: Encodable, Sendable {
         try c.encodeIfPresent(locale, forKey: .locale)
         try c.encodeIfPresent(showDone, forKey: .showDone)
         try c.encodeIfPresent(showLedger, forKey: .showLedger)
+        try c.encodeIfPresent(showCalendar, forKey: .showCalendar)
         try c.encodePatch(avatarUrl, forKey: .avatarUrl)
     }
 }

@@ -174,6 +174,7 @@ export default function AppShell({
   // 설정에서 끄면 버튼 자체를 감춘다. 다만 이미 가계부를 보고 있다면 남겨 둔다 —
   // 켜 놓고 들어왔다가 다른 기기에서 끄면 나갈 길이 사라진다.
   const showLedgerButton = (profile?.show_ledger ?? true) || view === 'ledger';
+  const showCalendarButton = (profile?.show_calendar ?? true) || view === 'calendar';
   const boardHref = hrefOf(view);
 
   /*
@@ -394,12 +395,14 @@ export default function AppShell({
                     onClick={() => goToView('board')}
                     Icon={BoardViewIcon}
                   />
-                  <TabBarButton
-                    active={view === 'calendar'}
-                    label={t('viewCalendar')}
-                    onClick={() => goToView('calendar')}
-                    Icon={CalendarIcon}
-                  />
+                  {showCalendarButton && (
+                    <TabBarButton
+                      active={view === 'calendar'}
+                      label={t('viewCalendar')}
+                      onClick={() => goToView('calendar')}
+                      Icon={CalendarIcon}
+                    />
+                  )}
                   {showLedgerButton && (
                     <TabBarButton
                       active={view === 'ledger'}

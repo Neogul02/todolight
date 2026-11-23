@@ -21,6 +21,7 @@ struct MeView: View {
     @State private var savedName = ""
     @State private var showDone = true
     @State private var showLedger = true
+    @State private var showCalendar = true
     @State private var photoURL: String?
     @State private var photoItem: PhotosPickerItem?
     @State private var uploading = false
@@ -155,6 +156,11 @@ struct MeView: View {
                     let next = showDone
                     Task { await save { try await api.updateProfile(showDone: next) } onFail: { showDone = !next } }
                 }
+                settingToggle(tr("달력 쓰기", "Use the calendar"), isOn: showCalendar) {
+                    showCalendar.toggle()
+                    let next = showCalendar
+                    Task { await save { try await api.updateProfile(showCalendar: next) } onFail: { showCalendar = !next } }
+                }
                 settingToggle(tr("가계부 쓰기", "Use the ledger"), isOn: showLedger) {
                     showLedger.toggle()
                     let next = showLedger
@@ -229,6 +235,7 @@ struct MeView: View {
         savedName = p.displayName
         showDone = p.showDone
         showLedger = p.showLedger
+        showCalendar = p.showCalendar ?? true
         photoURL = p.avatarUrl
     }
 

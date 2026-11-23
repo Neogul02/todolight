@@ -52,6 +52,8 @@ struct BoardSnapshot: Codable {
     var members: [MemberSummary]
     var showDone: Bool
     var showLedger: Bool
+    /// 나중에 더한 값이라 옛 캐시에는 없다 — 없으면 켬
+    var showCalendar: Bool?
 }
 
 /// 연결이 없을 때 쌓아 두는 쓰기. **다시 보내도 결과가 같은 것만** 넣는다 —

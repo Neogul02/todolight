@@ -353,19 +353,17 @@ enum Money {
     }
 }
 
-/// 가계부를 꺼 둔 채 들어왔을 때 — 조용히 튕기지 않고 어디서 켜는지 알려 준다
-struct LedgerOffNotice: View {
+/// 설정에서 끈 패널(달력·가계부)을 열었을 때 — 어디서 켜는지로 바로 보낸다(웹 `PanelOffNotice`와 같다)
+struct PanelOffNotice: View {
     @Environment(\.tokens) private var tk
+    let title: String
     let onSettings: () -> Void
 
     var body: some View {
-        VStack(spacing: 8) {
-            Text(tr("가계부를 꺼 두셨어요", "The ledger is turned off")).font(.tl(22, .bold)).foregroundStyle(tk.ink)
-            Text(tr("내 설정에서 가계부를 켜면 다시 쓸 수 있어요.", "Turn it back on in your settings to use it again."))
-                .font(.tlBodySm).foregroundStyle(tk.inkMuted).multilineTextAlignment(.center)
+        VStack(spacing: 20) {
+            Text(title).font(.tl(22, .bold)).foregroundStyle(tk.ink)
             Button(tr("설정으로 가기", "Go to settings"), action: onSettings)
                 .buttonStyle(TLButtonStyle())
-                .padding(.top, 20)
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

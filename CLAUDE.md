@@ -205,7 +205,7 @@ ledger_entries  id, org_id, payer_id, amount(bigint, 원 단위), title, spent_o
 - 실시간은 행 병합 대신 조직 단위 invalidate다 — 들어온 행이 지금 보는 달인지 판정하는
   분기를 캐시 병합에 넣으면 달을 넘길 때 어긋날 거리가 하나 는다. 한 달치는 몇십 줄이다.
 - 지우는 건 적은 사람·낸 사람 본인이나 방장만. 할 일과 같이 소프트 삭제다.
-- 쓸지 말지는 `profiles.show_ledger`에 있다. 끄면 헤더 세그먼트·탭바에서 버튼이 사라지고,
+- 쓸지 말지는 `profiles.show_ledger`에 있다(달력도 같은 방식으로 `profiles.show_calendar`). 끄면 헤더 세그먼트·탭바에서 버튼이 사라지고,
   `?view=ledger`로 직접 열면 조용히 튕기지 않고 "설정으로 가기" 안내를 띄운다.
   이미 가계부를 보고 있는 동안에는 버튼을 남긴다 — 다른 기기에서 끄면 나갈 길이 사라진다.
 
@@ -448,7 +448,7 @@ export const POST = apiRoute<{ todoId: string; status: TodoStatus }>(b =>
 
 ### 알림 — 앱 푸시(준비 중)
 
-Discord 웹훅 알림은 걷어 냈다(`20261123100000_drop_discord.sql`). 앱 푸시 알림으로 바꾼다.
+Discord 웹훅 알림은 걷어 냈다(`20261123092443_drop_discord.sql`). 앱 푸시 알림으로 바꾼다.
 알림을 보낼 자리(할 일 부탁·넘기기·대신 처리 등)는 해당 서버 액션이다.
 원칙은 그대로다 — **알림 실패가 본래 작업을 되돌리면 안 되고, 응답을 막지 않는다**(`after()`).
 

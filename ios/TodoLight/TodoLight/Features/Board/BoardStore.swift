@@ -32,6 +32,8 @@ final class BoardStore {
     private(set) var localePreference: String?
     /// `profiles.show_ledger` — 끄면 탭바에서 가계부 칸이 사라진다
     private(set) var showLedger = true
+    /// `profiles.show_calendar` — 끄면 탭바에서 달력 칸이 사라진다
+    private(set) var showCalendar = true
     /// 서버에 닿지 못하고 있다 — 화면은 마지막 상태(기기 캐시)와 쌓아 둔 쓰기로 그린다
     private(set) var offline = false
     /// 연결을 기다리는 쓰기 수(화면에 "N개 보낼 준비" 같은 안내를 띄우는 데 쓴다)
@@ -92,6 +94,7 @@ final class BoardStore {
             savedMemberOrder = snap.members.map(\.userId).filter { $0 != userId }
             showDone = snap.showDone
             showLedger = snap.showLedger
+            showCalendar = snap.showCalendar ?? true
             phase = .ready
         }
         queue = OfflineCache.load([PendingWrite].self, key: "queue-\(orgId)") ?? []
@@ -99,7 +102,7 @@ final class BoardStore {
 
     private func saveSnapshot() {
         OfflineCache.save(
-            BoardSnapshot(todos: todos, doneTotals: doneTotals, members: members, showDone: showDone, showLedger: showLedger),
+            BoardSnapshot(todos: todos, doneTotals: doneTotals, members: members, showDone: showDone, showLedger: showLedger, showCalendar: showCalendar),
             as: "board-\(orgId)"
         )
         publishWidget()
@@ -167,6 +170,7 @@ final class BoardStore {
             themePreference = p.theme
             localePreference = p.locale
             showLedger = p.showLedger
+            showCalendar = p.showCalendar ?? true
             // 출발한 뒤 칩 순서를 바꿨으면 이 프로필은 그걸 모른다
             if memberOrderGeneration == orderStartedAt && memberOrderSaving == 0 { savedMemberOrder = p.memberOrder[orgId] ?? [] }
             members = Self.order(m, me: userId, saved: savedMemberOrder)

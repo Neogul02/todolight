@@ -41,6 +41,7 @@ export default function MeClient() {
   const [locale, setLocale] = useState<Locale>((profile?.locale as Locale) ?? 'ko');
   const [showDone, setShowDone] = useState(profile?.show_done ?? true);
   const [showLedger, setShowLedger] = useState(profile?.show_ledger ?? true);
+  const [showCalendar, setShowCalendar] = useState(profile?.show_calendar ?? true);
   const [photo, setPhoto] = useState<string | null>(profile?.avatar_url ?? null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -113,6 +114,12 @@ export default function MeClient() {
     const next = !showDone;
     setShowDone(next);
     save({ showDone: next }, () => setShowDone(!next));
+  }
+
+  function toggleShowCalendar() {
+    const next = !showCalendar;
+    setShowCalendar(next);
+    save({ showCalendar: next }, () => setShowCalendar(!next)).then(ok => ok && router.refresh());
   }
 
   function toggleShowLedger() {
@@ -297,7 +304,16 @@ export default function MeClient() {
         <h2 className="text-title text-ink">{t('viewTitle')}</h2>
         <div className="mt-3 flex flex-col gap-3">
           <SettingCheckbox checked={showDone} onChange={toggleShowDone} label={t('showDone')} />
-          <SettingCheckbox checked={showLedger} onChange={toggleShowLedger} label={t('showLedger')} />
+          <SettingCheckbox
+            checked={showCalendar}
+            onChange={toggleShowCalendar}
+            label={t('showCalendar')}
+          />
+          <SettingCheckbox
+            checked={showLedger}
+            onChange={toggleShowLedger}
+            label={t('showLedger')}
+          />
         </div>
       </Card>
 
@@ -404,7 +420,13 @@ function SettingCheckbox({
         )}
       >
         {checked && (
-          <svg viewBox="0 0 12 12" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            viewBox="0 0 12 12"
+            className="size-3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <path d="M2.5 6.2 4.8 8.5 9.5 3.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         )}
