@@ -144,9 +144,9 @@ struct MeView: View {
 
     private var viewCard: some View {
         PageCard {
-            Text(tr("화면", "Display")).font(.tlTitle).foregroundStyle(tk.ink)
+            Text(tr("화면", "What to show")).font(.tlTitle).foregroundStyle(tk.ink)
             VStack(spacing: 12) {
-                settingToggle(tr("완료한 할 일도 보기", "Show finished to-dos"), isOn: showDone) {
+                settingToggle(tr("완료한 할 일도 보기", "Show completed to-dos"), isOn: showDone) {
                     showDone.toggle()
                     let next = showDone
                     Task { await save { try await api.updateProfile(showDone: next) } onFail: { showDone = !next } }
@@ -176,7 +176,7 @@ struct MeView: View {
     /// 맨 아래 — 매일 만지는 설정과 평생 한 번 누를 버튼을 떨어뜨려 둔다.
     private var deleteCard: some View {
         PageCard {
-            Text(tr("계정과 로그인 정보를 지워요. 되돌릴 수 없어요.", "Deletes your account and login. This can't be undone.")).font(.tlCaption).foregroundStyle(tk.inkMuted)
+            Text(tr("계정과 로그인 정보를 지워요. 되돌릴 수 없어요.", "Deletes your account and sign-in details. This cannot be undone.")).font(.tlCaption).foregroundStyle(tk.inkMuted)
             Button(tr("계정 삭제", "Delete account")) { deleteOpen = true }
                 .buttonStyle(TLButtonStyle(variant: .danger, fill: true))
                 .padding(.top, 16)
@@ -213,8 +213,16 @@ struct MeView: View {
 
     // MARK: 동작
 
+    /// 앱이 이 화면에서 바로 열리면 로그인 세션이 아직 준비되기 전이라 첫 조회가 실패할 수 있다.
+    /// 한 번 실패로 끝내면 이름 칸이 빈 채로 남는다 — 잠깐씩 기다리며 몇 번 더 묻는다.
     private func load() async {
-        guard let p = try? await api.fetchMyProfile() else { return }
+        var fetched: Profile?
+        for attempt in 0..<4 {
+            if let p = try? await api.fetchMyProfile() { fetched = p; break }
+            try? await Task.sleep(for: .milliseconds(300 << attempt))
+            if Task.isCancelled { return }
+        }
+        guard let p = fetched else { return }
         profile = p
         name = p.displayName
         savedName = p.displayName
@@ -321,7 +329,7 @@ struct MeView: View {
     /// 웹 `lib/themes.ts`의 THEMES — 이름은 messages/ko.json `me.theme.names`
     private static var themes: [(key: String, name: String, swatch: [String])] { [
         ("system", tr("시스템", "System"), ["#ffffff", "#101010", "#8a8a8a"]),
-        ("ink", tr("화이트", "White"), ["#ffffff", "#f4f2ee", "#14120f"]),
+        ("ink", tr("화이트", "Light"), ["#ffffff", "#f4f2ee", "#14120f"]),
         ("ink-dark", tr("다크", "Dark"), ["#101010", "#232221", "#f5f2ec"]),
     ] }
 }
@@ -339,20 +347,20 @@ private struct DeleteAccountSheet: View {
             Text(tr("계정 삭제", "Delete account")).font(.tlTitle).foregroundStyle(tk.ink)
             VStack(alignment: .leading, spacing: 8) {
                 ForEach([
-                    tr("로그인 정보와 이름·이메일·프로필 사진을 지워요. 다시 로그인할 수 없어요.", "Your sign-in details, name, email, and profile photo are deleted. You won't be able to sign in again."),
-                    tr("방장으로 있는 조직은 남은 멤버 중 먼저 들어온 관리자에게 방장을 넘겨요.", "Orgs you own are handed to the earliest-joined admin among remaining members."),
-                    tr("나 혼자인 조직은 그 조직의 할 일·일정·가계부와 함께 지워요.", "Orgs where you're the only member are deleted along with their to-dos, events and ledger."),
-                    tr("팀에 남긴 할 일과 메모, 가계부 기록은 이름 없이 남아요 — 팀의 장부가 나 때문에 바뀌면 안 되니까요.", "To-dos, notes and ledger entries you left stay without your name — the team's records shouldn't change because you left."),
+                    tr("로그인 정보와 이름·이메일·프로필 사진을 지워요. 다시 로그인할 수 없어요.", "Your sign-in details, name, email, and profile photo are deleted. You will not be able to sign in again."),
+                    tr("방장으로 있는 조직은 남은 멤버 중 먼저 들어온 관리자에게 방장을 넘겨요.", "Orgs you own are handed to the longest-standing admin among the remaining members."),
+                    tr("나 혼자인 조직은 그 조직의 할 일·일정·가계부와 함께 지워요.", "Orgs where you are the only member are deleted, along with their to-dos, events, and ledger."),
+                    tr("팀에 남긴 할 일과 메모, 가계부 기록은 이름 없이 남아요 — 팀의 장부가 나 때문에 바뀌면 안 되니까요.", "To-dos, notes, and ledger entries you left with your team stay, without your name — your team's books shouldn't change because you left."),
                 ], id: \.self) { Text($0).font(.tlBodySm).foregroundStyle(tk.ink) }
             }
             .padding(14)
             .background(tk.canvasSoft, in: RoundedRectangle(cornerRadius: 12))
-            Text(tr("이 동작은 되돌릴 수 없어요.", "This can't be undone.")).font(.tlCaption).foregroundStyle(tk.danger)
+            Text(tr("이 동작은 되돌릴 수 없어요.", "This cannot be undone.")).font(.tlCaption).foregroundStyle(tk.danger)
             if let error { Text(error).font(.tlCaption).foregroundStyle(tk.danger) }
             HStack(spacing: 8) {
                 Button(tr("취소", "Cancel")) { dismiss() }
                     .buttonStyle(TLButtonStyle(variant: .outline, fill: true))
-                Button(deleting ? tr("지우는 중…", "Deleting…") : tr("삭제할래요", "Delete it")) { Task { await run() } }
+                Button(deleting ? tr("지우는 중…", "Deleting…") : tr("삭제할래요", "Delete")) { Task { await run() } }
                     .buttonStyle(TLButtonStyle(variant: .danger, fill: true))
             }
             .disabled(deleting)

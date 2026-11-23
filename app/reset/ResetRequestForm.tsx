@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { showMsg } from '@/lib/toast';
+import { authErrorKey } from '@/lib/auth-errors';
 import { Button, Card, Input, Spinner } from '@/components/ui';
 
 export default function ResetRequestForm() {
   const t = useTranslations('auth.resetRequest');
+  const tToast = useTranslations('toast');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
@@ -27,7 +29,9 @@ export default function ResetRequestForm() {
       if (error) throw error;
       setSent(true);
     } catch (err) {
-      showMsg(err instanceof Error ? err.message : String(err), 'error');
+      const message = err instanceof Error ? err.message : String(err);
+      const key = authErrorKey(message);
+      showMsg(key ? tToast(key) : message, 'error');
     } finally {
       setBusy(false);
     }

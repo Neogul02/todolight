@@ -33,3 +33,6 @@ ios/**/xcuserdata/
 ios/**/DerivedData/
 ios/**/.build/
 *.xcresult
+
+# 로컬 개발 서버 실행 설정(Claude 미리보기용)
+.claude/launch.json

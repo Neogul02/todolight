@@ -5,6 +5,7 @@ import { AnimatePresence, motion, Reorder, useDragControls, useReducedMotion } f
 import { useLocale, useTranslations } from 'next-intl';
 import { useTodoMutations } from '@/hooks/useTodoMutations';
 import { useOutsideClick, useOutsideClickGroup } from '@/hooks/useOutsideClick';
+import { caretToEnd } from '@/lib/forms';
 import { cn, dueState, formatKSTTime, formatRelativeDay, subjectParticle } from '@/lib/utils';
 import { getAvatarColor } from '@/lib/avatar';
 import { vibrateTick } from '@/lib/haptics';
@@ -594,15 +595,12 @@ function TodoCardOpenContent({
             maxLength={500}
             enterKeyHint="done"
             autoFocus
+            onFocus={caretToEnd}
             className="h-10 w-full sm:h-9"
           />
           <div className="flex gap-1.5">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={() => setEditing(false)}
-            >
+            {/* 저장이 주 동작이다 — 남은 폭을 저장이 갖고, 취소는 글자만큼만 */}
+            <Button type="button" variant="outline" onClick={() => setEditing(false)}>
               {tCommon('cancel')}
             </Button>
             <Button type="submit" className="flex-1" disabled={!draftTitle.trim()}>
@@ -629,6 +627,7 @@ function TodoCardOpenContent({
                           maxLength={1000}
                           enterKeyHint="done"
                           autoFocus
+                          onFocus={caretToEnd}
                           className="h-9 w-full text-caption"
                         />
                         <div className="flex gap-1.5">
@@ -636,7 +635,6 @@ function TodoCardOpenContent({
                             type="button"
                             size="sm"
                             variant="outline"
-                            className="flex-1"
                             onClick={() => setEditingNoteId(null)}
                           >
                             {tCommon('cancel')}

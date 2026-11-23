@@ -39,7 +39,7 @@ struct HandoffSheet: View {
             Text(tr("\(ownerName)님의 할 일이에요. 어떻게 처리했는지 한 줄 남겨 주세요.", "This is \(ownerName)'s to-do. Leave a line about how you handled it."))
                 .font(.tlCaption).foregroundStyle(tk.inkMuted).padding(.top, 4)
 
-            TextField("", text: $note, prompt: placeholder(tr("예) 거래처에 메일 보내 뒀어요. 회신 오면 공유할게요.", "e.g. Emailed the client. Will share when they reply."), tk), axis: .vertical)
+            TextField("", text: $note, prompt: placeholder(tr("예) 거래처에 메일 보내 뒀어요. 회신 오면 공유할게요.", "e.g. Emailed the client — will share once they reply."), tk), axis: .vertical)
                 .lineLimit(3...6)
                 .focused($focused)
                 .padding(.vertical, 12)

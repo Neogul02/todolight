@@ -25,8 +25,7 @@ struct LoginView: View {
         ZStack {
             CanvasBackground()
             VStack(alignment: .leading, spacing: 0) {
-                Text("todolight").font(.tlTitle).foregroundStyle(tk.ink)
-
+                // 앱 이름은 두지 않는다 — 이 화면이 할 일은 로그인·회원가입 중 하나를 고르는 것뿐이다(웹과 같다)
                 HStack(spacing: 0) {
                     ForEach(Mode.allCases, id: \.self) { m in
                         Button { mode = m } label: {
@@ -40,7 +39,6 @@ struct LoginView: View {
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(tk.hairline))
-                .padding(.top, 20)
 
                 VStack(alignment: .leading, spacing: 12) {
                     if mode == .signUp {
@@ -55,7 +53,7 @@ struct LoginView: View {
                     }
                     // iOS가 첫 글자를 대문자로 바꿔 로그인이 실패한다 — 웹과 같은 규칙(CLAUDE.md 「그 밖의 iOS 대응」)
                     labeled(tr("이메일", "Email")) {
-                        TextField("", text: $email)
+                        TextField("", text: $email, prompt: placeholder("you@company.com", tk))
                             .keyboardType(.emailAddress)
                             .textContentType(.username)
                             .textInputAutocapitalization(.never)
@@ -66,7 +64,7 @@ struct LoginView: View {
                             .tlField()
                     }
                     labeled(tr("비밀번호", "Password")) {
-                        SecureField("", text: $password, prompt: placeholder(tr("6자 이상", "At least 6 characters"), tk))
+                        SecureField("", text: $password, prompt: placeholder(tr("6자 이상", "6+ characters"), tk))
                             .textContentType(mode == .signUp ? .newPassword : .password)
                             .focused($focus, equals: .password)
                             .submitLabel(.go)
@@ -151,10 +149,24 @@ struct LoginView: View {
                 try await auth.signIn(email: trimmed, password: password)
             }
         } catch {
-            // 가입 실패를 "로그인하지 못했어요"로 말하면 무엇을 고칠지 모른다 — 대부분 이미 있는 이메일이다
-            self.error = mode == .signUp
-                ? tr("가입하지 못했어요. 이미 가입한 이메일이면 로그인해 주세요.", "Couldn't sign up. If you already have an account, sign in instead.")
-                : tr("로그인하지 못했어요. 이메일과 비밀번호를 확인해 주세요.", "Couldn't sign in. Check your email and password.")
+            self.error = Self.message(for: error, signingUp: mode == .signUp)
         }
+    }
+
+    /// Supabase Auth의 영어 원문을 화면 문구로 옮긴다 — 웹 `lib/auth-errors.ts`와 같은 판정·같은 문구
+    private static func message(for error: Error, signingUp: Bool) -> String {
+        let m = String(describing: error).lowercased()
+        if m.contains("already registered") {
+            return tr("이미 가입한 이메일이에요. 로그인해 주세요.", "That email already has an account. Please sign in.")
+        }
+        if m.contains("email address") && m.contains("invalid") {
+            return tr("이메일 주소를 다시 확인해 주세요. 받을 수 있는 주소여야 해요.", "Please check the email address. It needs to be one that can receive mail.")
+        }
+        if m.contains("rate limit") {
+            return tr("요청이 너무 많았어요. 잠시 뒤에 다시 시도해 주세요.", "Too many attempts. Please try again in a little while.")
+        }
+        return signingUp
+            ? tr("가입하지 못했어요. 잠시 뒤에 다시 시도해 주세요.", "Couldn't sign up. Please try again in a moment.")
+            : tr("이메일이나 비밀번호가 맞지 않아요.", "That email or password isn't right.")
     }
 }

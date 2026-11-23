@@ -230,6 +230,12 @@
 body {
   margin: 0;
   color: var(--ink);
+  /*
+    한국어는 어절 단위로 줄을 바꾼다. 기본값은 글자 단위라 "있어/요."처럼 한 글자만 다음 줄로
+    떨어졌다(토스트·카드 설명 곳곳). 이메일 같은 긴 단어는 overflow-wrap으로 칸 안에서 끊는다.
+  */
+  word-break: keep-all;
+  overflow-wrap: break-word;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: contain;
 }

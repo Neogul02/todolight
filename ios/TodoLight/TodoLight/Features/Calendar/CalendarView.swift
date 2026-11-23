@@ -279,7 +279,7 @@ struct CalendarView: View {
                         snap(to: up ? Self.snaps[1] : down ? Self.snaps[0] : start)
                     }
             )
-            .accessibilityLabel(tr("목록 크기 조절", "Resize list"))
+            .accessibilityLabel(tr("목록 크기 조절", "Resize the list"))
             .accessibilityAddTraits(.isButton)
     }
 
@@ -422,7 +422,7 @@ struct EventSheet: View {
                 Text(event == nil ? tr("일정 추가", "Add event") : tr("일정 편집", "Edit event")).font(.tlTitle).foregroundStyle(tk.ink)
 
                 labeled(tr("이름", "Name")) {
-                    TextField("", text: $title, prompt: placeholder(tr("예) 팝업 준비 기간", "e.g. Pop-up prep week"), tk)).tlField()
+                    TextField("", text: $title, prompt: placeholder(tr("예) 팝업 준비 기간", "e.g. Pop-up prep window"), tk)).tlField()
                 }
                 labeled(tr("색", "Color")) {
                     HStack(spacing: 8) {

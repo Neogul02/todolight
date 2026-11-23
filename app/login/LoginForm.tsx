@@ -8,6 +8,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { showMsg } from '@/lib/toast';
 import { Button, Card, Input, Spinner } from '@/components/ui';
 import { focusNextOnEnter } from '@/lib/forms';
+import { authErrorKey } from '@/lib/auth-errors';
 import { cn, safeNextPath } from '@/lib/utils';
 
 type Mode = 'signin' | 'signup';
@@ -101,26 +102,22 @@ export default function LoginForm() {
       */
       window.location.assign(nextPath);
     } catch (err) {
-      // Supabase Auth의 영어 원문을 그대로 띄우지 않는다 — 자주 나는 두 가지만 옮긴다
+      // Supabase Auth의 영어 원문을 그대로 띄우지 않는다
       const message = err instanceof Error ? err.message : String(err);
-      const friendly = message.includes('Invalid login credentials')
-        ? tToast('invalidCredentials')
-        : message.includes('already registered')
-          ? tToast('alreadyRegistered')
-          : message;
-      showMsg(friendly, 'error');
+      const key = authErrorKey(message);
+      showMsg(key ? tToast(key) : message, 'error');
       setBusy(false);
     }
   }
 
   return (
     <Card className="w-full max-w-[400px] p-6 sm:p-7">
-      <Link href="/" lang="en" className="text-title tracking-tight text-ink">
-        todolight
-      </Link>
-
-      {/* 링크로 모드를 바꾸던 걸 탭으로 바꿨다 — 로그인·회원가입이 같은 무게로 보여야 한다 */}
-      <div className="mt-5 flex overflow-hidden rounded-xl border border-hairline no-select">
+      {/*
+        링크로 모드를 바꾸던 걸 탭으로 바꿨다 — 로그인·회원가입이 같은 무게로 보여야 한다.
+        카드 위에 앱 이름을 두지 않는다: 들어오는 길(랜딩·앱 아이콘)에서 이미 봤고, 이 화면이
+        할 일은 둘 중 하나를 고르는 것뿐이다.
+      */}
+      <div className="flex overflow-hidden rounded-xl border border-hairline no-select">
         {(['signin', 'signup'] as Mode[]).map(m => (
           <button
             key={m}

@@ -328,7 +328,9 @@
     "todoGiven": "{name}님에게 넘겼어요.",
     "imageOnly": "이미지 파일만 올릴 수 있어요.",
     "imageProcessFailed": "이미지를 처리하지 못했어요.",
-    "alreadyRegistered": "이미 가입한 이메일이에요. 로그인해 주세요."
+    "alreadyRegistered": "이미 가입한 이메일이에요. 로그인해 주세요.",
+    "authInvalidEmail": "이메일 주소를 다시 확인해 주세요. 받을 수 있는 주소여야 해요.",
+    "authRateLimited": "요청이 너무 많았어요. 잠시 뒤에 다시 시도해 주세요."
   },
   "common": {
     "save": "저장",

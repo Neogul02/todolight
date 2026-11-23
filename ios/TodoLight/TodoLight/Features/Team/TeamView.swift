@@ -327,7 +327,7 @@ struct TeamView: View {
         do {
             _ = try await Backend.shared.supabase.storage.from("org-images").remove(paths: ["\(org.id)/icon.webp"])
             try await api.updateOrgImage(orgId: org.id, imageUrl: nil)
-            toast = tr("조직 이미지를 지웠어요", "Org image removed.")
+            toast = tr("조직 이미지를 지웠어요.", "Org image removed.")
             await onOrgsChanged()
         } catch {
             toast = BoardStore.message(error)
@@ -486,7 +486,7 @@ private struct DeleteOrgSheet: View {
             }
             VStack(alignment: .leading, spacing: 8) {
                 Text(tr("이 조직의 할 일·메모·일정·가계부가 전부 사라져요. 할 일 지우기와 달리 되살릴 수 없어요.",
-                        "Every todo, note, event, and ledger entry in this organization is gone. Unlike deleting a todo, this cannot be restored."))
+                        "Every to-do, note, event, and ledger entry in this org is gone. Unlike deleting a to-do, this cannot be restored."))
                 Text(tr("멤버 \(org.memberCount)명이 이 조직에서 나가게 돼요. 다시 모으려면 조직을 새로 만들어 초대해야 해요.",
                         "All \(org.memberCount) members lose access. Bringing them back means creating a new organization and inviting them again."))
             }

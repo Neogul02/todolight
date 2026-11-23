@@ -201,8 +201,9 @@ private struct TodoCardOpenContent: View {
                     .onSubmit { submitNoteEdit(n) }
                     .tlField(height: 36)
                 HStack(spacing: 6) {
+                    // 저장이 주 동작이다 — 남은 폭을 저장이 갖고, 취소는 글자만큼만(웹과 같다)
                     Button(tr("취소", "Cancel")) { editingNoteId = nil }
-                        .buttonStyle(TLButtonStyle(variant: .outline, size: .sm, fill: true))
+                        .buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
                     Button(tr("저장", "Save")) { submitNoteEdit(n) }
                         .buttonStyle(TLButtonStyle(size: .sm, fill: true))
                         .disabled(noteDraft.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -290,7 +291,7 @@ private struct TodoCardOpenContent: View {
                     }
                     if canJoin {
                         let joined = todo.participants.contains(store.userId)
-                        Button(joined ? tr("같이하기 그만", "Leave") : tr("같이하기", "Join")) { store.setJoined(todo, !joined) }
+                        Button(joined ? tr("그만하기", "Leave") : tr("같이하기", "Join in")) { store.setJoined(todo, !joined) }
                             .buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
                     }
                 }
@@ -308,8 +309,8 @@ private struct TodoCardOpenContent: View {
                 .onSubmit(submitEdit)
                 .tlField(height: 40)
             HStack(spacing: 6) {
-                Button(tr("취소", "Cancel")) { editing = false }.buttonStyle(TLButtonStyle(variant: .outline, fill: true))
-                Button(tr("저장", "Save"), action: submitEdit).buttonStyle(TLButtonStyle())
+                Button(tr("취소", "Cancel")) { editing = false }.buttonStyle(TLButtonStyle(variant: .outline))
+                Button(tr("저장", "Save"), action: submitEdit).buttonStyle(TLButtonStyle(fill: true))
                     .disabled(draftTitle.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }

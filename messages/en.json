@@ -328,7 +328,9 @@
     "todoGiven": "Handed off to {name}.",
     "imageOnly": "Only image files can be uploaded.",
     "imageProcessFailed": "Couldn't process that image.",
-    "alreadyRegistered": "That email already has an account. Please sign in."
+    "alreadyRegistered": "That email already has an account. Please sign in.",
+    "authInvalidEmail": "Please check the email address. It needs to be one that can receive mail.",
+    "authRateLimited": "Too many attempts. Please try again in a little while."
   },
   "common": {
     "save": "Save",

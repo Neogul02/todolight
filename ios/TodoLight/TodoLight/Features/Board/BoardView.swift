@@ -326,7 +326,7 @@ private struct TabBar: View {
                                     .offset(x: 2, y: -1)
                             }
                         }
-                    Text(tr("나", "Me")).font(.tl(10, .medium))
+                    Text(tr("메뉴", "Menu")).font(.tl(10, .medium))
                 }
                 .foregroundStyle(tk.inkMuted)
                 .frame(width: 64)

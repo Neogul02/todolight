@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from 'react';
+import type { FocusEvent, KeyboardEvent } from 'react';
 
 /**
  * `enterKeyHint="next"`를 단 칸에서 "다음"을 눌렀을 때 실제로 다음 칸으로 포커스를 옮긴다.
@@ -31,4 +31,14 @@ export function submitOnEnter(e: KeyboardEvent, run: () => void): void {
   if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
   e.preventDefault();
   run();
+}
+
+/**
+ * 이미 값이 든 칸을 고치러 들어갈 때 커서를 **맨 뒤**에 둔다(`onFocus={caretToEnd}`).
+ * 브라우저마다 포커스 시 커서 자리가 다르다 — 맨 앞에 서면 이어 쓰려던 사람이 손을 한 번 더 써야 한다.
+ */
+export function caretToEnd(e: FocusEvent<HTMLInputElement | HTMLTextAreaElement>): void {
+  const el = e.currentTarget;
+  const end = el.value.length;
+  el.setSelectionRange(end, end);
 }

@@ -57,10 +57,10 @@ struct MemberColumnView: View {
                             .font(.tlCaption).foregroundStyle(tk.inkFaint).padding(.top, 4)
                     }
                     if store.showDone && showAllDone && done.count > Self.visibleDone {
-                        dashedButton(tr("완료 접기", "Hide done")) { showAllDone = false }
+                        dashedButton(tr("완료 접기", "Collapse done")) { showAllDone = false }
                     }
                     if open.isEmpty && shownDone.isEmpty {
-                        Text(isMe ? tr("할 일이 비어 있어요", "Your list is empty") : tr("남은 할 일이 없어요", "Nothing left to do"))
+                        Text(isMe ? tr("할 일이 비어 있어요", "Nothing here") : tr("남은 할 일이 없어요", "Nothing left to do"))
                             .font(.tlCaption).foregroundStyle(tk.inkFaint)
                             .frame(maxWidth: .infinity).padding(.vertical, 32)
                             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(tk.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
@@ -94,7 +94,7 @@ struct MemberColumnView: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 4) {
                     Text(member.displayName).font(.tl(15, .semibold)).foregroundStyle(tk.ink).lineLimit(1)
-                    if isMe { Text(tr("(나)", "(me)")).font(.tl(12)).foregroundStyle(tk.inkFaint) }
+                    if isMe { Text(tr("(나)", "(You)")).font(.tl(12)).foregroundStyle(tk.inkFaint) }
                 }
                 Text(tr("남은 일 \(openCount)개", "\(openCount) left") + (doneTotal > 0 ? tr(" · 완료 \(doneTotal)", " · \(doneTotal) done") : ""))
                     .font(.tl(12)).foregroundStyle(tk.inkFaint)
