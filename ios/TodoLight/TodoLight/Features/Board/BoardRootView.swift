@@ -131,15 +131,20 @@ private struct NoOrgView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                // 초대가 와 있으면 그게 할 일이다 — 초대받고 막 가입한 사람이 조직을 새로 만드는 길로 새지 않게
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(tr("먼저 조직이 필요해요", "You need an org first")).font(.tl(22, .bold)).foregroundStyle(tk.ink)
-                    Text(tr("할 일은 조직 단위로 나눠 봐요. 조직을 만들거나 받은 초대를 수락해 주세요.",
-                            "To-dos are shared within an org. Create one or accept an invite."))
+                    Text(invites.isEmpty ? tr("아직 조직이 없어요", "No orgs yet") : tr("초대가 와 있어요", "You've been invited"))
+                        .font(.tl(22, .bold)).foregroundStyle(tk.ink)
+                    Text(invites.isEmpty
+                         ? tr("조직을 만들어 팀원을 초대하거나, 받은 초대를 수락해 주세요.",
+                              "Create an org and invite teammates, or accept an invite you've received.")
+                         : tr("수락하면 바로 팀 보드로 들어가요.", "Accept to jump straight into your team's board."))
                         .font(.tlBodySm).foregroundStyle(tk.inkMuted)
                 }
                 ReceivedInvites(invites: invites, onRespond: onRespond)
-                Button(tr("조직 만들기", "Create an org"), action: onCreate).buttonStyle(TLButtonStyle(fill: true))
-                Button(tr("로그아웃", "Log out"), action: onSignOut).buttonStyle(TLButtonStyle(variant: .outline, fill: true))
+                Button(tr("조직 만들기", "Create an org"), action: onCreate)
+                    .buttonStyle(TLButtonStyle(variant: invites.isEmpty ? .primary : .outline, fill: true))
+                Button(tr("로그아웃", "Sign out"), action: onSignOut).buttonStyle(TLButtonStyle(variant: .outline, fill: true))
             }
             .padding(24)
             .padding(.top, 40)

@@ -4,7 +4,7 @@ import TodoLightKit
 /// 할 일 카드 — 웹 `app/(app)/board/TodoCard.tsx`와 같은 모양·순서.
 ///
 /// 체크 · 제목 · X 세 칸은 위 패딩(8)을 맞춰 첫 줄 기준선이 겹친다. 그 패딩이 곧 터치 영역이다.
-/// 펼친 순서는 메모 목록 → 메모 입력 → 동작 줄(마감 알약 · 제목 수정 · 넘기기 · 같이하기).
+/// 펼친 순서는 메모 목록 → 메모 입력 → 동작 줄(마감 알약 · 편집 · 넘기기 · 같이하기).
 struct TodoCardView: View {
     @Environment(\.tokens) private var tk
     @Environment(\.accessibilityReduceMotion) private var reduce
@@ -283,7 +283,7 @@ private struct TodoCardOpenContent: View {
                         DuePillView(value: todo.dueDate, onChange: { store.setDue(todo, $0) }, open: $dueOpen, height: 40)
                     }
                     if canManage {
-                        Button(tr("제목 수정", "Rename"), action: startEditing).buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
+                        Button(tr("편집", "Edit"), action: startEditing).buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
                     }
                     if canGive {
                         Button(tr("넘기기", "Hand off"), action: onGive).buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
@@ -385,7 +385,7 @@ struct FlowLayout: Layout {
 /// "○○님이 입력 중..." — 웹 card.typingIndicator
 func typingText(_ typers: [PresenceStore.Typer]) -> String {
     let names = typers.map(\.displayName).joined(separator: ", ")
-    return tr("\(names)님이 입력 중...", "\(names) is typing...")
+    return tr("\(names)님이 입력 중…", "\(names) is typing…")
 }
 
 /// 남이 보고 있는 카드의 테두리 — 먼저 들어온 한 사람의 색만 쓴다(여럿이면 색이 바뀌며 깜빡이는 것보다

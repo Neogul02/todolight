@@ -45,10 +45,10 @@ struct QuickAddControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "TodoLightQuickAdd") {
             ControlWidgetButton(action: OpenURLIntent(URL(string: "todolight://add")!)) {
-                Label("할 일 추가", systemImage: "plus.circle")
+                Label(Words.device.quickAdd, systemImage: "plus.circle")
             }
         }
-        .displayName("할 일 추가")
-        .description("todolight를 열고 바로 적어요")
+        .displayName(LocalizedStringResource(stringLiteral: Words.device.quickAdd))
+        .description(LocalizedStringResource(stringLiteral: Words.device.quickAddDescription))
     }
 }

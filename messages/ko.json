@@ -87,7 +87,7 @@
       "sendButton": "링크 보내기",
       "backToLogin": "로그인으로 돌아가기",
       "sentTitle": "메일을 보냈어요",
-      "sentDescription": "{email} 으로 재설정 링크를 보냈어요. 메일함에서 링크를 눌러 새 비밀번호를 정해 주세요.",
+      "sentDescription": "{email} 주소로 재설정 링크를 보냈어요. 메일함에서 링크를 눌러 새 비밀번호를 정해 주세요.",
       "spamHint": "메일이 안 보이면 스팸함도 확인해 주세요. 링크는 1시간 뒤 만료돼요."
     },
     "resetConfirm": {
@@ -111,7 +111,7 @@
   "handoff": {
     "title": "대신 처리",
     "description": "{owner}님의 할 일이에요. 어떻게 처리했는지 한 줄 남겨 주세요.",
-    "placeholder": "예) 거래처에 메일 보내뒀습니다. 회신 오면 공유할게요.",
+    "placeholder": "예) 거래처에 메일 보내 뒀어요. 회신 오면 공유할게요.",
     "cancel": "취소",
     "submit": "완료 처리"
   },
@@ -141,13 +141,13 @@
       "handledByOther": "{name} 대신 처리",
       "notesCount": "메모 {count}",
       "deleteAria": "할 일 지우기",
-      "edit": "제목 수정",
+      "edit": "편집",
       "deleteNoteAria": "메모 지우기",
       "notePlaceholder": "메모 남기기",
       "noteSubmitAria": "메모 등록",
       "joinTogether": "같이하기",
       "leaveTogether": "그만하기",
-      "typingIndicator": "{name}님이 입력 중...",
+      "typingIndicator": "{name}님이 입력 중…",
       "viewingBadge": "{names}님이 보는 중",
       "give": "넘기기",
       "givenBy": "{name} 넘김"
@@ -164,10 +164,12 @@
       "emptyMine": "할 일이 비어 있어요",
       "emptyOther": "남은 할 일이 없어요",
       "olderDoneNotLoaded": "그 전에 끝낸 {count}개는 여기 안 실려요"
-    }
+    },
+    "invitedTitle": "초대가 와 있어요",
+    "invitedDescription": "수락하면 바로 팀 보드로 들어가요.",
+    "openInvites": "받은 초대 보기 ({count})"
   },
   "ledger": {
-    "title": "가계부",
     "loadingAria": "가계부를 불러오는 중",
     "prevMonth": "이전 달",
     "nextMonth": "다음 달",
@@ -180,11 +182,7 @@
     "unknownMember": "알 수 없음",
     "disabledTitle": "가계부를 꺼 두셨어요",
     "disabledDescription": "내 설정에서 가계부를 켜면 다시 쓸 수 있어요.",
-    "goToSettings": "설정으로 가기",
-    "noOrgTitle": "먼저 조직이 필요해요",
-    "noOrgDescription": "가계부도 조직 단위로 기록해요. 조직을 만들거나 초대를 받아 주세요.",
-    "createOrg": "조직 만들기",
-    "checkInvites": "받은 초대 보기"
+    "goToSettings": "설정으로 가기"
   },
   "calendar": {
     "prevMonth": "이전 달",
@@ -202,7 +200,7 @@
     "selectedCounts": "일정 {events} · 할 일 {todos}"
   },
   "event": {
-    "editTitle": "일정 고치기",
+    "editTitle": "일정 편집",
     "newTitle": "일정 추가",
     "nameLabel": "이름",
     "namePlaceholder": "예) 팝업 준비 기간",
@@ -299,27 +297,24 @@
     "changeDue": "마감 {date} · 눌러서 바꾸기"
   },
   "toast": {
-    "todoDeleted": "할 일을 지웠어요",
+    "todoDeleted": "할 일을 지웠어요.",
     "eventCreated": "일정을 추가했어요.",
-    "eventUpdated": "일정을 고쳤어요",
-    "eventDeleted": "일정을 지웠어요",
-    "ledgerEntryDeleted": "지출 항목을 지웠어요",
+    "eventUpdated": "일정을 고쳤어요.",
+    "eventDeleted": "일정을 지웠어요.",
+    "ledgerEntryDeleted": "지출 항목을 지웠어요.",
     "inviteAccepted": "조직에 합류했어요.",
     "inviteDeclined": "초대를 거절했어요.",
-    "handledForMember": "대신 처리했어요",
+    "handledForMember": "대신 처리했어요.",
     "addedToMemberList": "{name}님 목록에 추가했어요.",
     "orgCreated": "조직을 만들었어요. 이제 팀원을 초대해 보세요.",
     "photoChanged": "사진을 바꿨어요.",
     "photoRemoved": "사진을 지웠어요.",
     "orgImageChanged": "조직 이미지를 바꿨어요.",
-    "orgImageRemoved": "조직 이미지를 지웠어요",
+    "orgImageRemoved": "조직 이미지를 지웠어요.",
     "inviteSent": "초대장을 보냈어요.",
     "leftOrg": "조직에서 나왔어요.",
     "memberRemoved": "멤버를 내보냈어요.",
     "roleChanged": "역할을 바꿨어요.",
-    "discordOn": "Discord 알림을 켰어요.",
-    "discordOff": "Discord 알림을 껐어요.",
-    "orgRenamed": "조직 이름을 바꿨어요.",
     "passwordMismatch": "두 비밀번호가 서로 달라요.",
     "passwordChanged": "비밀번호를 바꿨어요.",
     "confirmEmailSent": "확인 메일을 보냈어요. 메일함에서 인증을 마쳐 주세요.",
@@ -330,20 +325,22 @@
     "inviteSentUnregistered": "초대했어요. 아직 가입하지 않은 분이라 직접 알려 주셔야 해요.",
     "inviteCopied": "초대 문구를 복사했어요.",
     "inviteCopyFailed": "복사하지 못했어요. 직접 알려 주세요.",
-    "todoGiven": "{name}님에게 넘겼어요"
+    "todoGiven": "{name}님에게 넘겼어요.",
+    "imageOnly": "이미지 파일만 올릴 수 있어요.",
+    "imageProcessFailed": "이미지를 처리하지 못했어요.",
+    "alreadyRegistered": "이미 가입한 이메일이에요. 로그인해 주세요."
   },
   "common": {
     "save": "저장",
     "cancel": "취소",
     "undo": "실행취소",
     "saved": "저장했어요.",
-    "delete": "지우기",
-    "loading": "불러오는 중…"
+    "delete": "지우기"
   },
   "errors": {
     "unauthorized": "로그인이 필요해요.",
     "notAMember": "이 조직의 멤버가 아니에요.",
-    "managerOnly": "방장만 할 수 있어요.",
+    "managerOnly": "방장이나 관리자만 할 수 있어요.",
     "orgNameRequired": "조직 이름을 입력해 주세요.",
     "invalidEmail": "이메일 형식이 맞지 않아요.",
     "cannotInviteSelf": "본인은 초대할 수 없어요.",
@@ -365,7 +362,7 @@
     "invalidId": "올바르지 않은 요청이에요.",
     "invalidPosition": "순서 값이 올바르지 않아요.",
     "todoNotFound": "할 일을 찾을 수 없어요.",
-    "cannotDeleteTodo": "본인 할 일이거나 방장만 지울 수 있어요.",
+    "cannotDeleteTodo": "본인 할 일이거나 만든 사람, 방장·관리자만 지울 수 있어요.",
     "noteNotFound": "메모를 찾을 수 없어요.",
     "cannotDeleteNote": "본인이 쓴 메모만 지울 수 있어요.",
     "cannotEditNote": "본인이 쓴 메모만 고칠 수 있어요.",
@@ -374,7 +371,7 @@
     "eventTitleRequired": "일정 이름을 입력해 주세요.",
     "invalidEventColor": "없는 색이에요.",
     "eventNotFound": "일정을 찾을 수 없어요.",
-    "cannotDeleteEvent": "일정을 만든 사람이나 방장만 지울 수 있어요.",
+    "cannotDeleteEvent": "일정을 만든 사람이나 방장·관리자만 지울 수 있어요.",
     "nameRequired": "이름을 입력해 주세요.",
     "profileNotFound": "프로필을 찾을 수 없어요.",
     "invalidTheme": "없는 테마예요.",
@@ -392,10 +389,10 @@
     "invalidRequestBody": "요청 형식이 올바르지 않아요.",
     "tooManyRequests": "요청이 너무 잦아요. 잠시 뒤에 다시 시도해 주세요.",
     "giveTargetNotMember": "받는 사람이 이 조직의 멤버가 아니에요.",
-    "cannotGiveTodo": "본인 할 일이거나 만든 사람·방장만 넘길 수 있어요.",
+    "cannotGiveTodo": "본인 할 일이거나 만든 사람, 방장·관리자만 넘길 수 있어요.",
     "cannotGiveDone": "끝낸 할 일은 넘길 수 없어요.",
     "giveSameOwner": "이미 그 사람의 할 일이에요.",
-    "cannotEditTodo": "본인 할 일이거나 만든 사람·방장만 고칠 수 있어요.",
+    "cannotEditTodo": "본인 할 일이거나 만든 사람, 방장·관리자만 고칠 수 있어요.",
     "handoffNoteRequired": "남의 할 일은 메모와 함께 대신 처리해 주세요.",
     "alreadyDone": "이미 끝난 할 일이에요."
   },
@@ -412,7 +409,6 @@
   "give": {
     "title": "누구에게 넘길까요?",
     "notePlaceholder": "한마디 남기기 (선택) — 예) 이거 좀 부탁해요",
-    "noOne": "넘길 팀원이 없어요. 팀 화면에서 먼저 초대해 주세요.",
-    "currentOwner": "지금 담당"
+    "noOne": "넘길 팀원이 없어요. 팀 화면에서 먼저 초대해 주세요."
   }
 }

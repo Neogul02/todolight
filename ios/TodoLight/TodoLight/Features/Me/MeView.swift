@@ -339,7 +339,7 @@ private struct DeleteAccountSheet: View {
             Text(tr("계정 삭제", "Delete account")).font(.tlTitle).foregroundStyle(tk.ink)
             VStack(alignment: .leading, spacing: 8) {
                 ForEach([
-                    tr("로그인 정보와 이름·이메일·프로필 사진을 지워요. 다시 로그인할 수 없어요.", "Your login, name, email and profile photo are deleted. You won't be able to log in again."),
+                    tr("로그인 정보와 이름·이메일·프로필 사진을 지워요. 다시 로그인할 수 없어요.", "Your sign-in details, name, email, and profile photo are deleted. You won't be able to sign in again."),
                     tr("방장으로 있는 조직은 남은 멤버 중 먼저 들어온 관리자에게 방장을 넘겨요.", "Orgs you own are handed to the earliest-joined admin among remaining members."),
                     tr("나 혼자인 조직은 그 조직의 할 일·일정·가계부와 함께 지워요.", "Orgs where you're the only member are deleted along with their to-dos, events and ledger."),
                     tr("팀에 남긴 할 일과 메모, 가계부 기록은 이름 없이 남아요 — 팀의 장부가 나 때문에 바뀌면 안 되니까요.", "To-dos, notes and ledger entries you left stay without your name — the team's records shouldn't change because you left."),

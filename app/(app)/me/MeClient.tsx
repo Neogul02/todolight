@@ -11,7 +11,7 @@ import { applyTheme } from '@/app/providers';
 import { applyLocale } from '@/lib/locale-client';
 import { THEMES } from '@/lib/themes';
 import { LOCALES, type Locale } from '@/lib/locales';
-import { removeAvatar, uploadAvatar } from '@/lib/image-upload';
+import { removeAvatar, uploadAvatar, uploadErrorMessage } from '@/lib/image-upload';
 import { Avatar } from '@/components/Avatar';
 import { Button, Card, Input } from '@/components/ui';
 import { showMsg } from '@/lib/toast';
@@ -136,7 +136,7 @@ export default function MeClient() {
       showMsg(tToast('photoChanged'), 'success');
       router.refresh();
     } catch (err) {
-      showMsg(err instanceof Error ? err.message : String(err), 'error');
+      showMsg(uploadErrorMessage(err, tToast), 'error');
     } finally {
       setUploading(false);
     }
@@ -153,7 +153,7 @@ export default function MeClient() {
       showMsg(tToast('photoRemoved'), 'success');
       router.refresh();
     } catch (err) {
-      showMsg(err instanceof Error ? err.message : String(err), 'error');
+      showMsg(uploadErrorMessage(err, tToast), 'error');
     } finally {
       setUploading(false);
     }

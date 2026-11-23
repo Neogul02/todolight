@@ -18,7 +18,7 @@ import {
   updateOrgImage,
   updateOrgWebhook,
 } from '@/app/actions/orgs';
-import { removeOrgImage, uploadOrgImage } from '@/lib/image-upload';
+import { removeOrgImage, uploadErrorMessage, uploadOrgImage } from '@/lib/image-upload';
 import { useOrgMembers } from '@/hooks/useOrgBoard';
 import { useApp } from '../OrgContext';
 import { Avatar } from '@/components/Avatar';
@@ -83,7 +83,7 @@ export default function TeamClient() {
       showMsg(tToast('orgImageChanged'), 'success');
       router.refresh();
     } catch (err) {
-      showMsg(err instanceof Error ? err.message : String(err), 'error');
+      showMsg(uploadErrorMessage(err, tToast), 'error');
     } finally {
       setUploading(false);
     }
@@ -99,7 +99,7 @@ export default function TeamClient() {
       showMsg(tToast('orgImageRemoved'), 'success');
       router.refresh();
     } catch (err) {
-      showMsg(err instanceof Error ? err.message : String(err), 'error');
+      showMsg(uploadErrorMessage(err, tToast), 'error');
     } finally {
       setUploading(false);
     }

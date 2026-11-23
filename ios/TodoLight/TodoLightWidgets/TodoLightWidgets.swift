@@ -20,8 +20,8 @@ struct MyTodosWidget: Widget {
             MyTodosView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("내 할 일")
-        .description("남은 할 일과 가장 급한 것부터")
+        .configurationDisplayName(Words.device.widgetName)
+        .description(Words.device.widgetDescription)
         .supportedFamilies([
             .accessoryCircular, .accessoryRectangular, .accessoryInline,
             .systemSmall, .systemMedium,
@@ -212,6 +212,14 @@ enum DueLabel {
 struct Words {
     let ko: Bool
     init(lang: String) { ko = lang != "en" }
+
+    /// 위젯 갤러리·제어 센터처럼 앱 설정을 읽기 전에 그려지는 곳은 기기 언어를 따른다
+    static var device: Words { Words(lang: Locale.preferredLanguages.first?.hasPrefix("ko") == true ? "ko" : "en") }
+
+    var widgetName: String { ko ? "내 할 일" : "My to-dos" }
+    var widgetDescription: String { ko ? "남은 할 일과 가장 급한 것부터" : "What's left, most urgent first" }
+    var quickAdd: String { ko ? "할 일 추가" : "Add a to-do" }
+    var quickAddDescription: String { ko ? "todolight를 열고 바로 적어요" : "Open todolight and start typing" }
 
     var todo: String { ko ? "할 일" : "to-do" }
     var allDone: String { ko ? "다 끝냈어요" : "All done" }

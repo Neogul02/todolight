@@ -5,7 +5,7 @@ import Supabase
 struct LoginView: View {
     enum Mode: CaseIterable {
         case signIn, signUp
-        var label: String { self == .signIn ? tr("로그인", "Log in") : tr("회원가입", "Sign up") }
+        var label: String { self == .signIn ? tr("로그인", "Sign in") : tr("회원가입", "Sign up") }
     }
     enum Field { case name, email, password }
 
@@ -92,6 +92,15 @@ struct LoginView: View {
                     .buttonStyle(TLButtonStyle())
                     .disabled(busy || email.isEmpty || password.count < 6)
                     .padding(.top, 8)
+
+                    // 재설정은 웹 흐름 그대로 쓴다 — 메일 링크가 어차피 브라우저에서 열리고, 거기서 새 비밀번호를 정한다
+                    if mode == .signIn {
+                        Link(tr("비밀번호를 잊으셨나요?", "Forgot your password?"),
+                             destination: AppConfig.apiBaseURL.appending(path: "reset"))
+                            .font(.tlCaption).foregroundStyle(tk.inkMuted)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 4)
+                    }
                 }
                 .padding(.top, 16)
             }
@@ -135,14 +144,17 @@ struct LoginView: View {
                 )
                 // 이메일 확인이 켜져 있으면 세션 없이 돌아온다 — 아무 말 없이 화면이 그대로면 고장처럼 보인다
                 if res.session == nil {
-                    notice = tr("\(trimmed)으로 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.", "We sent a confirmation email to \(trimmed). Tap the link in it, then log in.")
+                    notice = tr("\(trimmed) 주소로 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.", "We sent a confirmation email to \(trimmed). Tap the link in it, then sign in.")
                     mode = .signIn
                 }
             } else {
                 try await auth.signIn(email: trimmed, password: password)
             }
         } catch {
-            self.error = tr("로그인하지 못했어요. 이메일과 비밀번호를 확인해 주세요.", "Couldn't log in. Check your email and password.")
+            // 가입 실패를 "로그인하지 못했어요"로 말하면 무엇을 고칠지 모른다 — 대부분 이미 있는 이메일이다
+            self.error = mode == .signUp
+                ? tr("가입하지 못했어요. 이미 가입한 이메일이면 로그인해 주세요.", "Couldn't sign up. If you already have an account, sign in instead.")
+                : tr("로그인하지 못했어요. 이메일과 비밀번호를 확인해 주세요.", "Couldn't sign in. Check your email and password.")
         }
     }
 }

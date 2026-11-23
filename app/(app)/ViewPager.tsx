@@ -106,25 +106,36 @@ export default function ViewPager() {
     예전엔 이 안내가 보드·달력·가계부에 거의 같은 코드로 세 벌 있었다.
   */
   if (orgs.length === 0) {
+    // 초대가 와 있으면 그게 할 일이다 — 초대받고 막 가입한 사람이 새 조직을 만드는 길로 새지 않게
+    // 강조를 뒤집는다. 수락은 아바타 메뉴(초대를 받는 단 하나의 자리)에서 한다.
+    const invited = pendingInvites > 0;
+    const primary =
+      'flex h-13 items-center justify-center gap-1.5 rounded-2xl bg-accent px-6 text-[16px] font-medium text-accent-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]';
+    const secondary =
+      'flex h-13 items-center justify-center gap-1.5 rounded-2xl border border-hairline-strong bg-surface px-6 text-[16px] font-medium text-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]';
+    const invitesButton = (
+      <button
+        key="invites"
+        type="button"
+        onClick={openMenu}
+        className={invited ? primary : secondary}
+      >
+        {invited ? t('openInvites', { count: pendingInvites }) : t('checkInvites')}
+      </button>
+    );
+    const createLink = (
+      <Link key="create" href="/orgs/new" className={invited ? secondary : primary}>
+        {t('createOrg')}
+      </Link>
+    );
     return (
       <main className="mx-auto flex max-w-[520px] flex-col items-center px-6 py-16 pb-tabbar text-center">
-        <h1 className="text-heading-1 text-ink">{t('noOrgTitle')}</h1>
-        <p className="mt-2 text-body-sm text-ink-muted">{t('noOrgDescription')}</p>
+        <h1 className="text-heading-1 text-ink">{invited ? t('invitedTitle') : t('noOrgTitle')}</h1>
+        <p className="mt-2 text-body-sm text-ink-muted">
+          {invited ? t('invitedDescription') : t('noOrgDescription')}
+        </p>
         <div className="mt-7 flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          <Link
-            href="/orgs/new"
-            className="flex h-13 items-center justify-center rounded-2xl bg-accent px-6 text-[16px] font-medium text-accent-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]"
-          >
-            {t('createOrg')}
-          </Link>
-          <button
-            type="button"
-            onClick={openMenu}
-            className="flex h-13 items-center justify-center gap-1.5 rounded-2xl border border-hairline-strong bg-surface px-6 text-[16px] font-medium text-ink transition-transform active:scale-[0.98] sm:h-12 sm:rounded-xl sm:text-[15px]"
-          >
-            {t('checkInvites')}
-            {pendingInvites > 0 && <span className="size-2 rounded-full bg-danger" />}
-          </button>
+          {invited ? [invitesButton, createLink] : [createLink, invitesButton]}
         </div>
       </main>
     );
@@ -142,7 +153,9 @@ export default function ViewPager() {
         className="absolute inset-0 flex will-change-transform"
         style={{
           transform: `translateX(-${index * 100}%)`,
-          transition: reduceMotion ? undefined : `transform ${SLIDE_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1)`,
+          transition: reduceMotion
+            ? undefined
+            : `transform ${SLIDE_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1)`,
         }}
       >
         {APP_VIEWS.map(pane => {

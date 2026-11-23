@@ -526,7 +526,7 @@ final class BoardStore {
     static func message(_ error: any Error) -> String {
         switch error {
         case APIError.server(let text): text
-        case APIError.unauthorized: tr("다시 로그인해 주세요.", "Please log in again.")
+        case APIError.unauthorized: tr("다시 로그인해 주세요.", "Please sign in again.")
         case APIError.rateLimited: tr("잠시 후에 다시 시도해 주세요.", "Please try again shortly.")
         default: tr("연결이 불안정해요. 잠시 후에 다시 시도해 주세요.", "Connection is unstable. Please try again shortly.")
         }

@@ -16,14 +16,14 @@ async function toSquareWebp(file: File): Promise<Blob> {
   canvas.width = SIZE;
   canvas.height = SIZE;
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('이미지를 처리할 수 없어요.');
+  if (!ctx) throw new Error('IMAGE_PROCESS_FAILED');
   ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, SIZE, SIZE);
   bitmap.close();
 
   const blob = await new Promise<Blob | null>(resolve =>
-    canvas.toBlob(resolve, 'image/webp', 0.85)
+    canvas.toBlob(resolve, 'image/webp', 0.85),
   );
-  if (!blob) throw new Error('이미지를 바꾸지 못했어요.');
+  if (!blob) throw new Error('IMAGE_PROCESS_FAILED');
   return blob;
 }
 
@@ -33,7 +33,7 @@ async function toSquareWebp(file: File): Promise<Blob> {
  * 캐시하므로, 돌려주는 URL 끝에 버전 쿼리를 붙여 무효화한다.
  */
 async function uploadSquare(bucket: string, path: string, file: File): Promise<string> {
-  if (!file.type.startsWith('image/')) throw new Error('이미지 파일만 올릴 수 있어요.');
+  if (!file.type.startsWith('image/')) throw new Error('IMAGE_ONLY');
 
   const blob = await toSquareWebp(file);
   const supabase = createSupabaseBrowserClient();
@@ -63,3 +63,17 @@ export const uploadOrgImage = (orgId: string, file: File) =>
   uploadSquare('org-images', `${orgId}/icon.webp`, file);
 
 export const removeOrgImage = (orgId: string) => removeFile('org-images', `${orgId}/icon.webp`);
+
+/**
+ * 업로드 실패를 화면 문구로. 이 모듈은 번역기를 모르므로 코드로 던지고, 부른 쪽이 `toast`
+ * 네임스페이스로 옮긴다. 코드가 아닌 것(Storage 오류 등)은 그대로 보여 준다.
+ */
+export function uploadErrorMessage(
+  err: unknown,
+  t: (key: 'imageOnly' | 'imageProcessFailed') => string,
+): string {
+  const message = err instanceof Error ? err.message : String(err);
+  if (message === 'IMAGE_ONLY') return t('imageOnly');
+  if (message === 'IMAGE_PROCESS_FAILED') return t('imageProcessFailed');
+  return message;
+}

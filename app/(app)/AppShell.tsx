@@ -55,6 +55,7 @@ export default function AppShell({
   const locale = useLocale() as Locale;
   const t = useTranslations('appshell');
   const tToast = useTranslations('toast');
+  const tMe = useTranslations('me');
 
   /*
     조직 목록·내 프로필을 클라이언트 쿼리로 들고 있는다.
@@ -428,7 +429,7 @@ export default function AppShell({
               className="relative ml-0.5 grid size-10 shrink-0 place-items-center rounded-full no-select active:bg-canvas-soft"
             >
               <Avatar
-                name={profile?.display_name ?? email ?? '나'}
+                name={profile?.display_name ?? email ?? tMe('you')}
                 color={profile?.avatar_color}
                 imageUrl={profile?.avatar_url}
                 seed={userId}
@@ -510,7 +511,7 @@ export default function AppShell({
                 */}
                 <span className="relative grid h-[22px] place-items-center">
                   <Avatar
-                    name={profile?.display_name ?? email ?? '나'}
+                    name={profile?.display_name ?? email ?? tMe('you')}
                     color={profile?.avatar_color}
                     imageUrl={profile?.avatar_url}
                     seed={userId}

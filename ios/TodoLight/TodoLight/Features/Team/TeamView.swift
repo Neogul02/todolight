@@ -85,7 +85,7 @@ struct TeamView: View {
     private var inviteCard: some View {
         PageCard {
             Text(tr("팀원 초대", "Invite teammates")).font(.tlTitle).foregroundStyle(tk.ink)
-            Text(tr("이메일을 넣으면 그 사람이 로그인할 때 초대장이 떠요.", "Enter an email — they see the invite next time they log in."))
+            Text(tr("이메일을 넣으면 그 사람이 로그인할 때 초대장이 떠요.", "Enter an email — they'll see the invite the next time they sign in."))
                 .font(.tlCaption).foregroundStyle(tk.inkMuted).padding(.top, 4)
             // 메일이 나가지 않는다는 사실을 초대하기 **전에** 말한다 — 보내고 나서 알면 늦다
             Text(tr("초대 메일은 따로 가지 않아요. 아직 가입하지 않은 사람에게는 직접 알려 줘야 해요.",
@@ -219,9 +219,9 @@ struct TeamView: View {
     /// 맨 아래 — 카드 제목과 버튼이 같은 말이라 제목은 빼고 설명 + 버튼만 둔다
     private var deleteCard: some View {
         PageCard {
-            Text(tr("이 조직과 안에 있는 모든 것을 지워요. 되돌릴 수 없어요.", "Deletes this organization and everything in it. This cannot be undone."))
+            Text(tr("이 조직과 안에 있는 모든 것을 지워요. 되돌릴 수 없어요.", "Deletes this org and everything in it. This cannot be undone."))
                 .font(.tlCaption).foregroundStyle(tk.inkMuted)
-            Button(tr("조직 삭제", "Delete organization")) { deleteOpen = true }
+            Button(tr("조직 삭제", "Delete org")) { deleteOpen = true }
                 .buttonStyle(TLButtonStyle(variant: .danger, fill: true))
                 .padding(.top, 16)
         }
@@ -383,7 +383,7 @@ private struct MemberManageSheet: View {
             switch confirm {
             case .transfer:
                 confirmBox(
-                    tr("\(member.displayName)님에게 방장을 넘겨요.", "Make \(member.displayName) the owner of this organization."),
+                    tr("\(member.displayName)님에게 방장을 넘겨요.", "Make \(member.displayName) the owner of this org."),
                     tr("넘기면 나는 관리자가 돼요. 되돌리려면 새 방장이 다시 넘겨 줘야 해요.", "You become an admin. To undo it, the new owner has to transfer it back."),
                     action: tr("넘길래요", "Transfer")
                 ) {

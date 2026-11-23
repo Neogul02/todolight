@@ -101,11 +101,14 @@ export default function LoginForm() {
       */
       window.location.assign(nextPath);
     } catch (err) {
+      // Supabase Auth의 영어 원문을 그대로 띄우지 않는다 — 자주 나는 두 가지만 옮긴다
       const message = err instanceof Error ? err.message : String(err);
-      showMsg(
-        message.includes('Invalid login credentials') ? tToast('invalidCredentials') : message,
-        'error'
-      );
+      const friendly = message.includes('Invalid login credentials')
+        ? tToast('invalidCredentials')
+        : message.includes('already registered')
+          ? tToast('alreadyRegistered')
+          : message;
+      showMsg(friendly, 'error');
       setBusy(false);
     }
   }

@@ -419,7 +419,7 @@ struct EventSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text(event == nil ? tr("일정 추가", "Add event") : tr("일정 고치기", "Edit event")).font(.tlTitle).foregroundStyle(tk.ink)
+                Text(event == nil ? tr("일정 추가", "Add event") : tr("일정 편집", "Edit event")).font(.tlTitle).foregroundStyle(tk.ink)
 
                 labeled(tr("이름", "Name")) {
                     TextField("", text: $title, prompt: placeholder(tr("예) 팝업 준비 기간", "e.g. Pop-up prep week"), tk)).tlField()
