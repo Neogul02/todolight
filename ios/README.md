@@ -37,7 +37,6 @@ open TodoLight.xcodeproj
 
 백엔드를 웹과 공유하는 게 이 계획의 전부다. repo가 갈리면 API를 고칠 때 두 곳을 오가며
 맞춰야 하고, 그러다 한 번 어긋나면 "앱에서만 안 되는" 버그가 된다.
-자세한 근거는 `docs/ios-app-plan.md` §9.
 
 ## 지금 바로 되는 것
 

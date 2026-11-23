@@ -5,7 +5,7 @@ import WidgetKit
 /// 잠금화면·홈 위젯 — 앱이 App Group에 남긴 "내 할 일"(`WidgetSnapshot`)을 그린다.
 ///
 /// 서버를 직접 부르지 않는다. 위젯은 따로 도는 프로세스라 로그인 세션이 없고, 하루 갱신 예산도
-/// 수십 번뿐이다(docs/ios-app-plan.md §6). 대신 앱이 보드를 받을 때마다 스냅숏을 쓰고 다시 그리게 한다.
+/// 수십 번뿐이다. 대신 앱이 보드를 받을 때마다 스냅숏을 쓰고 다시 그리게 한다.
 @main
 struct TodoLightWidgetBundle: WidgetBundle {
     var body: some Widget {
@@ -78,7 +78,7 @@ struct MyTodosView: View {
         }
     }
 
-    // 잠금화면 위젯은 색을 잃는다(vibrant) — 구분은 굵기와 기호로만 한다(docs/ios-app-plan.md §6 함정 1)
+    // 잠금화면 위젯은 색을 잃는다(vibrant) — 구분은 굵기와 기호로만 한다
 
     private func circular(_ s: WidgetSnapshot, _ t: Words) -> some View {
         ZStack {

@@ -2,7 +2,7 @@ import Foundation
 import Supabase
 import TodoLightKit
 
-/// Supabase(로그인·실시간)와 `/api/v1`(쓰기·조회)을 한곳에서 잇는다 — docs/ios-m2-setup.md §4.
+/// Supabase(로그인·실시간)와 `/api/v1`(쓰기·조회)을 한곳에서 잇는다.
 final class Backend: Sendable {
     static let shared = Backend()
 

@@ -377,7 +377,7 @@ Postgres가 **검사하는 행마다** 다시 부르고, 감싸면 InitPlan이 �
 
 ### /api/v1 — 네이티브 앱이 같은 서버 액션을 쓴다
 
-iOS 앱(`docs/ios-app-plan.md`)은 백엔드를 새로 만들지 않는다. 서버 액션을 그대로 두고
+iOS 앱(`ios/`)은 백엔드를 새로 만들지 않는다. 서버 액션을 그대로 두고
 그 위에 얇은 어댑터만 얹는다. 열쇠는 **`getAuthUser()` 한 함수**다.
 
 - 웹은 `@supabase/ssr` 쿠키로, 앱은 `Authorization: Bearer <access_token>`으로 온다.
@@ -1026,7 +1026,4 @@ bg-accent / text-accent-ink
 - 유료 테마 결제 연동 (`lib/themes.ts`의 `THEMES`에는 아직 유·무료 구분 자체가 없다 —
   `ThemeDef`에 필드를 더하는 것부터가 시작이다)
 - 할 일 드래그 정렬 UI (`position`이 double이라 서버 액션만 새로 만들면 된다)
-- Swift iOS 앱 + 잠금화면 위젯 — 계획은 **`docs/ios-app-plan.md`**에 있다.
-  요지: 같은 repo의 `ios/` 폴더, 백엔드는 새로 만들지 않고 `getAuthUser()`에 Bearer 경로만
-  더해 서버 액션을 `/api/v1` 어댑터로 노출한다. 착수 전에 끝내야 할 것 셋(실시간 채널 인증 ·
-  계정 삭제 · Apple 개발자 등록)이 그 문서 §1에 있다.
+- iOS 앱 App Store 출시 — 절차는 **`docs/ios-release.md`**에 있다.

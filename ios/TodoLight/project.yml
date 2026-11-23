@@ -4,7 +4,7 @@ name: TodoLight
 options:
   bundleIdPrefix: com.neogul02
   deploymentTarget:
-    iOS: "18.0"   # 꾹 눌러 끌기(UIGestureRecognizerRepresentable)·ControlWidget이 18부터 — docs/ios-app-plan.md
+    iOS: "18.0"   # 꾹 눌러 끌기(UIGestureRecognizerRepresentable)·ControlWidget이 18부터
   createIntermediateGroups: true
 settings:
   base:

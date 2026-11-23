@@ -8,7 +8,7 @@ import TodoLightKit
 /// 세션은 키체인에 있는데, 기본 위치는 앱만 읽을 수 있다. 위젯(별도 프로세스)이 서버를 부르려면
 /// 앱과 같이 쓰는 접근 그룹에 둬야 한다. App Group 식별자가 그대로 키체인 접근 그룹으로도 쓰여서
 /// 팀 접두어 없이 된다. 접근성은 SDK가 `AfterFirstUnlock`으로 둔다 — 잠금화면에서도 읽힌다
-/// (기본값 `WhenUnlocked`였다면 잠긴 동안 위젯 체크가 통째로 실패한다, docs/ios-app-plan.md §6).
+/// (기본값 `WhenUnlocked`였다면 잠긴 동안 위젯 체크가 통째로 실패한다).
 enum SharedAuth {
     static let storage = KeychainLocalStorage(accessGroup: SharedStore.appGroup)
 
