@@ -4,7 +4,8 @@
  * 예전엔 세 곳(icon.tsx·apple-icon.tsx·pwa-icon route)이 전부 베이지 배경에 검정
  * "Todo" 텍스트를 각자 그렸다 — 16px 탭 파비콘에서는 글자가 뭉개져 아예 안 읽혔고,
  * 세 곳을 따로 고쳐야 해서 하나만 바뀌고 나머지가 뒤처지기 쉬웠다.
- * 텍스트 대신 어느 크기에서도 형태로 알아볼 수 있는 체크마크 하나로 통일한다.
+ * 텍스트 대신 어느 크기에서도 형태로 알아볼 수 있는 마크 하나로 통일한다 —
+ * 체크의 두 끝을 이어 칠한 삼각형(2026-11-23, 선 체크보다 작은 크기에서 덩어리로 또렷하다).
  * 배경은 흰색 하나로 — 작은 탭 파비콘에서는 그라디언트도 그냥 얼룩으로 뭉개져
  * 순백 배경 위 체크 하나가 가장 선명하게 남는다.
  */
@@ -39,7 +40,8 @@ export function AppIconMark({
       {/* 짧은 팔과 긴 팔의 비대칭 비율을 살짝 조정해 기계적이지 않고 손으로 그린 듯한 체크로 잡았다 */}
       <svg width={mark} height={mark} viewBox="0 0 100 100" fill="none">
         <path
-          d="M19 53 L40 75 L83 25"
+          d="M19 53 L40 75 L83 25 Z"
+          fill={INK}
           stroke={INK}
           strokeWidth={13}
           strokeLinecap="round"
@@ -80,7 +82,8 @@ export function AppSplashMark({
     >
       <svg width={mark} height={mark} viewBox="0 0 100 100" fill="none">
         <path
-          d="M19 53 L40 75 L83 25"
+          d="M19 53 L40 75 L83 25 Z"
+          fill={dark ? DARK_INK : INK}
           stroke={dark ? DARK_INK : INK}
           strokeWidth={13}
           strokeLinecap="round"
