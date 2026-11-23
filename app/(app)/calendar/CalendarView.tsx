@@ -718,7 +718,7 @@ export function CalendarView({
           </div>
 
           {/* 목록은 화면 끝까지 내려가고 하단 탭바(알약)가 그 위에 뜬다 — 그만큼만 비운다 */}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-tabbar sm:overflow-visible sm:pb-safe">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-tabbar sm:overflow-visible">
 
           {selectedEvents.length > 0 && (
             <ul className="mb-2 flex flex-col gap-1.5">

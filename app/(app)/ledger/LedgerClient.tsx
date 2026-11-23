@@ -150,7 +150,7 @@ export default function LedgerClient() {
     // 패널이 자기 안에서 스크롤한다 — 페이지가 늘어나는 게 아니라서, 보드에 다녀와도
     // 보던 위치가 그대로 남는다. 목록은 화면 끝까지 내려가고 하단 탭바(알약)가 그 위에
     // 뜨므로, 마지막 줄이 알약에 가리지 않도록 pb-tabbar로 그만큼만 비운다.
-    <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 pt-5 pt-safe pb-tabbar sm:pt-6 sm:pb-6">
+    <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 pt-5 pt-safe pb-tabbar sm:pt-6">
       {/*
         달 이동 — 합계는 "한 달치"여야 의미가 있다. 범위가 없으면 숫자가 영원히 커지기만 한다.
         헤더가 없는 모바일에서는 이 줄이 화면 맨 위다. 한때는 우상단에 뜬 아바타를 피해

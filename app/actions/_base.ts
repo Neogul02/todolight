@@ -45,7 +45,7 @@ export interface AuthUser {
  *
  * 웹 서버 액션은 `@supabase/ssr` 쿠키로 세션을 읽는다. 네이티브 앱에는 쿠키가 없고
  * `Authorization: Bearer <access_token>`을 보낸다. **이 함수 하나가 두 경로를 다 보면
- * 서버 액션 41개가 전부 그대로 앱에서도 동작한다** — 가드도, zod 검증도, Discord 알림도,
+ * 서버 액션 41개가 전부 그대로 앱에서도 동작한다** — 가드도, zod 검증도,
  * `position` 계산도 다시 만들 필요가 없다. `/api/v1` 어댑터는 그 위에 얇게 얹힌다.
  *
  * **Bearer가 쿠키보다 먼저다.** 웹 요청에는 Authorization 헤더가 실릴 일이 없으므로 웹

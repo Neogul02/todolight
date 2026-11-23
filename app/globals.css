@@ -207,12 +207,13 @@
   --tracking-headline: -0.035em;
 }
 
-/* sm 이상은 기존 헤더 + 멤버 칩 없는 레이아웃으로 되돌아간다 — 모바일 전용 변경이다 */
+/*
+  PC도 보드에는 헤더가 없고 하단 탭바 알약으로 전환한다(폰과 같다).
+  멤버 칩 줄만 폰 전용이다 — PC는 컬럼이 나란히 보여 칩이 필요 없다.
+*/
 @media (min-width: 640px) {
   :root {
-    --header-h: 56px;
     --board-toolbar-h: 0px;
-    --tabbar-h: 0px;
   }
 }
 

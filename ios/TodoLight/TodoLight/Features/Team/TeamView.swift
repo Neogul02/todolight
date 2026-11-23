@@ -21,8 +21,6 @@ struct TeamView: View {
     @State private var loading = true
     @State private var email = ""
     @State private var orgName = ""
-    @State private var webhook: String?
-    @State private var savedWebhook: String?
     @State private var managing: MemberSummary?
     @State private var deleteOpen = false
     @State private var imageItem: PhotosPickerItem?
@@ -178,11 +176,10 @@ struct TeamView: View {
         }
     }
 
-    // MARK: 조직 설정 — 이미지 · 이름 · Discord
+    // MARK: 조직 설정 — 이미지 · 이름
 
     private var settingsCard: some View {
         let nameChanged = !orgName.trimmingCharacters(in: .whitespaces).isEmpty && orgName.trimmingCharacters(in: .whitespaces) != org.name
-        let hookChanged = webhook != nil && webhook != savedWebhook
         return PageCard {
             Text(tr("조직 설정", "Org settings")).font(.tlTitle).foregroundStyle(tk.ink)
             HStack(spacing: 12) {
@@ -202,15 +199,9 @@ struct TeamView: View {
             labeled(tr("이름", "Name")) {
                 TextField("", text: $orgName).submitLabel(.done).tlField()
             }
-            labeled(tr("Discord 알림", "Discord notifications")) {
-                TextField("", text: Binding(get: { webhook ?? "" }, set: { webhook = $0 }),
-                          prompt: placeholder("https://discord.com/api/webhooks/…", tk))
-                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                    .tlField()
-            }
-            Button(tr("저장", "Save")) { Task { await saveSettings(rename: nameChanged, hook: hookChanged) } }
+            Button(tr("저장", "Save")) { Task { await saveSettings() } }
                 .buttonStyle(TLButtonStyle(fill: true))
-                .disabled(busy || !(nameChanged || hookChanged))
+                .disabled(busy || !nameChanged)
                 .padding(.top, 16)
         }
     }
@@ -238,13 +229,8 @@ struct TeamView: View {
     private func load() async {
         async let m = api.fetchMembers(orgId: org.id)
         async let i: [OrgInvite]? = isManager ? try? await api.fetchOrgInvites(orgId: org.id) : nil
-        async let w: String?? = isManager ? try? await api.fetchWebhook(orgId: org.id) : nil
         if let list = try? await m { members = list }
         if let list = await i { invites = list.filter { $0.status == .pending } }
-        if let hook = await w {
-            savedWebhook = hook ?? ""
-            if webhook == nil { webhook = hook ?? "" }
-        }
         loading = false
     }
 
@@ -279,17 +265,13 @@ struct TeamView: View {
            "You are invited to \(org.name).\nSign up with \(email) and the invitation will be waiting.\n\(AppConfig.apiBaseURL.absoluteString)")
     }
 
-    private func saveSettings(rename: Bool, hook: Bool) async {
+    private func saveSettings() async {
         busy = true
         defer { busy = false }
         do {
-            if rename { try await api.renameOrg(orgId: org.id, name: orgName.trimmingCharacters(in: .whitespaces)) }
-            if hook, let webhook {
-                try await api.updateWebhook(orgId: org.id, webhookUrl: webhook.trimmingCharacters(in: .whitespaces))
-                savedWebhook = webhook
-            }
-            toast = tr("저장했어요", "Saved")
-            if rename { await onOrgsChanged() }
+            try await api.renameOrg(orgId: org.id, name: orgName.trimmingCharacters(in: .whitespaces))
+            toast = tr("저장했어요.", "Saved.")
+            await onOrgsChanged()
         } catch {
             toast = BoardStore.message(error)
         }

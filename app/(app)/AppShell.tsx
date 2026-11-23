@@ -171,15 +171,6 @@ export default function AppShell({
     [reduceMotion]
   );
 
-  /* 헤더 가운데에 놓는 뷰 전환. 아이콘 모양으로 구분된다 */
-  const VIEW_MODES: {
-    key: BoardMode;
-    label: string;
-    Icon: (p: { className?: string }) => React.ReactElement;
-  }[] = [
-    { key: 'board', label: t('viewBoard'), Icon: BoardViewIcon },
-    { key: 'dashboard', label: t('viewDashboard'), Icon: DashboardIcon },
-  ];
 
   /**
    * 앱은 보드 한 화면이 전부다.
@@ -337,11 +328,11 @@ export default function AppShell({
         <header
           className={cn(
             'sticky top-0 z-30 glass-bar pt-safe sm:pt-0',
-            onBoard && 'hidden sm:block'
+            onBoard && 'hidden'
           )}
         >
           {/* pt-safe는 header에 준다 — 높이를 가진 이 줄에 얹으면 그만큼 안쪽이 눌린다 */}
-          <div className="mx-auto flex h-14 w-full max-w-[1760px] items-center gap-1 px-2 sm:h-[var(--header-h)] sm:px-3">
+          <div className="mx-auto flex h-14 w-full max-w-[1760px] items-center gap-1 px-2 sm:px-3">
             {/*
               보드가 아닌 화면에서는 되돌아갈 길을 남긴다.
               달력·가계부는 예외 — 뷰 세그먼트가 그대로 떠 있어서 거기서 바로 보드로 갈 수 있다.
@@ -379,53 +370,6 @@ export default function AppShell({
                 {activeOrg?.name ?? 'todolight'}
               </span>
             </Link>
-
-            {/* 보드·달력·가계부에서만 뜬다 — 팀·설정 화면에서는 고를 것이 없다 */}
-            {showViewSwitch && hasOrgs && (
-              <div className="flex h-9 shrink-0 overflow-hidden rounded-lg border border-hairline no-select">
-                {VIEW_MODES.map(({ key, label, Icon }) => {
-                  const active = view === 'board' && boardMode === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => goToView('board', key)}
-                      aria-pressed={active}
-                      aria-label={label}
-                      title={label}
-                      className={cn(
-                        'grid w-10 place-items-center transition-colors',
-                        active ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted',
-                        // 보드(가로 캐러셀)와 대시보드(격자)는 "여러 명 보기"로 겹친다 —
-                        // 폰에서는 보드만, PC에서는 대시보드만 둔다.
-                        key === 'board' && 'sm:hidden',
-                        key === 'dashboard' && 'hidden sm:grid'
-                      )}
-                    >
-                      <Icon className="size-[18px]" />
-                    </button>
-                  );
-                })}
-                {/*
-                  달력·가계부는 보드와 나란한 패널이다 — 구분선을 하나 넣어
-                  앞의 보드·대시보드 칸(같은 패널의 두 레이아웃)과 성격이 다르다는 걸 드러낸다.
-                */}
-                <ViewSegmentButton
-                  active={view === 'calendar'}
-                  label={t('viewCalendar')}
-                  onClick={() => goToView('calendar')}
-                  Icon={CalendarIcon}
-                />
-                {showLedgerButton && (
-                  <ViewSegmentButton
-                    active={view === 'ledger'}
-                    label={t('viewLedger')}
-                    onClick={() => goToView('ledger')}
-                    Icon={LedgerIcon}
-                  />
-                )}
-              </div>
-            )}
 
             <button
               type="button"
@@ -467,15 +411,23 @@ export default function AppShell({
           초대 수락·조직 전환·로그아웃이 전부 그 안에 있는데.
         */}
         {showViewSwitch && (
-          <nav className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+12px)] z-40 flex justify-center sm:hidden">
+          <nav className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+12px)] z-40 flex justify-center">
             <div className="pointer-events-auto flex items-center gap-1 rounded-full glass p-1.5 no-select">
               {hasOrgs && (
                 <>
                   <TabBarButton
-                    active={view === 'board'}
+                    active={view === 'board' && boardMode === 'board'}
                     label={t('viewBoard')}
                     onClick={() => goToView('board', 'board')}
                     Icon={BoardViewIcon}
+                  />
+                  {/* 대시보드는 PC 전용이다 — 폰에서는 세로로 한없이 길어져 보드가 그 일을 한다 */}
+                  <TabBarButton
+                    active={view === 'board' && boardMode === 'dashboard'}
+                    label={t('viewDashboard')}
+                    onClick={() => goToView('board', 'dashboard')}
+                    Icon={DashboardIcon}
+                    className="hidden sm:flex"
                   />
                   <TabBarButton
                     active={view === 'calendar'}
@@ -658,53 +610,18 @@ export default function AppShell({
   );
 }
 
-/** 헤더(PC) 뷰 세그먼트 한 칸 — 세 패널이 한 라우트라 링크가 아니라 버튼이다 */
-function ViewSegmentButton({
-  active,
-  label,
-  onClick,
-  Icon,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-  Icon: (p: { className?: string }) => React.ReactElement;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      aria-label={label}
-      title={label}
-      className={cn(
-        'grid w-10 place-items-center border-l border-hairline transition-colors',
-        active ? 'bg-accent text-accent-ink' : 'bg-surface text-ink-muted'
-      )}
-    >
-      <Icon className="size-[18px]" />
-    </button>
-  );
-}
-
-/**
- * 하단 탭바(모바일) 항목 — 위와 같은 이유로 전부 버튼이다.
- *
- * 고른 항목 뒤의 판은 항목마다 따로 그리지 않고 **하나를 공유해서 옮긴다**(layoutId).
- * 켜고 끄면 판이 제자리에서 나타났다 사라지는데, 그러면 "지금 어디에서 어디로 갔는지"가
- * 안 남는다 — 유리 위를 미끄러지는 판 하나가 그 경로를 보여 준다.
- * 이 앱에서 모션을 쓰는 자리는 여기와 마감일 알약 둘뿐이다.
- */
 function TabBarButton({
   active,
   label,
   onClick,
   Icon,
+  className,
 }: {
   active: boolean;
   label: string;
   onClick: () => void;
   Icon: (p: { className?: string }) => React.ReactElement;
+  className?: string;
 }) {
   const reduceMotion = useReducedMotion();
 
@@ -715,7 +632,8 @@ function TabBarButton({
       aria-pressed={active}
       className={cn(
         'relative flex w-16 flex-col items-center gap-0.5 rounded-full py-1.5 transition-colors',
-        active ? 'text-accent' : 'text-ink-muted'
+        active ? 'text-accent' : 'text-ink-muted',
+        className
       )}
     >
       {active && (

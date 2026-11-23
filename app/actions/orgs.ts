@@ -2,9 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { notifyDiscord } from '@/lib/discord';
 import { requireAuth, wrap } from './_base';
 import { assertMembers, requireManager, requireMembership } from '@/lib/guards';
 import { isOwnStorageUrl } from '@/lib/storage-url';
@@ -16,7 +14,9 @@ const orgNameSchema = (t: ActionT) => z.string().trim().min(1, t('orgNameRequire
 const emailSchema = (t: ActionT) => z.string().trim().toLowerCase().email(t('invalidEmail'));
 
 /** 내가 속한 조직 목록 */
-export async function fetchMyOrgs(): Promise<ApiResponse<(Organization & { role: MemberRole; member_count: number })[]>> {
+export async function fetchMyOrgs(): Promise<
+  ApiResponse<(Organization & { role: MemberRole; member_count: number })[]>
+> {
   return wrap(async () => {
     const user = await requireAuth();
     /*
@@ -69,16 +69,10 @@ export async function createOrg(name: string): Promise<ApiResponse<Organization>
     */
     const { data: row, error } = await getSupabaseAdmin()
       .rpc('create_org_with_owner', { p_name: parsed, p_owner: user.id })
-      .single<Organization & { discord_webhook_url: string | null }>();
+      .single<Organization>();
     if (error) throw new Error(error.message);
 
-    /*
-      **컬럼을 골라 담는다.** RPC는 `returns public.organizations`라 행 전체를 돌려주는데,
-      거기에는 `discord_webhook_url`이 들어 있다 — 그 URL을 아는 사람은 누구나 그 채널에
-      글을 쓸 수 있으므로 방장·관리자만 볼 값이고, 그래서 `fetchOrgWebhook`이 따로 있다.
-      새로 만든 조직에서는 늘 null이라 지금 새어 나갈 것은 없지만, 클라이언트로 가는
-      모양이 `Organization`과 어긋난 채로 두면 나중에 진짜로 새어 나간다.
-    */
+    // 클라이언트로 가는 모양을 `Organization`에 맞춰 고른다 — RPC는 행 전체를 돌려준다
     const org: Organization = {
       id: row.id,
       name: row.name,
@@ -88,27 +82,6 @@ export async function createOrg(name: string): Promise<ApiResponse<Organization>
     };
 
     revalidatePath('/board');
-
-    // 알림은 응답 뒤에 보낸다 — 웹훅이 느려도 조직 생성 자체는 즉시 끝나야 한다.
-    // 가입/로그인과 마찬가지로 조직별 웹훅이 아니라 전역 웹훅으로 간다(조직이 막 생겨 아직
-    // discord_webhook_url을 설정할 수 없었으므로).
-    after(async () => {
-      const { data: profile } = await getSupabaseAdmin()
-        .from('profiles')
-        .select('display_name')
-        .eq('id', user.id)
-        .maybeSingle();
-      const creator = profile?.display_name ?? '알 수 없음';
-      await notifyDiscord(
-        null,
-        '새 조직',
-        `**${org.name}** 조직이 개설됐어요. (개설자: **${creator}**)`,
-        [
-          { name: '조직', value: org.name, inline: true },
-          { name: '개설자', value: creator, inline: true },
-        ]
-      );
-    });
 
     return org;
   });
@@ -125,23 +98,27 @@ export async function fetchOrgMembers(orgId: string): Promise<ApiResponse<Member
       requireMembership(orgId, user.id),
       getSupabaseAdmin()
         .from('org_members')
-        .select('user_id, role, joined_at, profiles!inner (display_name, avatar_color, avatar_url, email)')
+        .select(
+          'user_id, role, joined_at, profiles!inner (display_name, avatar_color, avatar_url, email)'
+        )
         .eq('org_id', orgId)
         .order('joined_at', { ascending: true }),
     ]);
     const { data, error } = membersRes;
     if (error) throw new Error(error.message);
 
-    return ((data ?? []) as unknown as {
-      user_id: string;
-      role: MemberRole;
-      profiles: {
-        display_name: string;
-        avatar_color: string | null;
-        avatar_url: string | null;
-        email: string | null;
-      };
-    }[]).map(r => ({
+    return (
+      (data ?? []) as unknown as {
+        user_id: string;
+        role: MemberRole;
+        profiles: {
+          display_name: string;
+          avatar_color: string | null;
+          avatar_url: string | null;
+          email: string | null;
+        };
+      }[]
+    ).map(r => ({
       user_id: r.user_id,
       role: r.role,
       display_name: r.profiles.display_name,
@@ -272,7 +249,10 @@ export async function fetchOrgInvites(orgId: string): Promise<ApiResponse<OrgInv
     const { data: profiles } = await getSupabaseAdmin()
       .from('profiles')
       .select('email')
-      .in('email', invites.map(i => i.email));
+      .in(
+        'email',
+        invites.map(i => i.email)
+      );
 
     const registered = new Set((profiles ?? []).map(p => (p.email ?? '').toLowerCase()));
     return invites.map(i => ({ ...i, registered: registered.has(i.email.toLowerCase()) }));
@@ -287,16 +267,20 @@ export async function fetchMyInvites(): Promise<ApiResponse<OrgInvite[]>> {
 
     const { data, error } = await getSupabaseAdmin()
       .from('org_invites')
-      .select('id, org_id, email, invited_by, status, created_at, responded_at, organizations!inner (name), profiles!org_invites_invited_by_fkey (display_name)')
+      .select(
+        'id, org_id, email, invited_by, status, created_at, responded_at, organizations!inner (name), profiles!org_invites_invited_by_fkey (display_name)'
+      )
       .eq('email', user.email.toLowerCase())
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
 
-    return ((data ?? []) as unknown as (OrgInvite & {
-      organizations: { name: string };
-      profiles: { display_name: string } | null;
-    })[]).map(r => ({
+    return (
+      (data ?? []) as unknown as (OrgInvite & {
+        organizations: { name: string };
+        profiles: { display_name: string } | null;
+      })[]
+    ).map(r => ({
       id: r.id,
       org_id: r.org_id,
       email: r.email,
@@ -384,8 +368,7 @@ export async function removeMember(orgId: string, userId: string): Promise<ApiRe
     const myRole = await requireMembership(orgId, user.id);
 
     const isSelf = userId === user.id;
-    if (!isSelf && myRole !== 'owner' && myRole !== 'admin')
-      throw new Error(t('managerOnly'));
+    if (!isSelf && myRole !== 'owner' && myRole !== 'admin') throw new Error(t('managerOnly'));
 
     const { data: target } = await getSupabaseAdmin()
       .from('org_members')
@@ -452,45 +435,6 @@ export async function updateOrgImage(
     if (error) throw new Error(error.message);
 
     revalidatePath('/board');
-    return null;
-  });
-}
-
-/** 조직의 Discord 웹훅 조회 (방장 화면에서 현재 설정 확인용) */
-export async function fetchOrgWebhook(orgId: string): Promise<ApiResponse<string | null>> {
-  return wrap(async () => {
-    const user = await requireAuth();
-    await requireManager(orgId, user.id);
-
-    const { data, error } = await getSupabaseAdmin()
-      .from('organizations')
-      .select('discord_webhook_url')
-      .eq('id', orgId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    return data?.discord_webhook_url ?? null;
-  });
-}
-
-/** Discord 웹훅 설정 — 빈 문자열이면 해제(서버 기본 웹훅으로 떨어진다) */
-export async function updateOrgWebhook(
-  orgId: string,
-  webhookUrl: string
-): Promise<ApiResponse<null>> {
-  return wrap(async () => {
-    const user = await requireAuth();
-    const t = await getActionT();
-    await requireManager(orgId, user.id);
-
-    const trimmed = webhookUrl.trim();
-    if (trimmed && !/^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\//.test(trimmed))
-      throw new Error(t('invalidDiscordWebhook'));
-
-    const { error } = await getSupabaseAdmin()
-      .from('organizations')
-      .update({ discord_webhook_url: trimmed || null })
-      .eq('id', orgId);
-    if (error) throw new Error(error.message);
     return null;
   });
 }

@@ -93,7 +93,7 @@ app/
 └── (app)/                ← proxy.ts 보호 + AppShell 래핑
     ├── board/            메인 보드 — 멤버별 컬럼 가로 스냅 캐러셀. 앱의 중심 화면
     ├── ledger/           가계부 — 조직이 쓴 돈을 달 단위로 적고 합계를 본다
-    ├── team/             초대 · 멤버 · 조직 설정(아이콘·이름·Discord) · 조직 삭제
+    ├── team/             초대 · 멤버 · 조직 설정(아이콘·이름) · 조직 삭제
     ├── me/               프로필·테마·언어·화면 설정. 저장 버튼 없이 즉시 저장한다
     └── orgs/new/         새 조직 만들기
 ```
@@ -125,7 +125,7 @@ profiles        id, email, display_name, avatar_color, avatar_url,
                 theme, locale, show_done, show_ledger, member_order, deleted_at, created_at
                 — show_avatars 컬럼이 남아 있지만 코드에서는 쓰지 않는다(설정을 없앴다)
                 — **id는 더 이상 auth.users를 참조하지 않는다.** 아래 「계정 삭제」 참고
-organizations   id, name, owner_id, image_url, discord_webhook_url, created_at
+organizations   id, name, owner_id, image_url, created_at
 org_members     id, org_id, user_id, role('owner'|'admin'|'member'), joined_at   UNIQUE(org_id,user_id)
 org_invites     id, org_id, email, invited_by, status('pending'|'accepted'|'declined'|'revoked'),
                 created_at, responded_at
@@ -382,7 +382,7 @@ iOS 앱(`ios/`)은 백엔드를 새로 만들지 않는다. 서버 액션을 그
 
 - 웹은 `@supabase/ssr` 쿠키로, 앱은 `Authorization: Bearer <access_token>`으로 온다.
   `getAuthUser()`가 두 경로를 다 보므로 **액션 42개가 전부 그대로 앱에서도 동작한다** —
-  가드도 zod 검증도 Discord 알림도 `position` 계산도 다시 만들지 않는다.
+  가드도 zod 검증도 `position` 계산도 다시 만들지 않는다.
 - **Bearer가 쿠키보다 먼저다.** 웹 요청에는 Authorization 헤더가 실릴 일이 없어 웹 동작은
   바뀌지 않고, 앱 요청에는 쿠키가 없어 서로 섞이지 않는다. 헤더는 브라우저가 교차 출처로
   자동으로 싣지 않으므로 CSRF 표면도 넓어지지 않는다.
@@ -446,22 +446,11 @@ export const POST = apiRoute<{ todoId: string; status: TodoStatus }>(b =>
   넣은 초대장의 주소**뿐이다. 임의의 이메일을 넣어 캐낼 수 있는 경로가 아니다.
   탈퇴한 사람은 `profiles.email`이 null이라 걸리지 않는다 — 계정이 없는 게 맞다.
 
-### Discord 알림
+### 알림 — 앱 푸시(준비 중)
 
-`lib/discord.ts`의 `notifyDiscord()`로 웹훅에 임베드를 쏜다. 알림을 보내는 시점:
-
-- **할 일 추가** (`createTodo`) — 누가 누구 목록에 무엇을 넣었는지
-- **대신 처리** (`handleForMember`) — 처리자·주인·내용·남긴 메모
-
-원칙 두 가지:
-
-1. **알림 실패가 본래 작업을 되돌리면 안 된다.** `notifyDiscord()`는 절대 throw하지 않고
-   실패를 로그로만 남긴다.
-2. **응답을 막지 않는다.** 호출은 `next/server`의 `after()` 안에서 한다. 서버리스에서도
-   응답 후 실행이 보장된다.
-
-웹훅 URL은 `organizations.discord_webhook_url`(방장이 `/team`에서 설정)이 우선이고,
-비어 있으면 서버 환경 변수 `DISCORD_WEBHOOK_URL`로 떨어진다.
+Discord 웹훅 알림은 걷어 냈다(`20261123100000_drop_discord.sql`). 앱 푸시 알림으로 바꾼다.
+알림을 보낼 자리(할 일 부탁·넘기기·대신 처리 등)는 해당 서버 액션이다.
+원칙은 그대로다 — **알림 실패가 본래 작업을 되돌리면 안 되고, 응답을 막지 않는다**(`after()`).
 
 ### 실시간
 
@@ -1012,8 +1001,8 @@ bg-accent / text-accent-ink
 - **새 RPC를 만들면 `anon`·`authenticated`의 EXECUTE를 회수할 것** — PostgREST가
   public 스키마 함수를 그대로 `/rest/v1/rpc/<name>`으로 노출한다. actor를 파라미터로 받는
   함수를 열어 두면 그대로 권한 상승이다(「동시 요청과 원자성」 참고)
-- **RPC가 `returns public.<table>`이면 행 **전체**가 클라이언트로 간다** — `createOrg`가
-  `discord_webhook_url`을 걷어내는 이유다. 컬럼을 골라 담을 것
+- **RPC가 `returns public.<table>`이면 행 **전체**가 클라이언트로 간다** — `createOrg`처럼
+  클라이언트로 보낼 컬럼을 골라 담을 것
 - 인덱스 없는 FK 린트 10건은 **일부러 두었다.** 그 린트의 전제는 "부모 행이 지워질 때"인데
   이 스키마에서 실제로 지워지는 부모는 조직뿐이다(`profiles`는 계정 삭제 뒤에도 묘비로
   남는다). 앱이 사람 id 단독으로 조회하는 곳도 없다 — 쓰기마다 갱신할 인덱스만 늘 뿐이다.

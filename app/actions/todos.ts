@@ -1,12 +1,9 @@
 'use server';
 
 import { z } from 'zod';
-import { after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { notifyDiscord, truncate } from '@/lib/discord';
 import { requireAuth, wrap } from './_base';
 import { assertMembers, requireMembership } from '@/lib/guards';
-import { formatRelativeDay } from '@/lib/utils';
 import { type ActionT, getActionT } from '@/lib/server-i18n';
 import type { ApiResponse } from '@/types/api';
 import type { MemberRole, Todo, TodoNote, TodoStatus } from '@/types/db';
@@ -65,18 +62,6 @@ async function loadTodoForMember(
   const todo = data as Todo;
   const role = await requireMembership(todo.org_id, userId);
   return { todo, role };
-}
-
-/** 알림 문구에 쓸 이름들과 조직 웹훅을 한 번에 읽는다 */
-async function loadNotifyContext(orgId: string, userIds: string[]) {
-  const db = getSupabaseAdmin();
-  const [{ data: org }, { data: profiles }] = await Promise.all([
-    db.from('organizations').select('name, discord_webhook_url').eq('id', orgId).maybeSingle(),
-    db.from('profiles').select('id, display_name').in('id', [...new Set(userIds)]),
-  ]);
-  const nameOf = (id: string) =>
-    profiles?.find(p => p.id === id)?.display_name ?? '알 수 없음';
-  return { orgName: org?.name ?? '조직', webhook: org?.discord_webhook_url ?? null, nameOf };
 }
 
 /** 조직 전체의 할 일 + 메모를 한 번에 — 보드가 이걸로 모든 컬럼을 그린다 */
@@ -199,27 +184,6 @@ export async function createTodo(input: {
       })
       .single<Todo>();
     if (error) throw new Error(error.message);
-
-    // 알림은 응답 뒤에 보낸다 — 웹훅이 느려도 추가 자체는 즉시 끝나야 한다
-    after(async () => {
-      const { orgName, webhook, nameOf } = await loadNotifyContext(input.orgId, [user.id, ownerId]);
-      const actor = nameOf(user.id);
-      const owner = nameOf(ownerId);
-      await notifyDiscord(
-        webhook,
-        '새 할 일',
-        ownerId === user.id
-          ? `**${actor}**님이 할 일을 추가했어요.`
-          : `**${actor}**님이 **${owner}**님 목록에 할 일을 추가했어요.`,
-        [
-          { name: '내용', value: truncate(title) },
-          { name: '담당', value: owner, inline: true },
-          { name: '마감', value: dueDate ? formatRelativeDay(dueDate) : '없음', inline: true },
-          { name: '조직', value: orgName, inline: true },
-        ],
-        { url: `${process.env.NEXT_PUBLIC_SITE_URL}/board`, authorName: orgName }
-      );
-    });
 
     return { ...(data as Todo), notes: [] };
   });
@@ -363,22 +327,6 @@ export async function giveTodo(
     const result = await giveTodoAs(user.id, id, to, trimmed, t);
     const given = result.todo;
 
-    after(async () => {
-      const { orgName, webhook, nameOf } = await loadNotifyContext(given.org_id, [user.id, to]);
-      await notifyDiscord(
-        webhook,
-        '할 일 넘김',
-        `**${nameOf(user.id)}**님이 **${nameOf(to)}**님에게 할 일을 넘겼어요.`,
-        [
-          { name: '내용', value: truncate(given.title) },
-          ...(trimmed ? [{ name: '메모', value: truncate(trimmed, 900) }] : []),
-          { name: '마감', value: given.due_date ? formatRelativeDay(given.due_date) : '없음', inline: true },
-          { name: '조직', value: orgName, inline: true },
-        ],
-        { url: `${process.env.NEXT_PUBLIC_SITE_URL}/board`, authorName: orgName }
-      );
-    });
-
     return result;
   });
 }
@@ -506,7 +454,10 @@ export async function addTodoNote(todoId: string, content: string): Promise<ApiR
 }
 
 /** 메모 수정 — 작성자 본인만. 작성자·아바타는 안 바뀌므로 낙관적 반영이 가능하다 */
-export async function updateTodoNote(noteId: string, content: string): Promise<ApiResponse<TodoNote>> {
+export async function updateTodoNote(
+  noteId: string,
+  content: string
+): Promise<ApiResponse<TodoNote>> {
   return wrap(async () => {
     const user = await requireAuth();
     const t = await getActionT();
@@ -558,25 +509,6 @@ export async function handleForMember(
       throw new Error(error.message);
     }
     const todo = data.todo;
-
-    after(async () => {
-      const { orgName, webhook, nameOf } = await loadNotifyContext(todo.org_id, [
-        user.id,
-        todo.owner_id,
-      ]);
-      await notifyDiscord(
-        webhook,
-        '대신 처리',
-        `**${nameOf(user.id)}**님이 **${nameOf(todo.owner_id)}**님의 할 일을 대신 처리했어요.`,
-        [
-          { name: '내용', value: truncate(todo.title) },
-          { name: '메모', value: truncate(parsedNote, 900) },
-          { name: '마감', value: todo.due_date ? formatRelativeDay(todo.due_date) : '없음', inline: true },
-          { name: '조직', value: orgName, inline: true },
-        ],
-        { url: `${process.env.NEXT_PUBLIC_SITE_URL}/board`, authorName: orgName }
-      );
-    });
 
     return data;
   });

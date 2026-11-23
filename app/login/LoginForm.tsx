@@ -13,21 +13,6 @@ import { cn, safeNextPath } from '@/lib/utils';
 
 type Mode = 'signin' | 'signup';
 
-/**
- * 로그인·가입 알림 핑.
- *
- * 서버 액션으로 부르면 안 된다 — App Router는 서버 액션과 네비게이션을 같은 큐에서 처리해서,
- * `.catch()`로 던져 놓아도 라우터가 액션이 끝날 때까지 다음 이동을 미룬다. 시크릿 창처럼
- * 콜드 스타트가 겹치면 로그인 직후 화면이 몇 초 동안 안 넘어갔다.
- * sendBeacon은 그 큐 밖이고 페이지가 떠난 뒤에도 전송이 보장된다.
- */
-function pingAuthNotify(body: Record<string, string>) {
-  const blob = new Blob([JSON.stringify(body)], { type: 'application/json' });
-  if (navigator.sendBeacon?.('/api/auth-notify', blob)) return;
-  // sendBeacon이 없거나 큐가 가득 찬 경우의 대비. keepalive라 이동 중에도 살아남는다.
-  fetch('/api/auth-notify', { method: 'POST', body: blob, keepalive: true }).catch(() => {});
-}
-
 export default function LoginForm() {
   const params = useSearchParams();
   const locale = useLocale();
@@ -72,7 +57,6 @@ export default function LoginForm() {
           },
         });
         if (error) throw error;
-        pingAuthNotify({ type: 'signup', email: email.trim() });
         // 이메일 확인이 켜져 있으면 session이 비어서 온다 — 이 경우 바로 들어갈 수 없다.
         if (!data.session) {
           showMsg(tToast('confirmEmailSent'), 'info');
@@ -86,7 +70,6 @@ export default function LoginForm() {
           password,
         });
         if (error) throw error;
-        pingAuthNotify({ type: 'login' });
       }
 
       /*

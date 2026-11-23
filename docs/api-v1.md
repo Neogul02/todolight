@@ -130,13 +130,9 @@ type ApiResponse<T> = { success: true; data: T } | { success: false; error: stri
 | `orgs/myInvites` | `{}` | `OrgInvite[]` |
 | `orgs/respondToInvite` | `{ inviteId, accept: boolean }` | `{ orgId: string\|null }` |
 | `orgs/revokeInvite` | `{ inviteId }` | `null` |
-| `orgs/webhook` | `{ orgId }` | `string \| null` |
-| `orgs/updateWebhook` | `{ orgId, webhookUrl }` | `null` |
 
 - **`registered`는 "이 이메일로 가입한 계정이 있는가"다.** 이 앱은 초대 메일을 보내지
   않으므로, `false`면 앱이 사용자에게 "직접 알려 주세요"를 띄우고 공유 시트를 열어 줘야 한다.
-- `orgs/webhook`은 방장·관리자만 값을 받는다. **Discord 웹훅 URL은 그 채널에 글을 쓸 수 있는
-  자격이므로 로그에 남기지 말 것.**
 - `orgs/delete`는 이 API에서 **유일하게 소프트 삭제가 아니다.** cascade로 그 조직의 할 일·
   메모·일정·가계부가 함께 사라진다. 확인 두 단계 없이 부르지 말 것.
 

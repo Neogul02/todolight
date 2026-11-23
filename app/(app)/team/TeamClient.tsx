@@ -8,7 +8,6 @@ import { useLocale, useTranslations } from 'next-intl';
 import {
   deleteOrg,
   fetchOrgInvites,
-  fetchOrgWebhook,
   inviteMember,
   removeMember,
   renameOrg,
@@ -16,7 +15,6 @@ import {
   transferOrgOwnership,
   updateMemberRole,
   updateOrgImage,
-  updateOrgWebhook,
 } from '@/app/actions/orgs';
 import { removeOrgImage, uploadErrorMessage, uploadOrgImage } from '@/lib/image-upload';
 import { useOrgMembers } from '@/hooks/useOrgBoard';
@@ -33,9 +31,7 @@ import type { MemberSummary } from '@/types/db';
 /**
  * 팀 화면 — 초대 · 멤버 · 조직 설정, 카드 세 장.
  *
- * 조직 설정(아이콘·이름·Discord)은 원래 카드 세 장에 나뉘어 있었다. 셋 다 방장만 보고,
- * 셋 다 "이 조직이 어떻게 보이고 어디로 알림이 가나"라는 한 가지 얘기라 한 장으로 합쳤다.
- * 저장 버튼도 하나면 된다 — 세 개가 각자 있으면 무엇이 저장됐는지 매번 헤아려야 한다.
+ * 조직 설정(아이콘·이름)은 방장만 보는 카드 한 장이다.
  */
 export default function TeamClient() {
   const router = useRouter();
@@ -57,7 +53,6 @@ export default function TeamClient() {
   const members = useOrgMembers(activeOrgId);
   const [email, setEmail] = useState('');
   const [orgName, setOrgName] = useState('');
-  const [webhook, setWebhook] = useState<string | null>(null);
   /** 관리 동작을 여는 멤버. 목록에 버튼을 늘어놓지 않고 누른 사람 것만 시트로 연다 */
   const [managing, setManaging] = useState<MemberSummary | null>(null);
   /** 내보내기는 되돌릴 수 없다 — 시트 안에서 한 번 더 확인받는다 */
@@ -257,27 +252,6 @@ export default function TeamClient() {
     onError: (e: Error) => showMsg(e.message, 'error'),
   });
 
-  // 저장된 웹훅을 불러와 입력창 초기값으로 쓴다 (아직 안 건드렸으면 null)
-  const savedWebhook = useQuery({
-    queryKey: ['org-webhook', activeOrgId],
-    enabled: !!activeOrgId && isManager,
-    queryFn: async () => {
-      const res = await fetchOrgWebhook(activeOrgId!);
-      if (!res.success) throw new Error(res.error);
-      return res.data ?? '';
-    },
-  });
-
-  const saveWebhook = useMutation({
-    mutationFn: async (value: string) => {
-      const res = await updateOrgWebhook(activeOrgId!, value);
-      if (!res.success) throw new Error(res.error);
-      return value;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['org-webhook', activeOrgId] }),
-    onError: (e: Error) => showMsg(e.message, 'error'),
-  });
-
   const rename = useMutation({
     mutationFn: async (value: string) => {
       const res = await renameOrg(activeOrgId!, value);
@@ -290,18 +264,11 @@ export default function TeamClient() {
     onError: (e: Error) => showMsg(e.message, 'error'),
   });
 
-  /*
-    이름과 웹훅을 한 버튼으로 저장한다. 건드리지 않은 항목은 보내지 않는다 —
-    빈 이름으로 덮어쓰거나, 이름만 바꿨는데 웹훅까지 다시 쓰는 일이 없어야 한다.
-  */
-  const savingOrg = rename.isPending || saveWebhook.isPending;
   const nameChanged = orgName.trim().length > 0 && orgName.trim() !== activeOrg?.name;
-  const webhookChanged = webhook !== null && webhook !== (savedWebhook.data ?? '');
 
   async function saveOrgSettings() {
-    if (savingOrg) return;
-    if (nameChanged) await rename.mutateAsync(orgName.trim());
-    if (webhookChanged) await saveWebhook.mutateAsync(webhook!);
+    if (rename.isPending || !nameChanged) return;
+    await rename.mutateAsync(orgName.trim());
     showMsg(tCommon('saved'), 'success');
   }
 
@@ -353,7 +320,12 @@ export default function TeamClient() {
   return (
     <main className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-4 py-5 pb-safe sm:py-6">
       <div className="flex items-center gap-3">
-        <OrgIcon name={activeOrg.name} imageUrl={activeOrg.image_url} seed={activeOrg.id} size="lg" />
+        <OrgIcon
+          name={activeOrg.name}
+          imageUrl={activeOrg.image_url}
+          seed={activeOrg.id}
+          size="lg"
+        />
         <div className="min-w-0">
           <h1 className="truncate text-heading-2 text-ink">{activeOrg.name}</h1>
           <p className="mt-0.5 text-caption text-ink-muted">
@@ -472,11 +444,15 @@ export default function TeamClient() {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[15px] font-medium text-ink sm:text-[14px]">
                       {m.display_name}
-                      {isSelf && <span className="ml-1 text-[12px] text-ink-faint">{t('you')}</span>}
+                      {isSelf && (
+                        <span className="ml-1 text-[12px] text-ink-faint">{t('you')}</span>
+                      )}
                     </span>
                     <span className="block truncate text-[12px] text-ink-faint">{m.email}</span>
                   </span>
-                  <Badge tone={m.role === 'owner' ? 'accent' : 'neutral'}>{ROLE_LABEL[m.role]}</Badge>
+                  <Badge tone={m.role === 'owner' ? 'accent' : 'neutral'}>
+                    {ROLE_LABEL[m.role]}
+                  </Badge>
                   {any && <ChevronIcon className="size-4 shrink-0 text-ink-faint" />}
                 </button>
               </li>
@@ -509,7 +485,11 @@ export default function TeamClient() {
               onClick={() => orgFileRef.current?.click()}
               disabled={uploading}
             >
-              {uploading ? t('uploading') : activeOrg.image_url ? t('changeImage') : t('uploadImage')}
+              {uploading
+                ? t('uploading')
+                : activeOrg.image_url
+                  ? t('changeImage')
+                  : t('uploadImage')}
             </Button>
             {activeOrg.image_url && (
               <Button variant="ghost" onClick={clearOrgImage} disabled={uploading}>
@@ -528,25 +508,10 @@ export default function TeamClient() {
             />
           </label>
 
-          <label className="mt-4 flex flex-col gap-1.5">
-            <span className="text-caption font-medium text-ink-secondary">{t('discordTitle')}</span>
-            <Input
-              type="url"
-              inputMode="url"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              enterKeyHint="done"
-              value={webhook ?? savedWebhook.data ?? ''}
-              onChange={e => setWebhook(e.target.value)}
-              placeholder="https://discord.com/api/webhooks/..."
-            />
-          </label>
-
           <Button
             className="mt-4 w-full"
             onClick={saveOrgSettings}
-            disabled={savingOrg || (!nameChanged && !webhookChanged)}
+            disabled={rename.isPending || !nameChanged}
           >
             {tCommon('save')}
           </Button>
@@ -568,11 +533,7 @@ export default function TeamClient() {
       )}
 
       {/* 멤버 관리 — 역할 변경과 내보내기. 내보내기는 여기서 한 번 더 확인받는다 */}
-      <BottomSheet
-        open={!!managing}
-        onClose={closeManage}
-        title={managing?.display_name ?? ''}
-      >
+      <BottomSheet open={!!managing} onClose={closeManage} title={managing?.display_name ?? ''}>
         {managing && managed && (
           <div className="flex flex-col gap-2">
             {managed.canChangeRole && (
@@ -635,7 +596,11 @@ export default function TeamClient() {
                   </p>
                   <p className="mt-1.5 text-caption text-ink-muted">{t('kickConfirmDetail')}</p>
                   <div className="mt-3 flex gap-2">
-                    <Button variant="outline" className="flex-1" onClick={() => setConfirmKick(false)}>
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setConfirmKick(false)}
+                    >
                       {t('cancelInvite')}
                     </Button>
                     <Button
@@ -722,7 +687,13 @@ export default function TeamClient() {
 
 function ChevronIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <path d="m10 6 6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );

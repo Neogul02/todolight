@@ -370,7 +370,7 @@ export default function BoardClient({
               대시보드는 내용만큼 길어진다 — 예전엔 페이지가 늘어나 body가 스크롤했지만
               이제는 패널 높이가 고정이라 이 격자가 자기 안에서 스크롤한다.
             */
-            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pt-3 pb-tabbar sm:grid sm:grid-cols-2 sm:px-4 sm:pb-3 lg:grid-cols-3 xl:grid-cols-4"
+            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pt-3 pb-tabbar sm:grid sm:grid-cols-2 sm:px-4 lg:grid-cols-3 xl:grid-cols-4"
           >
             {orderedMembers.map(m => (
               <MemberColumn

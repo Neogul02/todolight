@@ -28,7 +28,7 @@ export const CONTACT_EMAIL =
   process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'neogul02@icloud.com';
 
 /** 본문을 마지막으로 고친 날. 문서를 고치면 **반드시 같이 올린다** */
-export const LEGAL_UPDATED = '2026-09-08';
+export const LEGAL_UPDATED = '2026-11-23';
 
 export type LegalSection = { heading: string; body: string[] };
 export type LegalDoc = Record<Locale, LegalSection[]>;
@@ -56,7 +56,7 @@ export const TERMS: LegalDoc = {
       body: [
         '서비스의 핵심은 공유입니다. 같은 조직의 멤버는 서로의 할 일 목록, 메모, 일정, 가계부 기록을 볼 수 있고 서로의 할 일을 대신 처리할 수 있습니다. 조직에 참여하는 것은 그 사람들에게 내가 적은 내용을 보여 주기로 하는 것입니다.',
         '보여 주고 싶지 않은 내용은 적지 말아 주세요. 특히 비밀번호, 카드 번호, 주민등록번호 같은 것은 어떤 칸에도 넣지 마세요.',
-        '조직의 방장은 멤버를 초대하고 내보낼 수 있으며, 조직 이름·아이콘·Discord 알림 설정을 바꿀 수 있습니다.',
+        '조직의 방장은 멤버를 초대하고 내보낼 수 있으며, 조직 이름과 아이콘을 바꿀 수 있습니다.',
       ],
     },
     {
@@ -112,7 +112,7 @@ export const TERMS: LegalDoc = {
       body: [
         'Sharing is the point of the Service. Members of the same organization can see each other’s todos, notes, events, and ledger entries, and can complete each other’s tasks. Joining an organization means agreeing to show those people what you write.',
         'Do not write anything you would not want them to see. In particular, never enter passwords, card numbers, or government identification numbers into any field.',
-        'An organization owner can invite and remove members and can change the organization’s name, icon, and Discord notification settings.',
+        'An organization owner can invite and remove members and can change the organization’s name and icon.',
       ],
     },
     {
@@ -173,7 +173,6 @@ export const PRIVACY: LegalDoc = {
       body: [
         '같은 조직의 멤버 — 이름, 프로필 사진, 그리고 그 조직에 적은 할 일·메모·일정·가계부 기록이 보입니다. 서비스의 목적 자체가 이 공유입니다.',
         '조직에 초대할 때는 초대받는 사람의 이메일 주소가 그 조직의 방장·관리자에게 보입니다.',
-        '조직의 방장이 Discord 알림을 설정한 경우, 할 일 추가와 대신 처리 시점에 그 내용(누가·누구에게·무엇을)이 지정된 Discord 채널로 전송됩니다. 이 설정은 방장이 끌 수 있습니다.',
       ],
     },
     {
@@ -235,7 +234,6 @@ export const PRIVACY: LegalDoc = {
       body: [
         'Members of your organization see your name, your profile photo, and the todos, notes, events, and ledger entries you wrote in that organization. This sharing is the purpose of the Service.',
         'When you invite someone, their email address is visible to that organization’s owner and admins.',
-        'If an organization owner has configured Discord notifications, adding a todo or completing one on someone’s behalf sends that event (who, for whom, and what) to the configured Discord channel. The owner can turn this off.',
       ],
     },
     {

@@ -169,17 +169,6 @@ extension APIClient {
         let _: Empty = try await call("orgs/revokeInvite", body: ["inviteId": inviteId])
     }
 
-    /// 방장·관리자만 값을 받는다. **로그에 남기지 말 것** — 그 URL을 아는 사람은 누구나
-    /// 그 Discord 채널에 글을 쓸 수 있다.
-    public func fetchWebhook(orgId: String) async throws -> String? {
-        try await call("orgs/webhook", body: ["orgId": orgId], as: String?.self)
-    }
-
-    public func updateWebhook(orgId: String, webhookUrl: String) async throws {
-        let _: Empty = try await call("orgs/updateWebhook",
-                                      body: ["orgId": orgId, "webhookUrl": webhookUrl])
-    }
-
     // MARK: - events
 
     public func fetchEvents(orgId: String) async throws -> [OrgEvent] {
