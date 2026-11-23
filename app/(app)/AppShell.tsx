@@ -10,7 +10,6 @@ import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { fetchMyInvites, fetchMyOrgs, respondToInvite } from '@/app/actions/orgs';
 import { fetchMyProfile } from '@/app/actions/profile';
 import { useActiveOrg } from '@/hooks/useActiveOrg';
-import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { applyTheme } from '@/app/providers';
 import { applyLocale, readLocaleCookie } from '@/lib/locale-client';
 import { Avatar } from '@/components/Avatar';
@@ -21,13 +20,7 @@ import { showMsg } from '@/lib/toast';
 import { cn, formatRelativeDay } from '@/lib/utils';
 import type { Locale } from '@/lib/locales';
 import type { Profile } from '@/types/db';
-import {
-  AppContextProvider,
-  parseAppView,
-  type AppView,
-  type BoardMode,
-  type OrgWithRole,
-} from './OrgContext';
+import { AppContextProvider, parseAppView, type AppView, type OrgWithRole } from './OrgContext';
 
 /** 패널 주소. 보드는 기본값이라 쿼리를 붙이지 않는다 — 주소가 깔끔한 쪽이 공유하기 좋다 */
 function hrefOf(view: AppView): string {
@@ -109,18 +102,6 @@ export default function AppShell({
   const orgIds = useMemo(() => orgs.map(o => o.id), [orgs]);
   const [activeOrgId, selectOrg] = useActiveOrg(orgIds);
   const [menuOpen, setMenuOpen] = useState(false);
-  // PC에서는 보드 버튼 자체를 숨겼으니 기본값도 대시보드여야 고를 방법이 있다.
-  // 아직 직접 고른 적이 없으면(manualMode === null) 화면 폭으로 기본값을 정한다 —
-  // useSyncExternalStore 기반이라 SSR과 어긋나지 않는다(useIsDesktop.ts 참고).
-  const isDesktop = useIsDesktop();
-  const [manualMode, setManualMode] = useState<BoardMode | null>(null);
-  const picked = manualMode ?? (isDesktop ? 'dashboard' : 'board');
-  /*
-    대시보드는 PC 전용이다. 폰에서는 멤버가 늘수록 세로로 한없이 길어져서
-    "누가 무엇을 들고 있나"가 오히려 안 보인다 — 그 일은 좌우로 미는 보드가 이미 한다.
-    창을 줄여서 넘어온 경우에도 보드로 떨어뜨린다(버튼이 없어 되돌아갈 길이 없으므로).
-  */
-  const boardMode: BoardMode = !isDesktop && picked === 'dashboard' ? 'board' : picked;
 
   /*
     지금 보이는 패널.
@@ -171,7 +152,6 @@ export default function AppShell({
     [reduceMotion]
   );
 
-
   /**
    * 앱은 보드 한 화면이 전부다.
    * 팀 관리·설정은 자주 쓰는 기능이 아니라서 아바타 메뉴 안으로 넣고, 화면에는 공유 투두만 남긴다.
@@ -204,8 +184,7 @@ export default function AppShell({
     `/board` 밖(팀·설정)에서는 진짜 이동이 필요하니 원하는 패널을 쿼리에 실어 push한다.
   */
   const goToView = useCallback(
-    (next: AppView, nextBoardMode?: BoardMode) => {
-      if (nextBoardMode) setManualMode(nextBoardMode);
+    (next: AppView) => {
       setView(next);
       if (pathname === '/board') window.history.replaceState(null, '', hrefOf(next));
       else router.push(hrefOf(next));
@@ -291,7 +270,6 @@ export default function AppShell({
         openMenu: () => setMenuOpen(true),
         pendingInvites: pendingCount,
         isManager: activeOrg?.role === 'owner' || activeOrg?.role === 'admin',
-        boardMode,
         view,
         goToView,
         boardHref,
@@ -325,12 +303,7 @@ export default function AppShell({
           높이(app-viewport)를 재는 값이라 모바일에서 0이어야 하고, 그 0을 그대로 쓰면
           이 바가 납작해진다. pt-safe로 노치를 피한다.
         */}
-        <header
-          className={cn(
-            'sticky top-0 z-30 glass-bar pt-safe sm:pt-0',
-            onBoard && 'hidden'
-          )}
-        >
+        <header className={cn('sticky top-0 z-30 glass-bar pt-safe sm:pt-0', onBoard && 'hidden')}>
           {/* pt-safe는 header에 준다 — 높이를 가진 이 줄에 얹으면 그만큼 안쪽이 눌린다 */}
           <div className="mx-auto flex h-14 w-full max-w-[1760px] items-center gap-1 px-2 sm:px-3">
             {/*
@@ -416,18 +389,10 @@ export default function AppShell({
               {hasOrgs && (
                 <>
                   <TabBarButton
-                    active={view === 'board' && boardMode === 'board'}
+                    active={view === 'board'}
                     label={t('viewBoard')}
-                    onClick={() => goToView('board', 'board')}
+                    onClick={() => goToView('board')}
                     Icon={BoardViewIcon}
-                  />
-                  {/* 대시보드는 PC 전용이다 — 폰에서는 세로로 한없이 길어져 보드가 그 일을 한다 */}
-                  <TabBarButton
-                    active={view === 'board' && boardMode === 'dashboard'}
-                    label={t('viewDashboard')}
-                    onClick={() => goToView('board', 'dashboard')}
-                    Icon={DashboardIcon}
-                    className="hidden sm:flex"
                   />
                   <TabBarButton
                     active={view === 'calendar'}
@@ -592,7 +557,9 @@ export default function AppShell({
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-3 rounded-xl px-3 py-3 transition-colors active:bg-canvas-soft"
               >
-                <span className="min-w-0 flex-1 text-[15px] font-medium text-ink">{item.label}</span>
+                <span className="min-w-0 flex-1 text-[15px] font-medium text-ink">
+                  {item.label}
+                </span>
               </Link>
             </li>
           ))}
@@ -678,21 +645,6 @@ function BoardViewIcon({ className }: { className?: string }) {
     >
       <rect x="3.5" y="4" width="7" height="16" rx="1.6" />
       <rect x="13.5" y="4" width="7" height="16" rx="1.6" />
-    </svg>
-  );
-}
-
-function DashboardIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-    >
-      <rect x="3.5" y="4" width="17" height="5.5" rx="1.6" />
-      <rect x="3.5" y="12.5" width="17" height="7.5" rx="1.6" />
     </svg>
   );
 }

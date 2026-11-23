@@ -30,8 +30,6 @@ interface Props {
    * 머리의 요약 숫자는 이 값으로 말해야 맞는다.
    */
   doneTotal: number;
-  /** 대시보드 모드 — 가로 캐러셀이 아니라 세로로 쌓여서 페이지와 함께 스크롤된다 */
-  stacked?: boolean;
   /** 지금 펼쳐 둔 할 일. 보드 전체에서 하나만 열린다 */
   openTodoId: string | null;
   onToggleOpen: (todoId: string) => void;
@@ -58,7 +56,6 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     members,
     showDone,
     doneTotal,
-    stacked = false,
     openTodoId,
     onToggleOpen,
     onHandoff,
@@ -148,7 +145,11 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
     const nextPos = order[idx + 1] ? todoById.get(order[idx + 1])?.position : undefined;
     if (prevPos === undefined && nextPos === undefined) return;
     const position =
-      prevPos === undefined ? nextPos! - 1 : nextPos === undefined ? prevPos + 1 : (prevPos + nextPos) / 2;
+      prevPos === undefined
+        ? nextPos! - 1
+        : nextPos === undefined
+          ? prevPos + 1
+          : (prevPos + nextPos) / 2;
     if (todoById.get(todoId)?.position === position) return;
     reorder.mutate({ todoId, position });
   }
@@ -226,7 +227,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
         'flex flex-col rounded-2xl border border-hairline bg-canvas-soft/55',
         // 캐러셀에서는 컬럼이 뷰포트 높이를 채우고 내부만 스크롤한다.
         // 대시보드에서는 내용만큼만 자라고 페이지가 통째로 스크롤된다.
-        stacked ? 'w-full' : 'snap-col h-full shrink-0 overflow-hidden',
+        'snap-col h-full shrink-0 overflow-hidden',
         isMine && 'border-hairline-strong bg-surface-alt/70',
         className
       )}
@@ -241,7 +242,9 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-semibold text-ink sm:text-[14px]">
             {member.display_name}
-            {isMine && <span className="ml-1 text-[12px] font-normal text-ink-faint">{t('me')}</span>}
+            {isMine && (
+              <span className="ml-1 text-[12px] font-normal text-ink-faint">{t('me')}</span>
+            )}
           </p>
           <p className="text-[12px] text-ink-faint">
             {t('summaryOpen', { count: open.length })}
@@ -269,7 +272,11 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
           <Input
             value={title}
             onChange={e => setTitle(e.target.value)}
-            placeholder={isMine ? t('addPlaceholderMine') : t('addPlaceholderOther', { name: member.display_name })}
+            placeholder={
+              isMine
+                ? t('addPlaceholderMine')
+                : t('addPlaceholderOther', { name: member.display_name })
+            }
             maxLength={500}
             enterKeyHint="done"
             className="h-11 pr-11 sm:h-9 sm:pr-10"
@@ -285,13 +292,21 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
             className={cn(
               'absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg sm:size-7',
               'transition-[background-color,color,transform] active:scale-90',
-              title.trim()
-                ? 'bg-accent text-accent-ink'
-                : 'bg-transparent text-ink-faint'
+              title.trim() ? 'bg-accent text-accent-ink' : 'bg-transparent text-ink-faint'
             )}
           >
-            <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M8 13V3.5M8 3.5 4 7.5M8 3.5l4 4" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              viewBox="0 0 16 16"
+              className="size-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path
+                d="M8 13V3.5M8 3.5 4 7.5M8 3.5l4 4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </button>
         </div>
@@ -310,19 +325,20 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
         마지막 카드가 알약 밑에 영영 갇히지 않도록 스크롤 영역 아래를 그만큼 비운다.
         쌓기(대시보드)일 때는 이 ul이 스크롤 컨테이너가 아니라 격자가 대신 비운다.
       */}
-      <ul
-        className={cn(
-          'flex flex-1 flex-col gap-2 px-3',
-          stacked ? 'pb-3' : 'overflow-y-auto overscroll-contain pb-tabbar'
-        )}
-      >
+      <ul className="flex flex-1 flex-col gap-2 overflow-y-auto overscroll-contain px-3 pb-tabbar">
         {/*
           Reorder.Group은 이 안의 Reorder.Item(드래그 가능한 카드)에게 컨텍스트만 대 준다 —
           AnimatePresence의 직접 자식은 여전히 TodoCard 하나하나라서, 할 일을 지울 때의
           퇴장 애니메이션이 그대로 유지된다. 완료 항목은 Reorder.Item이 아니므로
           values에 넣지 않는다(대시보드에서는 draggable 자체를 꺼서 아예 관여하지 않는다).
         */}
-        <Reorder.Group as="div" axis="y" className="contents" values={order} onReorder={handleReorder}>
+        <Reorder.Group
+          as="div"
+          axis="y"
+          className="contents"
+          values={order}
+          onReorder={handleReorder}
+        >
           <AnimatePresence initial={false}>
             {visible.map(todo => (
               <TodoCard
@@ -342,7 +358,7 @@ const MemberColumn = forwardRef<HTMLElement, Props>(function MemberColumn(
                 typingUsers={typingByTodoId.get(todo.id)}
                 onTyping={onTyping}
                 focusUsers={focusByTodoId.get(todo.id)}
-                draggable={!stacked && todo.status !== 'done'}
+                draggable={todo.status !== 'done'}
                 onReorderCommit={() => commitReorder(todo.id)}
               />
             ))}

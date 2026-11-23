@@ -1,6 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion, Reorder, useDragControls, useReducedMotion } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -40,7 +46,7 @@ export default function BoardClient({
   onHandoff: (todo: Todo) => void;
   onGive: (todo: Todo) => void;
 }) {
-  const { activeOrgId, userId, isManager, profile, boardMode: mode } = useApp();
+  const { activeOrgId, userId, isManager, profile } = useApp();
   const locale = useLocale() as Locale;
   const t = useTranslations('board');
   const queryClient = useQueryClient();
@@ -58,10 +64,7 @@ export default function BoardClient({
     userId,
     profile?.display_name ?? null
   );
-  const { focusByTodoId, broadcastFocus, broadcastUnfocus } = useFocusPresence(
-    activeOrgId,
-    userId
-  );
+  const { focusByTodoId, broadcastFocus, broadcastUnfocus } = useFocusPresence(activeOrgId, userId);
 
   // 완료 표시 여부는 설정(내 설정)에서 계정에 저장한다 — 기기를 옮겨도 같은 화면이어야 한다.
   // 기본은 보임: 팀원이 뭘 끝냈는지가 곧 공유의 목적이다.
@@ -70,17 +73,10 @@ export default function BoardClient({
   /*
     펼쳐 둔 카드는 보드 전체에서 하나뿐이다.
     여러 개가 동시에 열려 있으면 컬럼이 길어져 무엇이 남았는지 한눈에 안 들어온다.
-
-    어느 뷰에서 열었는지도 같이 들고 있는다 — 뷰를 바꿨다 돌아왔을 때 카드가 펼쳐진 채로
-    남아 있으면 안 되는데, 뷰 전환은 헤더에서 일어나서 여기서 감지할 수가 없다.
-    렌더할 때 뷰를 비교하면 상태를 하나 더 두지 않고도 같은 결과가 된다.
   */
-  const [openTodo, setOpenTodo] = useState<{ mode: string; id: string } | null>(null);
-  const openTodoId = openTodo?.mode === mode ? openTodo.id : null;
+  const [openTodoId, setOpenTodo] = useState<string | null>(null);
   const toggleOpenTodo = (todoId: string) =>
-    setOpenTodo(current =>
-      current?.id === todoId && current.mode === mode ? null : { mode, id: todoId }
-    );
+    setOpenTodo(current => (current === todoId ? null : todoId));
 
   /*
     펼쳐진 카드가 바뀔 때마다(열림·닫힘·다른 카드로 전환·뷰 전환으로 openTodoId가 null이
@@ -143,10 +139,7 @@ export default function BoardClient({
     setSyncedIds(otherIds);
     setChipOrder(otherIds);
   }
-  const otherById = useMemo(
-    () => new Map(otherMembers.map(m => [m.user_id, m])),
-    [otherMembers]
-  );
+  const otherById = useMemo(() => new Map(otherMembers.map(m => [m.user_id, m])), [otherMembers]);
 
   const memberOrderMutation = useMutation({
     mutationFn: async (orderedIds: string[]) => {
@@ -157,9 +150,7 @@ export default function BoardClient({
       await queryClient.cancelQueries({ queryKey: ['my-profile'] });
       const snapshot = queryClient.getQueryData<Profile>(['my-profile']);
       queryClient.setQueryData<Profile>(['my-profile'], old =>
-        old
-          ? { ...old, member_order: { ...old.member_order, [activeOrgId!]: orderedIds } }
-          : old
+        old ? { ...old, member_order: { ...old.member_order, [activeOrgId!]: orderedIds } } : old
       );
       return { snapshot };
     },
@@ -188,16 +179,14 @@ export default function BoardClient({
   }, [todos.data]);
 
   /*
-    resetKey에 mode를 섞는다. 대시보드에 다녀오면 캐러셀이 통째로 다시 마운트되는데,
-    그때 위치를 다시 잡지 않으면 스크롤이 0에 남아 엉뚱한 사람 컬럼부터 보인다.
-    보드는 언제 열어도 내 할 일부터 보여야 한다.
+    resetKey는 조직이다 — 조직을 바꾸면 내 할 일(첫 컬럼)부터 다시 보인다.
 
     **달력·가계부는 여기 안 들어간다.** 셋은 같은 페이지의 패널이라 옆으로 밀려 나가도
     이 컴포넌트가 살아 있다 — 다녀왔다고 보던 사람을 첫 컬럼으로 끌고 오면 자리를 잃는다.
   */
   const { scrollerRef, activeIndex, onScroll, goTo, registerNode } = useCarousel(
     orderedMembers.length,
-    `${activeOrgId}:${mode}`
+    activeOrgId ?? ''
   );
 
   /*
@@ -234,7 +223,7 @@ export default function BoardClient({
     칩이 값을 하는 건 오히려 사람이 많을 때다. (한때 "둘 이하면 감춘다"로 두었지만,
     감춰서 얻는 44px보다 목적지로 바로 가는 쪽이 크다.)
   */
-  const showChips = mode === 'board' && orderedMembers.length > 0;
+  const showChips = orderedMembers.length > 0;
 
   return (
     /*
@@ -285,9 +274,7 @@ export default function BoardClient({
                   key={id}
                   member={m}
                   active={i + 1 === activeIndex}
-                  remaining={
-                    (todosByOwner.get(id) ?? []).filter(t => t.status !== 'done').length
-                  }
+                  remaining={(todosByOwner.get(id) ?? []).filter(t => t.status !== 'done').length}
                   onTap={() => goToMember(i + 1)}
                   onReorderCommit={() => memberOrderMutation.mutate(chipOrder)}
                 />
@@ -312,9 +299,8 @@ export default function BoardClient({
       {/* ── 보드 : 가로 캐러셀 ──
           페이지 전체를 늘리는 대신 남은 높이를 다 쓰고 컬럼 내부만 스크롤한다.
           내 컬럼이 항상 첫 번째라 처음 열면 내 할 일부터 보이고, 양옆으로 넘기면 팀원이 나온다. */}
-      {/* mode="wait" — 두 뷰가 겹쳐 있으면 높이가 서로 달라 화면이 출렁인다 */}
-      <AnimatePresence mode="wait" initial={false}>
-        {!loading && !error && mode === 'board' && (
+      <AnimatePresence initial={false}>
+        {!loading && !error && (
           <motion.div key="board" {...viewMotion} className="min-h-0 flex-1">
             {/*
               scroll-pl은 스냅 기준선을 좌측 패딩만큼 밀어 준다.
@@ -358,43 +344,6 @@ export default function BoardClient({
                 <InviteColumn isManager={isManager} className="w-full sm:w-[330px] xl:w-[360px]" />
               )}
             </div>
-          </motion.div>
-        )}
-
-        {/* ── 대시보드 : 세로로 전부 쌓아 위아래 스크롤로 한 번에 훑는다 ── */}
-        {!loading && !error && mode === 'dashboard' && (
-          <motion.div
-            key="dashboard"
-            {...viewMotion}
-            /*
-              대시보드는 내용만큼 길어진다 — 예전엔 페이지가 늘어나 body가 스크롤했지만
-              이제는 패널 높이가 고정이라 이 격자가 자기 안에서 스크롤한다.
-            */
-            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pt-3 pb-tabbar sm:grid sm:grid-cols-2 sm:px-4 lg:grid-cols-3 xl:grid-cols-4"
-          >
-            {orderedMembers.map(m => (
-              <MemberColumn
-                key={m.user_id}
-                member={m}
-                todos={todosByOwner.get(m.user_id) ?? []}
-                orgId={activeOrgId!}
-                currentUserId={userId}
-                isManager={isManager}
-                members={orderedMembers}
-                showDone={showDone}
-                doneTotal={doneTotals[m.user_id] ?? 0}
-                stacked
-                openTodoId={openTodoId}
-                onToggleOpen={toggleOpenTodo}
-                onHandoff={onHandoff}
-                onGive={onGive}
-                typingByTodoId={typingByTodoId}
-                onTyping={broadcastTyping}
-                focusByTodoId={focusByTodoId}
-              />
-            ))}
-
-            {soloMember && <InviteColumn isManager={isManager} className="w-full" />}
           </motion.div>
         )}
       </AnimatePresence>
