@@ -195,6 +195,11 @@ export default function AppShell({
   // 세 패널이 전부 여기 산다 — 팀·설정·새 조직만 별도 라우트다.
   const onBoard = pathname === '/board';
   const showViewSwitch = onBoard;
+  /*
+    조직이 하나도 없으면 세 패널이 전부 같은 "조직이 없어요" 안내다 — 눌러도 아무것도 안 바뀌는
+    뷰 버튼은 숨기고, 탭바에는 메뉴(초대 받기·조직 만들기로 가는 문)만 남긴다.
+  */
+  const hasOrgs = orgs.length > 0;
   // 설정에서 끄면 버튼 자체를 감춘다. 다만 이미 가계부를 보고 있다면 남겨 둔다 —
   // 켜 놓고 들어왔다가 다른 기기에서 끄면 나갈 길이 사라진다.
   const showLedgerButton = (profile?.show_ledger ?? true) || view === 'ledger';
@@ -376,7 +381,7 @@ export default function AppShell({
             </Link>
 
             {/* 보드·달력·가계부에서만 뜬다 — 팀·설정 화면에서는 고를 것이 없다 */}
-            {showViewSwitch && (
+            {showViewSwitch && hasOrgs && (
               <div className="flex h-9 shrink-0 overflow-hidden rounded-lg border border-hairline no-select">
                 {VIEW_MODES.map(({ key, label, Icon }) => {
                   const active = view === 'board' && boardMode === key;
@@ -464,33 +469,37 @@ export default function AppShell({
         {showViewSwitch && (
           <nav className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+12px)] z-40 flex justify-center sm:hidden">
             <div className="pointer-events-auto flex items-center gap-1 rounded-full glass p-1.5 no-select">
-              <TabBarButton
-                active={view === 'board'}
-                label={t('viewBoard')}
-                onClick={() => goToView('board', 'board')}
-                Icon={BoardViewIcon}
-              />
-              <TabBarButton
-                active={view === 'calendar'}
-                label={t('viewCalendar')}
-                onClick={() => goToView('calendar')}
-                Icon={CalendarIcon}
-              />
-              {showLedgerButton && (
-                <TabBarButton
-                  active={view === 'ledger'}
-                  label={t('viewLedger')}
-                  onClick={() => goToView('ledger')}
-                  Icon={LedgerIcon}
-                />
-              )}
+              {hasOrgs && (
+                <>
+                  <TabBarButton
+                    active={view === 'board'}
+                    label={t('viewBoard')}
+                    onClick={() => goToView('board', 'board')}
+                    Icon={BoardViewIcon}
+                  />
+                  <TabBarButton
+                    active={view === 'calendar'}
+                    label={t('viewCalendar')}
+                    onClick={() => goToView('calendar')}
+                    Icon={CalendarIcon}
+                  />
+                  {showLedgerButton && (
+                    <TabBarButton
+                      active={view === 'ledger'}
+                      label={t('viewLedger')}
+                      onClick={() => goToView('ledger')}
+                      Icon={LedgerIcon}
+                    />
+                  )}
 
-              {/*
+                  {/*
                 앞의 셋은 패널을 바꾸고 프로필은 시트를 연다 — 같은 알약에 있어도 하는 일이
                 다르므로 얇은 선으로 갈라 둔다. 헤더의 뷰 세그먼트가 보드·대시보드와
                 달력·가계부를 가르는 방식과 같다.
               */}
-              <span aria-hidden className="mx-0.5 h-7 w-px shrink-0 bg-hairline-strong" />
+                  <span aria-hidden className="mx-0.5 h-7 w-px shrink-0 bg-hairline-strong" />
+                </>
+              )}
 
               {/*
                 **`active` 판(layoutId)이 붙지 않는다.** 저 판은 "지금 보고 있는 패널"을
@@ -582,7 +591,9 @@ export default function AppShell({
           </section>
         )}
 
-        <h3 className="px-1 pb-2 text-caption font-semibold text-ink-secondary">{t('orgsTitle')}</h3>
+        <h3 className="px-1 pb-2 text-caption font-semibold text-ink-secondary">
+          {t('orgsTitle')}
+        </h3>
         <ul className="flex flex-col gap-1">
           {orgs.map(o => (
             <li key={o.id}>
@@ -646,7 +657,6 @@ export default function AppShell({
           {t('signOut')}
         </button>
       </BottomSheet>
-
     </AppContextProvider>
   );
 }
@@ -730,7 +740,13 @@ function TabBarButton({
 
 function CheckIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2">
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+    >
       <path d="m5 12.5 4.5 4.5L19 7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -738,7 +754,13 @@ function CheckIcon({ className }: { className?: string }) {
 
 function BoardViewIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
       <rect x="3.5" y="4" width="7" height="16" rx="1.6" />
       <rect x="13.5" y="4" width="7" height="16" rx="1.6" />
     </svg>
@@ -747,7 +769,13 @@ function BoardViewIcon({ className }: { className?: string }) {
 
 function DashboardIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
       <rect x="3.5" y="4" width="17" height="5.5" rx="1.6" />
       <rect x="3.5" y="12.5" width="17" height="7.5" rx="1.6" />
     </svg>
@@ -756,7 +784,13 @@ function DashboardIcon({ className }: { className?: string }) {
 
 function CalendarIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
       <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
       <path d="M3.5 10h17M8 3.5v3M16 3.5v3" strokeLinecap="round" />
     </svg>
@@ -766,7 +800,13 @@ function CalendarIcon({ className }: { className?: string }) {
 /* 지폐 — 달력(사각형 + 가로줄 + 위쪽 고리)과 실루엣이 겹치지 않게 가운데를 동그라미로 뚫었다 */
 function LedgerIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
       <rect x="2.5" y="6" width="19" height="12" rx="2.5" />
       <circle cx="12" cy="12" r="2.6" />
       <path d="M6 12h.01M18 12h.01" strokeLinecap="round" />
@@ -776,7 +816,13 @@ function LedgerIcon({ className }: { className?: string }) {
 
 function BackIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <path d="m14 6-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );

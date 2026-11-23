@@ -149,7 +149,10 @@ struct TeamView: View {
             Text(tr("멤버", "Members")).font(.tlTitle).foregroundStyle(tk.ink)
             VStack(spacing: 2) {
                 if loading {
-                    ForEach(0..<3, id: \.self) { _ in RoundedRectangle(cornerRadius: 12).fill(tk.canvasSoft).frame(height: 48) }
+                    VStack(spacing: 2) {
+                        ForEach(0..<3, id: \.self) { _ in RoundedRectangle(cornerRadius: 12).fill(tk.canvasSoft).frame(height: 48) }
+                    }
+                    .skeletonPulse()
                 }
                 ForEach(members) { m in
                     let rights = Rights(org: org, member: m, userId: userId)

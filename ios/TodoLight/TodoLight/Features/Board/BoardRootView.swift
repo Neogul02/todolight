@@ -67,7 +67,8 @@ struct BoardRootView: View {
                     Button(tr("다시 시도", "Try again")) { Task { await loadOrgs() } }
                 }
             } else {
-                ProgressView()
+                // 조직 목록을 받는 동안 — 곧 뜰 보드와 같은 모양으로 자리를 잡아 둔다(스피너 대신)
+                BoardSkeleton()
             }
         }
         .task { await loadOrgs() }

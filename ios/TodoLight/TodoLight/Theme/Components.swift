@@ -471,3 +471,27 @@ struct RowPressStyle: ButtonStyle {
             .background(configuration.isPressed ? tk.canvasSoft : .clear, in: RoundedRectangle(cornerRadius: 12))
     }
 }
+
+
+// MARK: 스켈레톤
+
+/// 불러오는 중인 자리 — 은은하게 깜빡여 "멈춘 게 아니라 오는 중"임을 알린다.
+/// 앱 전체가 같은 박자를 쓴다(웹 `animate-pulse`와 같은 역할). 모션 줄이기를 켜면 깜빡이지 않는다.
+struct SkeletonPulse: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var dim = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(dim ? 0.55 : 1)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 0.9).repeatForever()) { dim = true }
+            }
+            .accessibilityLabel(tr("불러오는 중", "Loading"))
+    }
+}
+
+extension View {
+    func skeletonPulse() -> some View { modifier(SkeletonPulse()) }
+}

@@ -32,7 +32,11 @@ struct MeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                // 프로필이 오기 전에는 빈 이름 칸 대신 자리 표시 — 비어 보이면 이름이 지워진 줄 안다
                 profileCard
+                    .redacted(reason: profile == nil ? .placeholder : [])
+                    .modifier(PulseWhile(active: profile == nil))
+                    .allowsHitTesting(profile != nil)
                 themeCard
                 langCard
                 viewCard
@@ -176,7 +180,10 @@ struct MeView: View {
     /// 맨 아래 — 매일 만지는 설정과 평생 한 번 누를 버튼을 떨어뜨려 둔다.
     private var deleteCard: some View {
         PageCard {
+            // 다른 카드처럼 제목을 단다(웹과 같다) — 빨간 버튼만 있으면 무슨 카드인지 버튼을 읽어야 안다
+            Text(tr("계정 삭제", "Delete account")).font(.tlTitle).foregroundStyle(tk.ink)
             Text(tr("계정과 로그인 정보를 지워요. 되돌릴 수 없어요.", "Deletes your account and sign-in details. This cannot be undone.")).font(.tlCaption).foregroundStyle(tk.inkMuted)
+                .padding(.top, 6)
             Button(tr("계정 삭제", "Delete account")) { deleteOpen = true }
                 .buttonStyle(TLButtonStyle(variant: .danger, fill: true))
                 .padding(.top, 16)
@@ -391,5 +398,14 @@ extension Color {
     init(hex: String) {
         let n = Int(hex.dropFirst(), radix: 16) ?? 0
         self.init(.sRGB, red: Double(n >> 16 & 255) / 255, green: Double(n >> 8 & 255) / 255, blue: Double(n & 255) / 255)
+    }
+}
+
+
+/// 불러오는 동안만 깜빡인다 — 다 오면 원래 모습 그대로
+private struct PulseWhile: ViewModifier {
+    let active: Bool
+    func body(content: Content) -> some View {
+        if active { content.skeletonPulse() } else { content }
     }
 }

@@ -205,6 +205,7 @@ struct LedgerView: View {
             Text(tr("쓴 돈", "Spent")).font(.tlCaption).foregroundStyle(tk.inkMuted)
             if store.loading {
                 RoundedRectangle(cornerRadius: 6).fill(tk.canvasSoft).frame(width: 160, height: 32).padding(.top, 4)
+                    .skeletonPulse()
             } else {
                 Text(Money.format(store.total)).font(.tl(26, .bold)).foregroundStyle(tk.ink).monospacedDigit()
                     .contentTransition(.numericText())
@@ -272,7 +273,10 @@ struct LedgerView: View {
 
     @ViewBuilder private var list: some View {
         if store.loading {
-            ForEach(0..<3, id: \.self) { _ in RoundedRectangle(cornerRadius: 12).fill(tk.surface).frame(height: 56) }
+            VStack(spacing: 8) {
+                ForEach(0..<3, id: \.self) { _ in RoundedRectangle(cornerRadius: 12).fill(tk.surface).frame(height: 56) }
+            }
+            .skeletonPulse()
         } else if let error = store.error {
             Text(error).font(.tlCaption).foregroundStyle(tk.danger).padding(.vertical, 24)
         } else if store.entries.isEmpty {

@@ -367,9 +367,8 @@ private struct TabBar: View {
 }
 
 /// 보드 스켈레톤 — 실제 컬럼과 같은 자리·크기라 데이터가 와도 레이아웃이 튀지 않는다.
-private struct BoardSkeleton: View {
+struct BoardSkeleton: View {
     @Environment(\.tokens) private var tk
-    @State private var dim = false
 
     var body: some View {
         VStack(spacing: 8) {
@@ -389,8 +388,7 @@ private struct BoardSkeleton: View {
             .background(tk.canvasSoft.opacity(0.55), in: RoundedRectangle(cornerRadius: 16))
             .padding(.horizontal, 12)
         }
-        .opacity(dim ? 0.55 : 1)
-        .onAppear { withAnimation(.easeInOut(duration: 0.9).repeatForever()) { dim = true } }
+        .skeletonPulse()
     }
 }
 

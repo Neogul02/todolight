@@ -99,6 +99,14 @@ struct LoginView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.top, 4)
                     }
+                    // 가입 전에 약관을 볼 길(웹과 같다). 체크박스로 한 번 더 누르게 하지 않는다 — 가입 버튼이 곧 동의다
+                    if mode == .signUp {
+                        Text(consent)
+                            .font(.tlCaption).foregroundStyle(tk.inkMuted).tint(tk.inkMuted)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 4)
+                    }
                 }
                 .padding(.top, 16)
             }
@@ -107,7 +115,28 @@ struct LoginView: View {
             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(tk.hairline))
             .shadow(color: .black.opacity(0.04), radius: 9, y: 4)
             .padding(.horizontal, 20)
+            // 가운데가 아니라 위쪽에 고정한다 — 가운데 정렬이면 키보드가 올라오고 내려갈 때마다
+            // 남은 높이가 바뀌어 카드가 위아래로 튄다. 이 높이면 회원가입(칸 3개)도 키보드 위에 들어간다.
+            .frame(maxHeight: .infinity, alignment: .top)
+            .padding(.top, 64)
         }
+        .ignoresSafeArea(.keyboard)
+    }
+
+    /// 「가입하면 이용약관과 개인정보 처리방침에 동의하게 돼요」 — 두 이름만 웹 문서로 가는 링크
+    private var consent: AttributedString {
+        let terms = tr("이용약관", "Terms of Service")
+        let privacy = tr("개인정보 처리방침", "Privacy Policy")
+        let base = AppConfig.apiBaseURL
+        var text = AttributedString(tr("가입하면 \(terms)과 \(privacy)에 동의하게 돼요.",
+                                       "By signing up, you agree to the \(terms) and \(privacy)."))
+        for (word, path) in [(terms, "legal/terms"), (privacy, "legal/privacy")] {
+            if let range = text.range(of: word) {
+                text[range].link = base.appending(path: path)
+                text[range].underlineStyle = .single
+            }
+        }
+        return text
     }
 
     private func labeled<Field: View>(_ label: String, @ViewBuilder field: () -> Field) -> some View {

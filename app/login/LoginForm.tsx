@@ -185,11 +185,38 @@ export default function LoginForm() {
           />
         </label>
 
-        <Button type="submit" size="lg" className="mt-2" disabled={busy}>
+        {/* 칸이 비었거나 비밀번호가 짧으면 누를 수 없다 — iOS와 같은 규칙 */}
+        <Button
+          type="submit"
+          size="lg"
+          className="mt-2"
+          disabled={busy || !email.trim() || password.length < 6}
+        >
           {busy ? <Spinner className="border-accent-ink/40 border-t-transparent" /> : null}
           {mode === 'signup' ? t('signUp') : t('signIn')}
         </Button>
       </form>
+
+      {/*
+        가입 전에 약관을 볼 길을 둔다 — 지금까지는 랜딩 푸터에만 있었다.
+        체크박스로 한 번 더 누르게 하지 않는다: 가입 버튼을 누르는 것 자체가 동의이고, 그걸 문장으로 알린다.
+      */}
+      {mode === 'signup' && (
+        <p className="mt-4 text-center text-caption text-ink-muted">
+          {t.rich('consent', {
+            terms: chunks => (
+              <Link href="/legal/terms" className="underline underline-offset-2">
+                {chunks}
+              </Link>
+            ),
+            privacy: chunks => (
+              <Link href="/legal/privacy" className="underline underline-offset-2">
+                {chunks}
+              </Link>
+            ),
+          })}
+        </p>
+      )}
 
       {mode === 'signin' && (
         <Link

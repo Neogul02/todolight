@@ -78,7 +78,8 @@
       "emailLabel": "이메일",
       "passwordLabel": "비밀번호",
       "passwordPlaceholder": "6자 이상",
-      "forgotPassword": "비밀번호를 잊으셨나요?"
+      "forgotPassword": "비밀번호를 잊으셨나요?",
+      "consent": "가입하면 <terms>이용약관</terms>과 <privacy>개인정보 처리방침</privacy>에 동의하게 돼요."
     },
     "resetRequest": {
       "title": "비밀번호 재설정",

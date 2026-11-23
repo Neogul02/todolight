@@ -10,7 +10,9 @@ struct TodoLightApp: App {
 
     var body: some Scene {
         WindowGroup {
+            // 스크롤 막대는 그리지 않는다(웹 globals.css와 같은 원칙) — 하위 스크롤 뷰 전부에 내려간다
             ThemedRoot { RootView() }
+                .scrollIndicators(.hidden)
                 .environment(session)
                 .environment(theme)
                 .environment(lang)

@@ -78,7 +78,8 @@
       "emailLabel": "Email",
       "passwordLabel": "Password",
       "passwordPlaceholder": "6+ characters",
-      "forgotPassword": "Forgot your password?"
+      "forgotPassword": "Forgot your password?",
+      "consent": "By signing up, you agree to the <terms>Terms of Service</terms> and <privacy>Privacy Policy</privacy>."
     },
     "resetRequest": {
       "title": "Reset your password",
