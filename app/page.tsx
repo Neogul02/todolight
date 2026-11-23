@@ -9,11 +9,6 @@ export default async function LandingPage() {
   if (data?.claims) redirect('/board');
 
   const t = await getTranslations('landing');
-  const POINTS = [
-    { title: t('pointLightTitle'), body: t('pointLightBody') },
-    { title: t('pointSimpleTitle'), body: t('pointSimpleBody') },
-    { title: t('pointFastTitle'), body: t('pointFastBody') },
-  ];
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-[880px] flex-col px-5 pt-6 pb-8 sm:px-6 sm:pt-14">
@@ -51,15 +46,6 @@ export default async function LandingPage() {
             {t('login')}
           </Link>
         </div>
-      </section>
-
-      <section className="mt-16 grid gap-3 sm:mt-24 sm:grid-cols-3 sm:gap-4">
-        {POINTS.map(p => (
-          <div key={p.title} className="rounded-2xl border border-hairline bg-surface p-4 sm:p-5">
-            <h2 className="text-title text-ink">{p.title}</h2>
-            <p className="mt-1.5 text-caption text-ink-muted">{p.body}</p>
-          </div>
-        ))}
       </section>
 
       {/*

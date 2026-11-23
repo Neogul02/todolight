@@ -187,8 +187,8 @@ export default function AppShell({
    * 받은 초대는 결국 "어느 조직을 볼지"의 문제라 별도 탭 없이 조직 시트 안에서 바로 처리한다.
    */
   const MENU = [
-    { href: '/team', label: t('teamLabel'), hint: t('teamHint') },
-    { href: '/me', label: t('meLabel'), hint: t('meHint') },
+    { href: '/team', label: t('teamLabel') },
+    { href: '/me', label: t('meLabel') },
   ];
 
   const activeOrg = orgs.find(o => o.id === activeOrgId) ?? null;
@@ -640,10 +640,7 @@ export default function AppShell({
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-3 rounded-xl px-3 py-3 transition-colors active:bg-canvas-soft"
               >
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-medium text-ink">{item.label}</span>
-                  <span className="block text-[12px] text-ink-faint">{item.hint}</span>
-                </span>
+                <span className="min-w-0 flex-1 text-[15px] font-medium text-ink">{item.label}</span>
               </Link>
             </li>
           ))}

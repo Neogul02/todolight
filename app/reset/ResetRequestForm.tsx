@@ -57,7 +57,6 @@ export default function ResetRequestForm() {
   return (
     <Card className="w-full max-w-[400px] p-6 sm:p-7">
       <h1 className="text-title text-ink">{t('title')}</h1>
-      <p className="mt-1 text-caption text-ink-muted">{t('description')}</p>
 
       <form onSubmit={submit} className="mt-5 flex flex-col gap-3">
         <label className="flex flex-col gap-1.5">

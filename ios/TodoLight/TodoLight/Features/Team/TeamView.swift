@@ -85,12 +85,10 @@ struct TeamView: View {
     private var inviteCard: some View {
         PageCard {
             Text(tr("팀원 초대", "Invite teammates")).font(.tlTitle).foregroundStyle(tk.ink)
-            Text(tr("이메일을 넣으면 그 사람이 로그인할 때 초대장이 떠요.", "Enter an email — they'll see the invite the next time they sign in."))
-                .font(.tlCaption).foregroundStyle(tk.inkMuted).padding(.top, 4)
             // 메일이 나가지 않는다는 사실을 초대하기 **전에** 말한다 — 보내고 나서 알면 늦다
-            Text(tr("초대 메일은 따로 가지 않아요. 아직 가입하지 않은 사람에게는 직접 알려 줘야 해요.",
-                    "No invitation email is sent. You will need to tell anyone who has not signed up yet."))
-                .font(.tlCaption).foregroundStyle(tk.inkFaint).padding(.top, 2)
+            Text(tr("초대 메일은 가지 않아요. 아직 가입 안 한 사람에게는 직접 알려 주세요.",
+                    "No invite email is sent. Let people who haven't signed up know yourself."))
+                .font(.tlCaption).foregroundStyle(tk.inkMuted).padding(.top, 4)
             HStack(spacing: 8) {
                 TextField("", text: $email, prompt: placeholder("teammate@company.com", tk))
                     .keyboardType(.emailAddress)
@@ -209,8 +207,6 @@ struct TeamView: View {
                           prompt: placeholder("https://discord.com/api/webhooks/…", tk))
                     .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                     .tlField()
-                Text(tr("할 일 추가와 대신 처리를 이 채널로 알려요. 비우면 꺼져요.", "New to-dos and handoffs post here. Leave blank to turn it off."))
-                    .font(.tlCaption).foregroundStyle(tk.inkFaint)
             }
             Button(tr("저장", "Save")) { Task { await saveSettings(rename: nameChanged, hook: hookChanged) } }
                 .buttonStyle(TLButtonStyle(fill: true))
@@ -219,15 +215,10 @@ struct TeamView: View {
         }
     }
 
-    /// 맨 아래 — 카드 제목과 버튼이 같은 말이라 제목은 빼고 설명 + 버튼만 둔다
+    /// 맨 아래 — 버튼 하나만(웹과 같다). 무엇이 사라지는지는 확인 시트가 말한다
     private var deleteCard: some View {
-        PageCard {
-            Text(tr("이 조직과 안에 있는 모든 것을 지워요. 되돌릴 수 없어요.", "Deletes this org and everything in it. This cannot be undone."))
-                .font(.tlCaption).foregroundStyle(tk.inkMuted)
-            Button(tr("조직 삭제", "Delete org")) { deleteOpen = true }
-                .buttonStyle(TLButtonStyle(variant: .danger, fill: true))
-                .padding(.top, 16)
-        }
+        Button(tr("조직 삭제", "Delete org")) { deleteOpen = true }
+            .buttonStyle(TLButtonStyle(variant: .danger, fill: true))
     }
 
     // MARK: 조각

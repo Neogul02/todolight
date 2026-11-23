@@ -31,7 +31,6 @@
     "terms": "이용약관",
     "privacy": "개인정보 처리방침",
     "deleteAccountTitle": "계정 삭제",
-    "deleteAccountDescription": "계정과 로그인 정보를 지워요. 되돌릴 수 없어요.",
     "deleteAccount": "계정 삭제",
     "deleteAccountConfirm": "삭제할래요",
     "deletingAccount": "지우는 중…",
@@ -64,9 +63,7 @@
     "newOrg": "+ 새 조직 만들기",
     "manageTitle": "관리",
     "teamLabel": "조직",
-    "teamHint": "멤버·조직 설정",
     "meLabel": "설정",
-    "meHint": "이름·테마·언어",
     "signOut": "로그아웃"
   },
   "auth": {
@@ -83,7 +80,6 @@
     },
     "resetRequest": {
       "title": "비밀번호 재설정",
-      "description": "가입한 이메일로 재설정 링크를 보내 드려요.",
       "emailLabel": "이메일",
       "sendButton": "링크 보내기",
       "backToLogin": "로그인으로 돌아가기",
@@ -93,7 +89,6 @@
     },
     "resetConfirm": {
       "title": "새 비밀번호",
-      "description": "앞으로 쓸 비밀번호를 정해 주세요.",
       "newPasswordLabel": "새 비밀번호",
       "confirmLabel": "한 번 더",
       "confirmPlaceholder": "같은 비밀번호",
@@ -104,7 +99,6 @@
   },
   "newOrg": {
     "title": "새 조직 만들기",
-    "description": "만든 사람이 방장이 돼요. 팀원은 이메일로 초대할 수 있어요.",
     "nameLabel": "조직 이름",
     "namePlaceholder": "예) 마케팅팀",
     "submitButton": "만들기"
@@ -122,7 +116,6 @@
     "you": "나",
     "teammate": "팀원",
     "noOrgTitle": "아직 조직이 없어요",
-    "noOrgDescription": "조직을 만들어 팀원을 초대하거나, 받은 초대를 수락해 주세요.",
     "createOrg": "조직 만들기",
     "checkInvites": "받은 초대 확인",
     "orgLoadErrorTitle": "조직 정보를 불러오지 못했어요",
@@ -130,8 +123,6 @@
     "retry": "다시 시도",
     "loadError": "보드를 불러오지 못했어요.",
     "soloTitle": "아직 혼자예요",
-    "soloDescriptionManager": "팀원을 초대하면 서로의 할 일이 여기 나란히 놓여요.",
-    "soloDescriptionMember": "방장이 팀원을 초대하면 서로의 할 일이 여기 나란히 놓여요.",
     "inviteMembers": "팀원 초대하기",
     "askOwnerToInvite": "방장에게 초대를 요청해 주세요.",
     "loadingAria": "보드를 불러오는 중",
@@ -167,7 +158,6 @@
       "olderDoneNotLoaded": "그 전에 끝낸 {count}개는 여기 안 실려요"
     },
     "invitedTitle": "초대가 와 있어요",
-    "invitedDescription": "수락하면 바로 팀 보드로 들어가요.",
     "openInvites": "받은 초대 보기 ({count})"
   },
   "ledger": {
@@ -226,7 +216,6 @@
     "createOrg": "조직 만들기",
     "memberCount": "멤버 {count}명",
     "inviteTitle": "팀원 초대",
-    "inviteDescription": "이메일을 넣으면 그 사람이 로그인할 때 초대장이 떠요.",
     "inviteButton": "초대",
     "cancelInvite": "취소",
     "membersTitle": "멤버",
@@ -237,7 +226,6 @@
     "leave": "나가기",
     "kick": "내보내기",
     "discordTitle": "Discord 알림",
-    "discordDescription": "할 일 추가와 대신 처리를 이 채널로 알려요. 비우면 꺼져요.",
     "uploading": "올리는 중…",
     "changeImage": "이미지 바꾸기",
     "uploadImage": "이미지 올리기",
@@ -251,14 +239,13 @@
     "transferConfirmDetail": "넘기면 나는 관리자가 돼요. 되돌리려면 새 방장이 다시 넘겨 줘야 해요.",
     "transferConfirm": "넘길래요",
     "deleteOrgTitle": "조직 삭제",
-    "deleteOrgDescription": "이 조직과 안에 있는 모든 것을 지워요. 되돌릴 수 없어요.",
     "deleteOrg": "조직 삭제",
     "deleteOrgConfirm": "삭제할래요",
     "deletingOrg": "지우는 중…",
     "deleteOrgEffectAll": "이 조직의 할 일·메모·일정·가계부가 전부 사라져요. 할 일 지우기와 달리 되살릴 수 없어요.",
     "deleteOrgEffectMembers": "멤버 {count}명이 이 조직에서 나가게 돼요. 다시 모으려면 조직을 새로 만들어 초대해야 해요.",
     "deleteOrgIrreversible": "이 동작은 되돌릴 수 없어요.",
-    "inviteNoEmailNotice": "초대 메일은 따로 가지 않아요. 아직 가입하지 않은 사람에게는 직접 알려 줘야 해요.",
+    "inviteNoEmailNotice": "초대 메일은 가지 않아요. 아직 가입 안 한 사람에게는 직접 알려 주세요.",
     "inviteUnregisteredHint": "아직 가입하지 않았어요",
     "inviteShare": "알려 주기",
     "inviteShareMessage": "{org}에 초대했어요.\n{email} 주소로 가입하면 초대장이 떠요.\n{url}"
@@ -269,12 +256,6 @@
     "headingLine1": "가볍게, 간단하게,",
     "headingLine2": "빠르게.",
     "tagline": "팀의 할 일을 한 페이지에서 보는 TodoList",
-    "pointLightTitle": "가볍게",
-    "pointLightBody": "설치도 설정도 필요 없어요. 초대를 받으면 바로 시작해요",
-    "pointSimpleTitle": "간단하게",
-    "pointSimpleBody": "간단하지만 강력하게, 우리 조직의 할 일을 파악해요",
-    "pointFastTitle": "빠르게",
-    "pointFastBody": "체크하는 순간 화면에 반영돼요",
     "terms": "이용약관",
     "privacy": "개인정보 처리방침"
   },

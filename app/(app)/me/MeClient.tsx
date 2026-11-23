@@ -324,13 +324,10 @@ export default function MeClient() {
       {/* 테두리를 빨갛게 물들이지 않는다 — `cn`은 단순 join이라 Card의 `border-hairline`과
           같이 남고, 둘 중 무엇이 이길지는 스타일시트 순서에 달린 문제가 된다.
           위험하다는 신호는 빨간 버튼이 이미 준다. */}
-      <Card className="p-5">
-        <h2 className="text-title text-ink">{t('deleteAccountTitle')}</h2>
-        <p className="mt-1.5 text-caption text-ink-muted">{t('deleteAccountDescription')}</p>
-        <Button variant="danger" className="mt-4 w-full" onClick={() => setDeleteOpen(true)}>
-          {t('deleteAccount')}
-        </Button>
-      </Card>
+      {/* 카드도 제목도 두지 않는다 — 제목과 버튼이 같은 말이라 두 번 보인다. 설명은 확인 시트가 한다 */}
+      <Button variant="danger" className="w-full" onClick={() => setDeleteOpen(true)}>
+        {t('deleteAccount')}
+      </Button>
 
       {/* 소속 조직 목록과 로그아웃은 아바타 메뉴에 있다 — 같은 것을 두 군데 두지 않는다 */}
 

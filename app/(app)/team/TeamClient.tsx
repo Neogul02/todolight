@@ -365,9 +365,8 @@ export default function TeamClient() {
       {isManager && (
         <Card className="p-5">
           <h2 className="text-title text-ink">{t('inviteTitle')}</h2>
-          <p className="mt-1 text-caption text-ink-muted">{t('inviteDescription')}</p>
           {/* 메일이 나가지 않는다는 사실을 초대하기 **전에** 말한다 — 보내고 나서 알면 늦다 */}
-          <p className="mt-1 text-caption text-ink-faint">{t('inviteNoEmailNotice')}</p>
+          <p className="mt-1 text-caption text-ink-muted">{t('inviteNoEmailNotice')}</p>
           <form
             onSubmit={e => {
               e.preventDefault();
@@ -542,7 +541,6 @@ export default function TeamClient() {
               onChange={e => setWebhook(e.target.value)}
               placeholder="https://discord.com/api/webhooks/..."
             />
-            <span className="text-caption text-ink-faint">{t('discordDescription')}</span>
           </label>
 
           <Button
@@ -563,13 +561,10 @@ export default function TeamClient() {
         버튼이라, 스크롤해 내려온 사람만 만나면 충분하다 — `/me`의 계정 삭제와 같은 자리다.
       */}
       {activeOrg.role === 'owner' && (
-        <Card className="p-5">
-          <h2 className="text-title text-ink">{t('deleteOrgTitle')}</h2>
-          <p className="mt-1.5 text-caption text-ink-muted">{t('deleteOrgDescription')}</p>
-          <Button variant="danger" className="mt-4 w-full" onClick={() => setDeleteOrgOpen(true)}>
-            {t('deleteOrg')}
-          </Button>
-        </Card>
+        // 제목과 버튼이 같은 말이라 버튼 하나만 둔다. 설명은 확인 시트가 한다
+        <Button variant="danger" className="w-full" onClick={() => setDeleteOrgOpen(true)}>
+          {t('deleteOrg')}
+        </Button>
       )}
 
       {/* 멤버 관리 — 역할 변경과 내보내기. 내보내기는 여기서 한 번 더 확인받는다 */}

@@ -179,15 +179,9 @@ struct MeView: View {
 
     /// 맨 아래 — 매일 만지는 설정과 평생 한 번 누를 버튼을 떨어뜨려 둔다.
     private var deleteCard: some View {
-        PageCard {
-            // 다른 카드처럼 제목을 단다(웹과 같다) — 빨간 버튼만 있으면 무슨 카드인지 버튼을 읽어야 안다
-            Text(tr("계정 삭제", "Delete account")).font(.tlTitle).foregroundStyle(tk.ink)
-            Text(tr("계정과 로그인 정보를 지워요. 되돌릴 수 없어요.", "Deletes your account and sign-in details. This cannot be undone.")).font(.tlCaption).foregroundStyle(tk.inkMuted)
-                .padding(.top, 6)
-            Button(tr("계정 삭제", "Delete account")) { deleteOpen = true }
-                .buttonStyle(TLButtonStyle(variant: .danger, fill: true))
-                .padding(.top, 16)
-        }
+        // 버튼 하나만(웹과 같다) — 제목을 달면 버튼과 같은 말이 두 번 보인다. 설명은 확인 시트가 한다
+        Button(tr("계정 삭제", "Delete account")) { deleteOpen = true }
+            .buttonStyle(TLButtonStyle(variant: .danger, fill: true))
     }
 
     // MARK: 조각

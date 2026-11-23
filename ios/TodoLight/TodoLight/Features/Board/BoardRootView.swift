@@ -136,11 +136,6 @@ private struct NoOrgView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(invites.isEmpty ? tr("아직 조직이 없어요", "No orgs yet") : tr("초대가 와 있어요", "You've been invited"))
                         .font(.tl(22, .bold)).foregroundStyle(tk.ink)
-                    Text(invites.isEmpty
-                         ? tr("조직을 만들어 팀원을 초대하거나, 받은 초대를 수락해 주세요.",
-                              "Create an org and invite teammates, or accept an invite you've received.")
-                         : tr("수락하면 바로 팀 보드로 들어가요.", "Accept to jump straight into your team's board."))
-                        .font(.tlBodySm).foregroundStyle(tk.inkMuted)
                 }
                 ReceivedInvites(invites: invites, onRespond: onRespond)
                 Button(tr("조직 만들기", "Create an org"), action: onCreate)

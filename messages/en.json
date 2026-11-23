@@ -31,7 +31,6 @@
     "terms": "Terms of Service",
     "privacy": "Privacy Policy",
     "deleteAccountTitle": "Delete account",
-    "deleteAccountDescription": "Deletes your account and sign-in details. This cannot be undone.",
     "deleteAccount": "Delete account",
     "deleteAccountConfirm": "Delete",
     "deletingAccount": "Deleting…",
@@ -64,9 +63,7 @@
     "newOrg": "+ New org",
     "manageTitle": "Manage",
     "teamLabel": "Org",
-    "teamHint": "Members and org settings",
     "meLabel": "Settings",
-    "meHint": "Name, theme, language",
     "signOut": "Sign out"
   },
   "auth": {
@@ -83,7 +80,6 @@
     },
     "resetRequest": {
       "title": "Reset your password",
-      "description": "We'll send a reset link to your email.",
       "emailLabel": "Email",
       "sendButton": "Send link",
       "backToLogin": "Back to sign in",
@@ -93,7 +89,6 @@
     },
     "resetConfirm": {
       "title": "New password",
-      "description": "Choose the password you'll use from now on.",
       "newPasswordLabel": "New password",
       "confirmLabel": "Confirm",
       "confirmPlaceholder": "Same password",
@@ -104,7 +99,6 @@
   },
   "newOrg": {
     "title": "Create an org",
-    "description": "You'll be the owner. Invite teammates by email afterward.",
     "nameLabel": "Org name",
     "namePlaceholder": "e.g. Marketing",
     "submitButton": "Create"
@@ -122,7 +116,6 @@
     "you": "You",
     "teammate": "Teammate",
     "noOrgTitle": "No orgs yet",
-    "noOrgDescription": "Create an org and invite teammates, or accept an invite you've received.",
     "createOrg": "Create an org",
     "checkInvites": "Check invites",
     "orgLoadErrorTitle": "Couldn't load your orgs",
@@ -130,8 +123,6 @@
     "retry": "Try again",
     "loadError": "Couldn't load the board.",
     "soloTitle": "Just you for now",
-    "soloDescriptionManager": "Invite teammates and your to-dos will sit side by side.",
-    "soloDescriptionMember": "Once the owner invites teammates, your to-dos will sit side by side.",
     "inviteMembers": "Invite teammates",
     "askOwnerToInvite": "Ask the owner to send an invite.",
     "loadingAria": "Loading the board",
@@ -167,7 +158,6 @@
       "olderDoneNotLoaded": "{count} finished earlier are not loaded here"
     },
     "invitedTitle": "You've been invited",
-    "invitedDescription": "Accept to jump straight into your team's board.",
     "openInvites": "See invites ({count})"
   },
   "ledger": {
@@ -226,7 +216,6 @@
     "createOrg": "Create an org",
     "memberCount": "{count} members",
     "inviteTitle": "Invite teammates",
-    "inviteDescription": "Enter an email — they'll see the invite the next time they sign in.",
     "inviteButton": "Invite",
     "cancelInvite": "Cancel",
     "membersTitle": "Members",
@@ -237,7 +226,6 @@
     "leave": "Leave",
     "kick": "Remove",
     "discordTitle": "Discord notifications",
-    "discordDescription": "New to-dos and handoffs post here. Leave blank to turn it off.",
     "uploading": "Uploading…",
     "changeImage": "Change image",
     "uploadImage": "Upload image",
@@ -251,14 +239,13 @@
     "transferConfirmDetail": "You become an admin. To undo it, the new owner has to transfer it back.",
     "transferConfirm": "Transfer",
     "deleteOrgTitle": "Delete org",
-    "deleteOrgDescription": "Deletes this org and everything in it. This cannot be undone.",
     "deleteOrg": "Delete org",
     "deleteOrgConfirm": "Delete",
     "deletingOrg": "Deleting…",
     "deleteOrgEffectAll": "Every to-do, note, event, and ledger entry in this org is gone. Unlike deleting a to-do, this cannot be restored.",
     "deleteOrgEffectMembers": "All {count} members lose access. Bringing them back means creating a new org and inviting them again.",
     "deleteOrgIrreversible": "This cannot be undone.",
-    "inviteNoEmailNotice": "No invitation email is sent. You will need to tell anyone who has not signed up yet.",
+    "inviteNoEmailNotice": "No invite email is sent. Let people who haven't signed up know yourself.",
     "inviteUnregisteredHint": "Has not signed up yet",
     "inviteShare": "Send it yourself",
     "inviteShareMessage": "You are invited to {org}.\nSign up with {email} and the invitation will be waiting.\n{url}"
@@ -269,12 +256,6 @@
     "headingLine1": "Light, simple,",
     "headingLine2": "fast.",
     "tagline": "The to-do list that shows your whole team on one page",
-    "pointLightTitle": "Light",
-    "pointLightBody": "No install, no setup — just an invite and you're in",
-    "pointSimpleTitle": "Simple",
-    "pointSimpleBody": "Simple but powerful — see what your org needs to do",
-    "pointFastTitle": "Fast",
-    "pointFastBody": "Checking a box updates the screen instantly",
     "terms": "Terms",
     "privacy": "Privacy"
   },

@@ -131,9 +131,6 @@ export default function ViewPager() {
     return (
       <main className="mx-auto flex max-w-[520px] flex-col items-center px-6 py-16 pb-tabbar text-center">
         <h1 className="text-heading-1 text-ink">{invited ? t('invitedTitle') : t('noOrgTitle')}</h1>
-        <p className="mt-2 text-body-sm text-ink-muted">
-          {invited ? t('invitedDescription') : t('noOrgDescription')}
-        </p>
         <div className="mt-7 flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           {invited ? [invitesButton, createLink] : [createLink, invitesButton]}
         </div>

@@ -16,8 +16,6 @@ struct NewOrgView: View {
     var body: some View {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         VStack(alignment: .leading, spacing: 12) {
-            Text(tr("만든 사람이 방장이 돼요. 팀원은 이메일로 초대할 수 있어요.", "You'll be the owner. Invite teammates by email afterward."))
-                .font(.tlCaption).foregroundStyle(tk.inkMuted)
             VStack(alignment: .leading, spacing: 6) {
                 Text(tr("조직 이름", "Org name")).font(.tl(13, .medium)).foregroundStyle(tk.inkSecondary)
                 TextField("", text: $name, prompt: placeholder(tr("예) 마케팅팀", "e.g. Marketing"), tk))

@@ -159,8 +159,8 @@ struct ProfileSheet: View {
             }
             Text(tr("관리", "Manage")).font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary)
                 .padding(.horizontal, 4).padding(.top, 20).padding(.bottom, 8)
-            manageRow(tr("멤버 · 조직 설정", "Members & org settings")) { onOpen(.team) }
-            manageRow(tr("내 설정", "Settings")) { onOpen(.me) }
+            manageRow(tr("조직", "Org")) { onOpen(.team) }
+            manageRow(tr("설정", "Settings")) { onOpen(.me) }
 
             Button(tr("로그아웃", "Sign out"), action: onSignOut)
                 .buttonStyle(TLButtonStyle(variant: .outline, fill: true))

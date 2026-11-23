@@ -412,9 +412,6 @@ function InviteColumn({ isManager, className }: { isManager: boolean; className?
       )}
     >
       <p className="text-title text-ink">{t('soloTitle')}</p>
-      <p className="text-caption text-ink-muted">
-        {isManager ? t('soloDescriptionManager') : t('soloDescriptionMember')}
-      </p>
       {isManager ? (
         <Link
           href="/team"
