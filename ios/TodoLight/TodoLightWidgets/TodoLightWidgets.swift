@@ -166,7 +166,7 @@ struct MyTodosView: View {
         VStack(spacing: 4) {
             Image(systemName: "checklist")
             if family != .accessoryCircular {
-                Text(Words(lang: Locale.current.language.languageCode?.identifier ?? "ko").openApp)
+                Text(Words.device.openApp)
                     .font(.caption).multilineTextAlignment(.center)
             }
         }
@@ -210,26 +210,36 @@ enum DueLabel {
 }
 
 struct Words {
-    let ko: Bool
-    init(lang: String) { ko = lang != "en" }
+    /// "ko" | "en" | "ja" — 모르는 값은 영어(앱 `AppLang.device`와 같은 규칙)
+    let lang: String
+    init(lang: String) { self.lang = ["ko", "ja"].contains(lang) ? lang : "en" }
 
     /// 위젯 갤러리·제어 센터처럼 앱 설정을 읽기 전에 그려지는 곳은 기기 언어를 따른다
-    static var device: Words { Words(lang: Locale.preferredLanguages.first?.hasPrefix("ko") == true ? "ko" : "en") }
+    static var device: Words { Words(lang: deviceLang) }
+    static var deviceLang: String {
+        let first = Locale.preferredLanguages.first ?? "ko"
+        return first.hasPrefix("ko") ? "ko" : first.hasPrefix("ja") ? "ja" : "en"
+    }
 
-    var widgetName: String { ko ? "내 할 일" : "My to-dos" }
-    var widgetDescription: String { ko ? "남은 할 일과 가장 급한 것부터" : "What's left, most urgent first" }
-    var quickAdd: String { ko ? "할 일 추가" : "Add a to-do" }
-    var quickAddDescription: String { ko ? "todolight를 열고 바로 적어요" : "Open todolight and start typing" }
+    /// 세 언어를 한 자리에 나란히 — 하나만 고치는 사고를 막는다
+    private func w(_ ko: String, _ en: String, _ ja: String) -> String {
+        lang == "ko" ? ko : lang == "ja" ? ja : en
+    }
 
-    var todo: String { ko ? "할 일" : "to-do" }
-    var allDone: String { ko ? "다 끝냈어요" : "All done" }
-    var today: String { ko ? "오늘" : "Today" }
-    var tomorrow: String { ko ? "내일" : "Tomorrow" }
-    var openApp: String { ko ? "앱을 열어 로그인해 주세요" : "Open the app to sign in" }
-    func markDone(_ title: String) -> String { ko ? "\(title) 끝내기" : "Mark \(title) done" }
-    func remaining(_ n: Int) -> String { ko ? "남은 할 일 \(n)" : "\(n) to-do\(n == 1 ? "" : "s") left" }
-    func daysAgo(_ n: Int) -> String { ko ? "\(n)일 지남" : "\(n)d overdue" }
-    func month(_ m: Int, day d: Int) -> String { ko ? "\(m)월 \(d)일" : "\(m)/\(d)" }
+    var widgetName: String { w("내 할 일", "My to-dos", "自分のタスク") }
+    var widgetDescription: String { w("남은 할 일과 가장 급한 것부터", "What's left, most urgent first", "残りのタスクを急ぐものから") }
+    var quickAdd: String { w("할 일 추가", "Add a to-do", "タスクを追加") }
+    var quickAddDescription: String { w("todolight를 열고 바로 적어요", "Open todolight and start typing", "todolightを開いてすぐに書けます") }
+
+    var todo: String { w("할 일", "to-do", "タスク") }
+    var allDone: String { w("다 끝냈어요", "All done", "すべて完了") }
+    var today: String { w("오늘", "Today", "今日") }
+    var tomorrow: String { w("내일", "Tomorrow", "明日") }
+    var openApp: String { w("앱을 열어 로그인해 주세요", "Open the app to sign in", "アプリを開いてログインしてください") }
+    func markDone(_ title: String) -> String { w("\(title) 끝내기", "Mark \(title) done", "\(title)を完了にする") }
+    func remaining(_ n: Int) -> String { w("남은 할 일 \(n)", "\(n) to-do\(n == 1 ? "" : "s") left", "残りのタスク \(n)") }
+    func daysAgo(_ n: Int) -> String { w("\(n)일 지남", "\(n)d overdue", "\(n)日超過") }
+    func month(_ m: Int, day d: Int) -> String { w("\(m)월 \(d)일", "\(m)/\(d)", "\(m)月\(d)日") }
 }
 
 extension WidgetSnapshot {
@@ -241,6 +251,6 @@ extension WidgetSnapshot {
             .init(id: "2", title: "장보기", dueDate: nil, mine: true),
             .init(id: "3", title: "택배 반품", dueDate: nil, mine: true),
         ],
-        lang: Locale.current.language.languageCode?.identifier == "en" ? "en" : "ko"
+        lang: Words.deviceLang
     )
 }

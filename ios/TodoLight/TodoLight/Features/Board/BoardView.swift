@@ -59,7 +59,7 @@ struct BoardView: View {
                 case .failed(let message):
                     VStack(spacing: 12) {
                         Text(message).font(.tlBodySm).foregroundStyle(tk.inkMuted)
-                        Button(tr("다시 시도", "Try again")) { Task { await start() } }.buttonStyle(TLButtonStyle(variant: .outline))
+                        Button(tr("다시 시도", "Try again", "再試行")) { Task { await start() } }.buttonStyle(TLButtonStyle(variant: .outline))
                     }
                     .frame(maxHeight: .infinity)
                 case .ready:
@@ -75,7 +75,7 @@ struct BoardView: View {
                                 if store.showCalendar {
                                     CalendarView(board: store, store: calendar, onHandoff: { handoffTodo = $0 })
                                 } else {
-                                    PanelOffNotice(title: tr("달력을 꺼 두셨어요", "The calendar is turned off")) { onOpen(.me) }
+                                    PanelOffNotice(title: tr("달력을 꺼 두셨어요", "The calendar is turned off", "カレンダーをオフにしています")) { onOpen(.me) }
                                 }
                             }
                             .paneVisible(pane == .calendar)
@@ -85,7 +85,7 @@ struct BoardView: View {
                                 if store.showLedger {
                                     LedgerView(board: store, store: ledger)
                                 } else {
-                                    PanelOffNotice(title: tr("가계부를 꺼 두셨어요", "The ledger is turned off")) { onOpen(.me) }
+                                    PanelOffNotice(title: tr("가계부를 꺼 두셨어요", "The ledger is turned off", "支出をオフにしています")) { onOpen(.me) }
                                 }
                             }
                             .paneVisible(pane == .ledger)
@@ -140,7 +140,7 @@ struct BoardView: View {
             mounted.insert(next)
         }
         .sheet(item: $handoffTodo) { todo in
-            HandoffSheet(todo: todo, ownerName: store.member(todo.ownerId)?.displayName ?? tr("팀원", "Teammate")) {
+            HandoffSheet(todo: todo, ownerName: store.member(todo.ownerId)?.displayName ?? tr("팀원", "Teammate", "メンバー")) {
                 store.handOff(todo, note: $0)
             }
         }
@@ -170,8 +170,8 @@ struct BoardView: View {
         HStack(spacing: 6) {
             Image(systemName: "wifi.slash").font(.system(size: 11, weight: .semibold))
             Text(store.queuedCount > 0
-                 ? tr("오프라인 · 연결되면 \(store.queuedCount)개를 보낼게요", "Offline · \(store.queuedCount) to send when you're back")
-                 : tr("오프라인 · 마지막으로 받은 화면이에요", "Offline · showing the last synced board"))
+                 ? tr("오프라인 · 연결되면 \(store.queuedCount)개를 보낼게요", "Offline · \(store.queuedCount) to send when you're back", "オフライン · つながったら\(store.queuedCount)件を送ります")
+                 : tr("오프라인 · 마지막으로 받은 화면이에요", "Offline · showing the last synced board", "オフライン · 最後に受け取った画面です"))
                 .font(.tl(12, .medium))
         }
         .foregroundStyle(tk.warning)
@@ -257,7 +257,7 @@ struct BoardView: View {
                 Text(b.message).font(.tl(14, .medium)).foregroundStyle(tk.ink)
                 Spacer()
                 if let undo = b.undo {
-                    Button(tr("실행취소", "Undo")) { undo() }.font(.tl(14, .semibold)).foregroundStyle(tk.accent)
+                    Button(tr("실행취소", "Undo", "元に戻す")) { undo() }.font(.tl(14, .semibold)).foregroundStyle(tk.accent)
                 }
             }
             .padding(.horizontal, 16)
@@ -287,7 +287,7 @@ private struct MemberChip: View {
         Button(action: onTap) {
             HStack(spacing: 6) {
                 AvatarView(member: member, size: 24)
-                Text(isMe ? tr("나", "Me") : member.displayName).font(.tl(13, .medium)).lineLimit(1).frame(maxWidth: 80)
+                Text(isMe ? tr("나", "Me", "自分") : member.displayName).font(.tl(13, .medium)).lineLimit(1).frame(maxWidth: 80)
                 if remaining > 0 {
                     Text("\(remaining)").font(.tl(11, .bold)).monospacedDigit()
                         .foregroundStyle(active ? tk.accentInk : tk.inkSecondary)
@@ -323,9 +323,9 @@ private struct TabBar: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            item(.board, tr("보드", "Board"), icon: "rectangle.split.2x1")
-            if showCalendar { item(.calendar, tr("달력", "Calendar"), icon: "calendar") }
-            if showLedger { item(.ledger, tr("가계부", "Ledger"), icon: "wonsign.circle") }
+            item(.board, tr("보드", "Board", "ボード"), icon: "rectangle.split.2x1")
+            if showCalendar { item(.calendar, tr("달력", "Calendar", "カレンダー"), icon: "calendar") }
+            if showLedger { item(.ledger, tr("가계부", "Ledger", "支出"), icon: "wonsign.circle") }
             Rectangle().fill(tk.hairlineStrong).frame(width: 1, height: 28).padding(.horizontal, 2)
             Button(action: onProfile) {
                 VStack(spacing: 2) {
@@ -338,14 +338,14 @@ private struct TabBar: View {
                                     .offset(x: 2, y: -1)
                             }
                         }
-                    Text(tr("메뉴", "Menu")).font(.tl(10, .medium))
+                    Text(tr("메뉴", "Menu", "メニュー")).font(.tl(10, .medium))
                 }
                 .foregroundStyle(tk.inkMuted)
                 .frame(width: 64)
                 .padding(.vertical, 6)
             }
             .buttonStyle(PressScale(scale: 0.95))
-            .accessibilityLabel(hasInvites ? tr("메뉴 · 받은 초대 있음", "Menu · pending invites") : tr("메뉴", "Menu"))
+            .accessibilityLabel(hasInvites ? tr("메뉴 · 받은 초대 있음", "Menu · pending invites", "メニュー · 届いた招待あり") : tr("메뉴", "Menu", "メニュー"))
         }
         .padding(6)
         .background(.ultraThinMaterial, in: Capsule())

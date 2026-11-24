@@ -173,7 +173,8 @@ struct EncodingTests {
     @Test("프로필의 사진 지우기도 null로 나간다")
     func profileAvatarClear() throws {
         let body = UpdateProfileBody(displayName: nil, avatarUrl: .clear, theme: nil,
-                                     locale: nil, showDone: nil, showLedger: nil)
+                                     locale: nil, showDone: nil, showLedger: nil, showCalendar: nil,
+                                     notifyMyTodos: nil, notifyOrg: nil, notifyTeamTodos: nil)
         let text = String(decoding: try encoder.encode(body), as: UTF8.self)
         #expect(text.contains("\"avatarUrl\":null"))
         #expect(!text.contains("displayName"))

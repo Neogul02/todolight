@@ -26,7 +26,7 @@ struct TodoCardView: View {
                         .padding(.trailing, 10)
                 }
                 .buttonStyle(PressScale())
-                .accessibilityLabel(done ? tr("완료 취소", "Mark not done") : tr("완료", "Mark done"))
+                .accessibilityLabel(done ? tr("완료 취소", "Mark not done", "完了を取り消す") : tr("완료", "Mark done", "完了にする"))
                 .sensoryFeedback(.impact(weight: .light), trigger: done) { _, now in now }
 
                 Button(action: onToggleOpen) {
@@ -57,7 +57,7 @@ struct TodoCardView: View {
                             .padding(.leading, 10)
                     }
                     .buttonStyle(PressScale())
-                    .accessibilityLabel(tr("지우기", "Delete"))
+                    .accessibilityLabel(tr("지우기", "Delete", "削除"))
                 }
             }
 
@@ -89,7 +89,7 @@ struct TodoCardView: View {
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(tr("\(viewers.map(\.displayName).joined(separator: ", "))님이 보는 중",
-                                   "\(viewers.map(\.displayName).joined(separator: ", ")) viewing"))
+                                   "\(viewers.map(\.displayName).joined(separator: ", ")) viewing", "\(viewers.map(\.displayName).joined(separator: "、"))さんが閲覧中"))
         }
     }
 
@@ -113,14 +113,14 @@ struct TodoCardView: View {
                 }
                 // "이거 왜 내 목록에 있지"를 카드에서 바로 — 넘김이 부탁보다 우선(넘긴 사람에게 물어야 한다)
                 if todo.isGivenByOther {
-                    personBadge(todo.givenBy, suffix: "넘김", en: "Handed off by")
+                    personBadge(todo.givenBy, suffix: "넘김", en: "Handed off by", ja: "さんから")
                 } else if todo.isRequestedByOther {
-                    personBadge(todo.createdBy, suffix: "부탁", en: "Requested by")
+                    personBadge(todo.createdBy, suffix: "부탁", en: "Requested by", ja: "さんの依頼")
                 }
                 if done, todo.isHandledByOther {
-                    personBadge(todo.handledBy, suffix: "대신 처리", en: "Handled by", tone: .success)
+                    personBadge(todo.handledBy, suffix: "대신 처리", en: "Handled by", ja: "さんが代わりに対応", tone: .success)
                 }
-                if !todo.noteList.isEmpty { BadgeView(tr("메모 \(todo.noteList.count)", "\(plural(todo.noteList.count, "note"))")) }
+                if !todo.noteList.isEmpty { BadgeView(tr("메모 \(todo.noteList.count)", "\(plural(todo.noteList.count, "note"))", "メモ \(todo.noteList.count)")) }
                 if !todo.participants.isEmpty {
                     HStack(spacing: -6) {
                         ForEach(todo.participants, id: \.self) { id in
@@ -133,11 +133,16 @@ struct TodoCardView: View {
         }
     }
 
-    /// 한국어는 받침에 따라 조사가 갈려 "최진형이 부탁"/"최진우가 부탁" — 영어는 어순부터 다르다
-    private func personBadge(_ id: String?, suffix: String, en: String, tone: BadgeView<AvatarView>.Tone = .neutral) -> some View {
+    /// 한국어는 받침에 따라 조사가 갈려 "최진형이 부탁"/"최진우가 부탁" — 영어는 어순부터 다르고,
+    /// 일본어는 이름 뒤에 붙는다("田中さんの依頼") — 웹 `card.requestedBy` 등과 같은 문구
+    private func personBadge(_ id: String?, suffix: String, en: String, ja: String, tone: BadgeView<AvatarView>.Tone = .neutral) -> some View {
         let m = store.member(id)
-        let name = m?.displayName ?? tr("누군가", "Someone")
-        let text = AppLang.current == .ko ? "\(name)\(BoardRules.subjectParticle(name)) \(suffix)" : "\(en) \(name)"
+        let name = m?.displayName ?? tr("누군가", "Someone", "誰か")
+        let text = switch AppLang.current {
+        case .ko: "\(name)\(BoardRules.subjectParticle(name)) \(suffix)"
+        case .en: "\(en) \(name)"
+        case .ja: "\(name)\(ja)"
+        }
         return BadgeView(text: text, tone: tone) {
             AvatarView(member: m, size: 14)
         }
@@ -202,9 +207,9 @@ private struct TodoCardOpenContent: View {
                     .tlField(height: 36)
                 HStack(spacing: 6) {
                     // 저장이 주 동작이다 — 남은 폭을 저장이 갖고, 취소는 글자만큼만(웹과 같다)
-                    Button(tr("취소", "Cancel")) { editingNoteId = nil }
+                    Button(tr("취소", "Cancel", "キャンセル")) { editingNoteId = nil }
                         .buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
-                    Button(tr("저장", "Save")) { submitNoteEdit(n) }
+                    Button(tr("저장", "Save", "保存")) { submitNoteEdit(n) }
                         .buttonStyle(TLButtonStyle(size: .sm, fill: true))
                         .disabled(noteDraft.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
@@ -230,19 +235,19 @@ private struct TodoCardOpenContent: View {
                         noteFocused = true
                     }
                     .accessibilityAddTraits(mine ? .isButton : [])
-                    .accessibilityHint(mine ? tr("눌러서 고치기", "Tap to edit") : "")
+                    .accessibilityHint(mine ? tr("눌러서 고치기", "Tap to edit", "タップして編集") : "")
                 if mine {
                     Button { store.deleteNote(todo, noteId: n.id) } label: {
                         Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(tk.inkFaint)
                             .frame(width: 24, height: 24)
                     }
                     .buttonStyle(PressScale())
-                    .accessibilityLabel(tr("메모 지우기", "Delete note"))
+                    .accessibilityLabel(tr("메모 지우기", "Delete note", "メモを削除"))
                 }
             }
             HStack(spacing: 6) {
                 AvatarView(member: store.member(n.authorId), size: 16)
-                Text("\(n.authorName ?? tr("알 수 없음", "Unknown")) · \(Due.relative(Due.format(n.createdAt))) \(n.createdAt.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).locale(AppLang.locale)))")
+                Text("\(n.authorName ?? tr("알 수 없음", "Unknown", "不明")) · \(Due.relative(Due.format(n.createdAt))) \(n.createdAt.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).locale(AppLang.locale)))")
                     .font(.tl(11)).foregroundStyle(tk.inkFaint)
             }
         }
@@ -254,7 +259,7 @@ private struct TodoCardOpenContent: View {
     private var noteInput: some View {
         let empty = note.trimmingCharacters(in: .whitespaces).isEmpty
         return HStack(spacing: 6) {
-            TextField("", text: $note, prompt: placeholder(tr("메모 남기기", "Leave a note"), tk))
+            TextField("", text: $note, prompt: placeholder(tr("메모 남기기", "Leave a note", "メモを残す"), tk))
                 .onChange(of: note) { _, text in if !text.isEmpty { typed(.note) } }
                 .submitLabel(.send)
                 .onSubmit(sendNote)
@@ -269,7 +274,7 @@ private struct TodoCardOpenContent: View {
             }
             .buttonStyle(PressScale())
             .disabled(empty)
-            .accessibilityLabel(tr("메모 보내기", "Send note"))
+            .accessibilityLabel(tr("메모 보내기", "Send note", "メモを送る"))
         }
     }
 
@@ -284,14 +289,14 @@ private struct TodoCardOpenContent: View {
                         DuePillView(value: todo.dueDate, onChange: { store.setDue(todo, $0) }, open: $dueOpen, height: 40)
                     }
                     if canManage {
-                        Button(tr("편집", "Edit"), action: startEditing).buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
+                        Button(tr("편집", "Edit", "編集"), action: startEditing).buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
                     }
                     if canGive {
-                        Button(tr("넘기기", "Hand off"), action: onGive).buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
+                        Button(tr("넘기기", "Hand off", "渡す"), action: onGive).buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
                     }
                     if canJoin {
                         let joined = todo.participants.contains(store.userId)
-                        Button(joined ? tr("그만하기", "Leave") : tr("같이하기", "Join in")) { store.setJoined(todo, !joined) }
+                        Button(joined ? tr("그만하기", "Leave", "抜ける") : tr("같이하기", "Join in", "一緒にやる")) { store.setJoined(todo, !joined) }
                             .buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
                     }
                 }
@@ -309,8 +314,8 @@ private struct TodoCardOpenContent: View {
                 .onSubmit(submitEdit)
                 .tlField(height: 40)
             HStack(spacing: 6) {
-                Button(tr("취소", "Cancel")) { editing = false }.buttonStyle(TLButtonStyle(variant: .outline))
-                Button(tr("저장", "Save"), action: submitEdit).buttonStyle(TLButtonStyle(fill: true))
+                Button(tr("취소", "Cancel", "キャンセル")) { editing = false }.buttonStyle(TLButtonStyle(variant: .outline))
+                Button(tr("저장", "Save", "保存"), action: submitEdit).buttonStyle(TLButtonStyle(fill: true))
                     .disabled(draftTitle.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
@@ -386,7 +391,7 @@ struct FlowLayout: Layout {
 /// "○○님이 입력 중..." — 웹 card.typingIndicator
 func typingText(_ typers: [PresenceStore.Typer]) -> String {
     let names = typers.map(\.displayName).joined(separator: ", ")
-    return tr("\(names)님이 입력 중…", "\(names) is typing…")
+    return tr("\(names)님이 입력 중…", "\(names) is typing…", "\(names)さんが入力中…")
 }
 
 /// 남이 보고 있는 카드의 테두리 — 먼저 들어온 한 사람의 색만 쓴다(여럿이면 색이 바뀌며 깜빡이는 것보다

@@ -133,10 +133,11 @@ public actor APIClient {
         }
     }
 
-    /// 기기 설정에서 뽑되 서버가 아는 두 값 중 하나로 떨어뜨린다.
-    /// 서버도 모르는 값이면 한국어로 가므로, 여기서 미리 정해 보내는 편이 예측 가능하다.
+    /// 기기 설정에서 뽑되 서버가 아는 세 값 중 하나로 떨어뜨린다(나머지는 영어 — 서버와 같은 규칙).
     public static var deviceLanguage: String {
         let preferred = Locale.preferredLanguages.first ?? "ko"
-        return preferred.hasPrefix("ko") ? "ko" : "en"
+        if preferred.hasPrefix("ko") { return "ko" }
+        if preferred.hasPrefix("ja") { return "ja" }
+        return "en"
     }
 }

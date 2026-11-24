@@ -50,17 +50,17 @@ struct MemberColumnView: View {
                     }
 
                     if hiddenDone > 0 {
-                        dashedButton(tr("완료 \(hiddenDone)개 더 보기", "Show \(hiddenDone) more done")) { showAllDone = true }
+                        dashedButton(tr("완료 \(hiddenDone)개 더 보기", "Show \(hiddenDone) more done", "完了をあと\(hiddenDone)件表示")) { showAllDone = true }
                     }
                     if store.showDone && showAllDone && notLoaded > 0 {
-                        Text(tr("그 전에 끝낸 \(notLoaded)개는 여기 안 실려요", "\(notLoaded) finished earlier are not loaded here"))
+                        Text(tr("그 전에 끝낸 \(notLoaded)개는 여기 안 실려요", "\(notLoaded) finished earlier are not loaded here", "それ以前に完了した\(notLoaded)件はここには表示されません"))
                             .font(.tlCaption).foregroundStyle(tk.inkFaint).padding(.top, 4)
                     }
                     if store.showDone && showAllDone && done.count > Self.visibleDone {
-                        dashedButton(tr("완료 접기", "Collapse done")) { showAllDone = false }
+                        dashedButton(tr("완료 접기", "Collapse done", "完了をたたむ")) { showAllDone = false }
                     }
                     if open.isEmpty && shownDone.isEmpty {
-                        Text(isMe ? tr("할 일이 비어 있어요", "Nothing here") : tr("남은 할 일이 없어요", "Nothing left to do"))
+                        Text(isMe ? tr("할 일이 비어 있어요", "Nothing here", "タスクはありません") : tr("남은 할 일이 없어요", "Nothing left to do", "残っているタスクはありません"))
                             .font(.tlCaption).foregroundStyle(tk.inkFaint)
                             .frame(maxWidth: .infinity).padding(.vertical, 32)
                             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(tk.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
@@ -94,14 +94,14 @@ struct MemberColumnView: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 4) {
                     Text(member.displayName).font(.tl(15, .semibold)).foregroundStyle(tk.ink).lineLimit(1)
-                    if isMe { Text(tr("(나)", "(You)")).font(.tl(12)).foregroundStyle(tk.inkFaint) }
+                    if isMe { Text(tr("(나)", "(You)", "（自分）")).font(.tl(12)).foregroundStyle(tk.inkFaint) }
                 }
-                Text(tr("남은 일 \(openCount)개", "\(openCount) left") + (doneTotal > 0 ? tr(" · 완료 \(doneTotal)", " · \(doneTotal) done") : ""))
+                Text(tr("남은 일 \(openCount)개", "\(openCount) left", "残り \(openCount)件") + (doneTotal > 0 ? tr(" · 완료 \(doneTotal)", " · \(doneTotal) done", " · 完了 \(doneTotal)") : ""))
                     .font(.tl(12)).foregroundStyle(tk.inkFaint)
             }
             Spacer(minLength: 0)
             if member.role != .member {
-                BadgeView(member.role == .owner ? tr("방장", "Owner") : tr("관리자", "Admin"))
+                BadgeView(member.role == .owner ? tr("방장", "Owner", "オーナー") : tr("관리자", "Admin", "管理者"))
             }
         }
         .padding(.horizontal, 12)
@@ -115,7 +115,7 @@ struct MemberColumnView: View {
         let empty = draft.trimmingCharacters(in: .whitespaces).isEmpty
         return VStack(alignment: .leading, spacing: 6) {
             ZStack(alignment: .trailing) {
-                TextField("", text: $draft, prompt: placeholder(isMe ? tr("할 일 추가", "Add a to-do") : tr("\(member.displayName)님에게 부탁하기", "Ask \(member.displayName) to do something"), tk))
+                TextField("", text: $draft, prompt: placeholder(isMe ? tr("할 일 추가", "Add a to-do", "タスクを追加") : tr("\(member.displayName)님에게 부탁하기", "Ask \(member.displayName) to do something", "\(member.displayName)さんにお願いする"), tk))
                     .focused($adding)
                     .submitLabel(.done)
                     .onSubmit(submit)
@@ -130,7 +130,7 @@ struct MemberColumnView: View {
                 .buttonStyle(PressScale())
                 .disabled(empty)
                 .padding(.trailing, 4)
-                .accessibilityLabel(tr("추가", "Add"))
+                .accessibilityLabel(tr("추가", "Add", "追加"))
             }
             let pill = DuePillView(value: due, onChange: { due = $0 }, open: $dueOpen)
             pill

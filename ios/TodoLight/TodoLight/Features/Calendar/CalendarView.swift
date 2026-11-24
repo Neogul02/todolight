@@ -61,12 +61,12 @@ struct CalendarView: View {
 
     private var header: some View {
         HStack {
-            arrow("chevron.left", label: tr("이전 달", "Previous month")) { shift(-1) }
+            arrow("chevron.left", label: tr("이전 달", "Previous month", "前の月")) { shift(-1) }
             Spacer()
             HStack(spacing: 8) {
                 Text(monthLabel).font(.tlTitle).foregroundStyle(tk.ink).monospacedDigit()
                 if month != today.prefix(7) {
-                    Button(tr("오늘", "Today"), action: goToday)
+                    Button(tr("오늘", "Today", "今日"), action: goToday)
                         .font(.tl(12, .medium)).foregroundStyle(tk.inkMuted)
                         .padding(.horizontal, 8).frame(height: 28)
                         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(tk.hairline))
@@ -74,7 +74,7 @@ struct CalendarView: View {
                 }
             }
             Spacer()
-            arrow("chevron.right", label: tr("다음 달", "Next month")) { shift(1) }
+            arrow("chevron.right", label: tr("다음 달", "Next month", "次の月")) { shift(1) }
         }
         .padding(.bottom, 8)
     }
@@ -223,10 +223,10 @@ struct CalendarView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(selectedLabel).font(.tl(15, .semibold)).foregroundStyle(tk.ink)
-                    Text(tr("일정 \(dayEvents.count) · 할 일 \(dayTodos.count)", "\(plural(dayEvents.count, "event")) · \(plural(dayTodos.count, "to-do"))")).font(.tl(11)).foregroundStyle(tk.inkFaint)
+                    Text(tr("일정 \(dayEvents.count) · 할 일 \(dayTodos.count)", "\(plural(dayEvents.count, "event")) · \(plural(dayTodos.count, "to-do"))", "予定 \(dayEvents.count) · タスク \(dayTodos.count)")).font(.tl(11)).foregroundStyle(tk.inkFaint)
                 }
                 Spacer()
-                Button(tr("일정 추가", "Add event")) {
+                Button(tr("일정 추가", "Add event", "予定を追加")) {
                     editing = nil
                     sheetOpen = true
                 }
@@ -238,12 +238,12 @@ struct CalendarView: View {
                 VStack(spacing: 6) {
                     ForEach(dayEvents) { eventRow($0) }
                     if dayTodos.isEmpty && dayEvents.isEmpty {
-                        Text(tr("이 날은 비어 있어요", "Nothing on this day")).font(.tlCaption).foregroundStyle(tk.inkFaint).padding(.vertical, 24)
+                        Text(tr("이 날은 비어 있어요", "Nothing on this day", "この日は何もありません")).font(.tlCaption).foregroundStyle(tk.inkFaint).padding(.vertical, 24)
                     }
                     ForEach(dayTodos) { todoRow($0) }
                     if !undated.isEmpty {
                         Rectangle().fill(tk.hairline).frame(height: 1).padding(.top, 14)
-                        Text(tr("마감 없음 · \(undated.count)건", "No due date · \(undated.count)")).font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary)
+                        Text(tr("마감 없음 · \(undated.count)건", "No due date · \(undated.count)", "期限なし · \(undated.count)件")).font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 6)
                         ForEach(undated) { todoRow($0) }
                     }
@@ -279,7 +279,7 @@ struct CalendarView: View {
                         snap(to: up ? Self.snaps[1] : down ? Self.snaps[0] : start)
                     }
             )
-            .accessibilityLabel(tr("목록 크기 조절", "Resize the list"))
+            .accessibilityLabel(tr("목록 크기 조절", "Resize the list", "リストの大きさを調整"))
             .accessibilityAddTraits(.isButton)
     }
 
@@ -316,12 +316,12 @@ struct CalendarView: View {
                 if !done && t.ownerId != board.userId { onHandoff(t) } else { board.toggle(t) }
             } label: { CheckBox(checked: done) }
                 .buttonStyle(PressScale())
-                .accessibilityLabel(done ? tr("완료 취소", "Mark not done") : tr("완료", "Mark done"))
+                .accessibilityLabel(done ? tr("완료 취소", "Mark not done", "完了を取り消す") : tr("완료", "Mark done", "完了にする"))
             AvatarView(member: owner, size: 24)
             VStack(alignment: .leading, spacing: 1) {
                 Text(t.title).font(.tl(14)).strikethrough(done, color: tk.inkFaint)
                     .foregroundStyle(done ? tk.inkFaint : tk.ink).lineLimit(1)
-                Text(owner?.displayName ?? tr("알 수 없음", "Unknown")).font(.tl(11)).foregroundStyle(tk.inkFaint)
+                Text(owner?.displayName ?? tr("알 수 없음", "Unknown", "不明")).font(.tl(11)).foregroundStyle(tk.inkFaint)
             }
             Spacer()
         }
@@ -366,8 +366,8 @@ struct CalendarView: View {
 
     private func describe(_ day: String, remaining: Int, events: [OrgEvent]) -> String {
         var parts = [Due.date(day)?.formatted(.dateTime.month(.wide).day().locale(AppLang.locale)) ?? day]
-        if remaining > 0 { parts.append(tr("남은 할 일 \(remaining)개", "\(plural(remaining, "to-do")) left")) }
-        if !events.isEmpty { parts.append(tr("일정 ", "Events: ") + events.map(\.title).joined(separator: ", ")) }
+        if remaining > 0 { parts.append(tr("남은 할 일 \(remaining)개", "\(plural(remaining, "to-do")) left", "残りのタスク \(remaining)件")) }
+        if !events.isEmpty { parts.append(tr("일정 ", "Events: ", "予定 ") + events.map(\.title).joined(separator: ", ")) }
         return parts.joined(separator: ", ")
     }
 
@@ -419,12 +419,12 @@ struct EventSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text(event == nil ? tr("일정 추가", "Add event") : tr("일정 편집", "Edit event")).font(.tlTitle).foregroundStyle(tk.ink)
+                Text(event == nil ? tr("일정 추가", "Add event", "予定を追加") : tr("일정 편집", "Edit event", "予定を編集")).font(.tlTitle).foregroundStyle(tk.ink)
 
-                labeled(tr("이름", "Name")) {
-                    TextField("", text: $title, prompt: placeholder(tr("예) 팝업 준비 기간", "e.g. Pop-up prep window"), tk)).tlField()
+                labeled(tr("이름", "Name", "名前")) {
+                    TextField("", text: $title, prompt: placeholder(tr("예) 팝업 준비 기간", "e.g. Pop-up prep window", "例）ポップアップの準備期間"), tk)).tlField()
                 }
-                labeled(tr("색", "Color")) {
+                labeled(tr("색", "Color", "色")) {
                     HStack(spacing: 8) {
                         ForEach(EventColors.all, id: \.key) { c in
                             Button { color = c.key } label: {
@@ -439,19 +439,19 @@ struct EventSheet: View {
                     }
                 }
                 // 일정은 시작과 끝이 반드시 있다 — "마감 없음" 칸을 두지 않는다
-                labeled(tr("시작", "Start")) {
+                labeled(tr("시작", "Start", "開始")) {
                     DuePicker(value: start, allowNone: false) { next in
                         start = next ?? Due.today()
                         if start > end { end = start }
                     }
                 }
-                labeled(tr("끝", "End")) {
+                labeled(tr("끝", "End", "終了")) {
                     DuePicker(value: end, allowNone: false) { end = $0 ?? start }
                 }
 
                 HStack(spacing: 8) {
                     if let event, canDelete {
-                        Button(tr("삭제", "Delete")) {
+                        Button(tr("삭제", "Delete", "削除")) {
                             Task {
                                 busy = true
                                 if await store.remove(event) { dismiss() }
@@ -460,7 +460,7 @@ struct EventSheet: View {
                         }
                         .buttonStyle(TLButtonStyle(variant: .danger))
                     }
-                    Button(event == nil ? tr("추가", "Add") : tr("저장", "Save")) {
+                    Button(event == nil ? tr("추가", "Add", "追加") : tr("저장", "Save", "保存")) {
                         Task {
                             busy = true
                             if await store.save(event, title: title.trimmingCharacters(in: .whitespaces),

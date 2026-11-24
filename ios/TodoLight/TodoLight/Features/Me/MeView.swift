@@ -80,7 +80,7 @@ struct MeView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 6) {
-                Text(tr("이름", "Name")).font(.tl(13, .medium)).foregroundStyle(tk.inkSecondary)
+                Text(tr("이름", "Name", "名前")).font(.tl(13, .medium)).foregroundStyle(tk.inkSecondary)
                 TextField("", text: $name)
                     .submitLabel(.done)
                     .tlField()
@@ -93,12 +93,12 @@ struct MeView: View {
     private var photoButtons: some View {
         HStack(spacing: 8) {
             PhotosPicker(selection: $photoItem, matching: .images) {
-                Text(uploading ? tr("올리는 중…", "Uploading…") : photoURL == nil ? tr("사진 올리기", "Upload photo") : tr("사진 바꾸기", "Change photo"))
+                Text(uploading ? tr("올리는 중…", "Uploading…", "アップロード中…") : photoURL == nil ? tr("사진 올리기", "Upload photo", "写真をアップロード") : tr("사진 바꾸기", "Change photo", "写真を変更"))
             }
             .buttonStyle(TLButtonStyle(variant: .outline, size: .sm, fill: true))
             .disabled(uploading)
             if photoURL != nil {
-                Button(tr("삭제", "Delete")) { Task { await clearPhoto() } }
+                Button(tr("삭제", "Delete", "削除")) { Task { await clearPhoto() } }
                     .buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
                     .disabled(uploading)
             }
@@ -107,7 +107,7 @@ struct MeView: View {
 
     private var themeCard: some View {
         PageCard {
-            Text(tr("테마", "Theme")).font(.tlTitle).foregroundStyle(tk.ink)
+            Text(tr("테마", "Theme", "テーマ")).font(.tlTitle).foregroundStyle(tk.ink)
             // 시스템 · 화이트 · 다크 — 3열 한 줄
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
                 ForEach(Self.themes, id: \.key) { t in
@@ -139,7 +139,7 @@ struct MeView: View {
     /// 언어 — 고르는 순간 앱 전체가 그 언어로 다시 그려지고 계정에 저장된다(웹 /me와 같은 값)
     private var langCard: some View {
         PageCard {
-            Text(tr("언어", "Language")).font(.tlTitle).foregroundStyle(tk.ink)
+            Text(tr("언어", "Language", "言語")).font(.tlTitle).foregroundStyle(tk.ink)
             HStack(spacing: 8) {
                 ForEach(AppLang.allCases, id: \.self) { l in
                     let on = lang.lang == l
@@ -160,19 +160,19 @@ struct MeView: View {
     /// 앱 푸시 — 웹 /me의 「알림」과 같은 값(계정에 저장)
     private var notifyCard: some View {
         PageCard {
-            Text(tr("알림", "Notifications")).font(.tlTitle).foregroundStyle(tk.ink)
+            Text(tr("알림", "Notifications", "通知")).font(.tlTitle).foregroundStyle(tk.ink)
             VStack(spacing: 12) {
-                settingToggle(tr("내 할 일 소식", "My to-dos"), isOn: notifyMy) {
+                settingToggle(tr("내 할 일 소식", "My to-dos", "自分のタスクのお知らせ"), isOn: notifyMy) {
                     notifyMy.toggle()
                     let next = notifyMy
                     Task { await save { try await api.updateProfile(notifyMyTodos: next) } onFail: { notifyMy = !next } }
                 }
-                settingToggle(tr("조직 일정·새 멤버", "Org events and new members"), isOn: notifyOrg) {
+                settingToggle(tr("조직 일정·새 멤버", "Org events and new members", "チームの予定・新しいメンバー"), isOn: notifyOrg) {
                     notifyOrg.toggle()
                     let next = notifyOrg
                     Task { await save { try await api.updateProfile(notifyOrg: next) } onFail: { notifyOrg = !next } }
                 }
-                settingToggle(tr("팀원이 올린 할 일", "Teammates' to-dos"), isOn: notifyTeam) {
+                settingToggle(tr("팀원이 올린 할 일", "Teammates' to-dos", "メンバーが追加したタスク"), isOn: notifyTeam) {
                     notifyTeam.toggle()
                     let next = notifyTeam
                     Task { await save { try await api.updateProfile(notifyTeamTodos: next) } onFail: { notifyTeam = !next } }
@@ -184,19 +184,19 @@ struct MeView: View {
 
     private var viewCard: some View {
         PageCard {
-            Text(tr("화면", "What to show")).font(.tlTitle).foregroundStyle(tk.ink)
+            Text(tr("화면", "What to show", "表示")).font(.tlTitle).foregroundStyle(tk.ink)
             VStack(spacing: 12) {
-                settingToggle(tr("완료한 할 일도 보기", "Show completed to-dos"), isOn: showDone) {
+                settingToggle(tr("완료한 할 일도 보기", "Show completed to-dos", "完了したタスクも表示"), isOn: showDone) {
                     showDone.toggle()
                     let next = showDone
                     Task { await save { try await api.updateProfile(showDone: next) } onFail: { showDone = !next } }
                 }
-                settingToggle(tr("달력 쓰기", "Use the calendar"), isOn: showCalendar) {
+                settingToggle(tr("달력 쓰기", "Use the calendar", "カレンダーを使う"), isOn: showCalendar) {
                     showCalendar.toggle()
                     let next = showCalendar
                     Task { await save { try await api.updateProfile(showCalendar: next) } onFail: { showCalendar = !next } }
                 }
-                settingToggle(tr("가계부 쓰기", "Use the ledger"), isOn: showLedger) {
+                settingToggle(tr("가계부 쓰기", "Use the ledger", "支出を使う"), isOn: showLedger) {
                     showLedger.toggle()
                     let next = showLedger
                     Task { await save { try await api.updateProfile(showLedger: next) } onFail: { showLedger = !next } }
@@ -213,22 +213,22 @@ struct MeView: View {
             if let s = ProStore.shared.status, s.active {
                 if let end = s.expiresAt {
                     Text(tr("\(end.formatted(.dateTime.year().month().day().locale(AppLang.locale)))까지 쓰고 있어요",
-                            "Active until \(end.formatted(.dateTime.year().month().day().locale(AppLang.locale)))"))
+                            "Active until \(end.formatted(.dateTime.year().month().day().locale(AppLang.locale)))", "\(end.formatted(.dateTime.year().month().day().locale(AppLang.locale)))まで利用中です"))
                         .font(.tlBodySm).foregroundStyle(tk.inkSecondary).padding(.top, 4)
                 }
                 if s.source == "apple" {
-                    Button(tr("구독 관리", "Manage subscription")) { manageOpen = true }
+                    Button(tr("구독 관리", "Manage subscription", "サブスクリプションを管理")) { manageOpen = true }
                         .buttonStyle(TLButtonStyle(variant: .outline, fill: true))
                         .padding(.top, 12)
                 } else if s.source == "web" {
-                    Text(tr("웹에서 결제했어요. 해지도 웹에서 해요.", "Purchased on the web. Cancel it there."))
+                    Text(tr("웹에서 결제했어요. 해지도 웹에서 해요.", "Purchased on the web. Cancel it there.", "Webで購入しました。解約もWebで行います。"))
                         .font(.tlCaption).foregroundStyle(tk.inkMuted).padding(.top, 4)
                 }
             } else {
                 Text(tr("내가 방장인 조직에 \(FreeSeats.count)명 넘게 초대할 수 있어요.",
-                        "Invite more than \(FreeSeats.count) people to orgs you own."))
+                        "Invite more than \(FreeSeats.count) people to orgs you own.", "自分がオーナーのチームに\(FreeSeats.count)人を超えて招待できます。"))
                     .font(.tlBodySm).foregroundStyle(tk.inkSecondary).padding(.top, 4)
-                Button(tr("알아보기", "Learn more")) { proOpen = true }
+                Button(tr("알아보기", "Learn more", "詳しく見る")) { proOpen = true }
                     .buttonStyle(TLButtonStyle(variant: .outline, fill: true))
                     .padding(.top, 12)
             }
@@ -238,10 +238,10 @@ struct MeView: View {
     /// 약관 — 심사자는 앱 안에서도 닿을 수 있기를 본다. 웹 페이지를 그대로 연다(로그인 없이 열린다).
     private var legalCard: some View {
         PageCard {
-            Text(tr("약관", "Legal")).font(.tlTitle).foregroundStyle(tk.ink)
+            Text(tr("약관", "Legal", "規約")).font(.tlTitle).foregroundStyle(tk.ink)
             VStack(spacing: 0) {
-                legalLink(tr("이용약관", "Terms of Service"), "legal/terms")
-                legalLink(tr("개인정보 처리방침", "Privacy Policy"), "legal/privacy")
+                legalLink(tr("이용약관", "Terms of Service", "利用規約"), "legal/terms")
+                legalLink(tr("개인정보 처리방침", "Privacy Policy", "プライバシーポリシー"), "legal/privacy")
             }
             .padding(.top, 8)
         }
@@ -250,7 +250,7 @@ struct MeView: View {
     /// 맨 아래 — 매일 만지는 설정과 평생 한 번 누를 버튼을 떨어뜨려 둔다.
     private var deleteCard: some View {
         // 버튼 하나만(웹과 같다) — 제목을 달면 버튼과 같은 말이 두 번 보인다. 설명은 확인 시트가 한다
-        Button(tr("계정 삭제", "Delete account")) { deleteOpen = true }
+        Button(tr("계정 삭제", "Delete account", "アカウント削除")) { deleteOpen = true }
             .buttonStyle(TLButtonStyle(variant: .danger, fill: true))
     }
 
@@ -365,9 +365,9 @@ struct MeView: View {
             let url = try storage.getPublicURL(path: path).absoluteString + "?v=\(Int(Date().timeIntervalSince1970 * 1000))"
             profile = try await api.updateProfile(avatarUrl: .set(url))
             photoURL = url
-            toast = tr("사진을 바꿨어요", "Photo updated")
+            toast = tr("사진을 바꿨어요", "Photo updated", "写真を変更しました")
         } catch {
-            toast = error is CancellationError ? tr("사진을 읽지 못했어요", "Couldn't read that photo") : BoardStore.message(error)
+            toast = error is CancellationError ? tr("사진을 읽지 못했어요", "Couldn't read that photo", "写真を読み込めませんでした") : BoardStore.message(error)
         }
     }
 
@@ -378,7 +378,7 @@ struct MeView: View {
             _ = try await Backend.shared.supabase.storage.from("avatars").remove(paths: ["\(userId)/avatar.webp"])
             profile = try await api.updateProfile(avatarUrl: .clear)
             photoURL = nil
-            toast = tr("사진을 지웠어요", "Photo removed")
+            toast = tr("사진을 지웠어요", "Photo removed", "写真を削除しました")
         } catch {
             toast = BoardStore.message(error)
         }
@@ -403,9 +403,9 @@ struct MeView: View {
 
     /// 웹 `lib/themes.ts`의 THEMES — 이름은 messages/ko.json `me.theme.names`
     private static var themes: [(key: String, name: String, swatch: [String])] { [
-        ("system", tr("시스템", "System"), ["#ffffff", "#101010", "#8a8a8a"]),
-        ("ink", tr("화이트", "Light"), ["#ffffff", "#f4f2ee", "#14120f"]),
-        ("ink-dark", tr("다크", "Dark"), ["#101010", "#232221", "#f5f2ec"]),
+        ("system", tr("시스템", "System", "システム"), ["#ffffff", "#101010", "#8a8a8a"]),
+        ("ink", tr("화이트", "Light", "ライト"), ["#ffffff", "#f4f2ee", "#14120f"]),
+        ("ink-dark", tr("다크", "Dark", "ダーク"), ["#101010", "#232221", "#f5f2ec"]),
     ] }
 }
 
@@ -419,23 +419,23 @@ private struct DeleteAccountSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(tr("계정 삭제", "Delete account")).font(.tlTitle).foregroundStyle(tk.ink)
+            Text(tr("계정 삭제", "Delete account", "アカウント削除")).font(.tlTitle).foregroundStyle(tk.ink)
             VStack(alignment: .leading, spacing: 8) {
                 ForEach([
-                    tr("로그인 정보와 이름·이메일·프로필 사진을 지워요. 다시 로그인할 수 없어요.", "Your sign-in details, name, email, and profile photo are deleted. You will not be able to sign in again."),
-                    tr("방장으로 있는 조직은 남은 멤버 중 먼저 들어온 관리자에게 방장을 넘겨요.", "Orgs you own are handed to the longest-standing admin among the remaining members."),
-                    tr("나 혼자인 조직은 그 조직의 할 일·일정·가계부와 함께 지워요.", "Orgs where you are the only member are deleted, along with their to-dos, events, and ledger."),
-                    tr("팀에 남긴 할 일과 메모, 가계부 기록은 이름 없이 남아요 — 팀의 장부가 나 때문에 바뀌면 안 되니까요.", "To-dos, notes, and ledger entries you left with your team stay, without your name — your team's books shouldn't change because you left."),
+                    tr("로그인 정보와 이름·이메일·프로필 사진을 지워요. 다시 로그인할 수 없어요.", "Your sign-in details, name, email, and profile photo are deleted. You will not be able to sign in again.", "ログイン情報と名前・メールアドレス・プロフィール写真を削除します。再びログインすることはできません。"),
+                    tr("방장으로 있는 조직은 남은 멤버 중 먼저 들어온 관리자에게 방장을 넘겨요.", "Orgs you own are handed to the longest-standing admin among the remaining members.", "オーナーを務めているチームは、残ったメンバーのうち最も早く参加した管理者にオーナーを引き継ぎます。"),
+                    tr("나 혼자인 조직은 그 조직의 할 일·일정·가계부와 함께 지워요.", "Orgs where you are the only member are deleted, along with their to-dos, events, and ledger.", "自分しかいないチームは、そのチームのタスク・予定・支出と一緒に削除します。"),
+                    tr("팀에 남긴 할 일과 메모, 가계부 기록은 이름 없이 남아요 — 팀의 장부가 나 때문에 바뀌면 안 되니까요.", "To-dos, notes, and ledger entries you left with your team stay, without your name — your team's books shouldn't change because you left.", "チームに残したタスクやメモ、支出の記録は名前なしで残ります。自分が抜けたことでチームの記録が変わってはいけないからです。"),
                 ], id: \.self) { Text($0).font(.tlBodySm).foregroundStyle(tk.ink) }
             }
             .padding(14)
             .background(tk.canvasSoft, in: RoundedRectangle(cornerRadius: 12))
-            Text(tr("이 동작은 되돌릴 수 없어요.", "This cannot be undone.")).font(.tlCaption).foregroundStyle(tk.danger)
+            Text(tr("이 동작은 되돌릴 수 없어요.", "This cannot be undone.", "この操作は元に戻せません。")).font(.tlCaption).foregroundStyle(tk.danger)
             if let error { Text(error).font(.tlCaption).foregroundStyle(tk.danger) }
             HStack(spacing: 8) {
-                Button(tr("취소", "Cancel")) { dismiss() }
+                Button(tr("취소", "Cancel", "キャンセル")) { dismiss() }
                     .buttonStyle(TLButtonStyle(variant: .outline, fill: true))
-                Button(deleting ? tr("지우는 중…", "Deleting…") : tr("삭제할래요", "Delete")) { Task { await run() } }
+                Button(deleting ? tr("지우는 중…", "Deleting…", "削除中…") : tr("삭제할래요", "Delete", "削除する")) { Task { await run() } }
                     .buttonStyle(TLButtonStyle(variant: .danger, fill: true))
             }
             .disabled(deleting)

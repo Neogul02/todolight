@@ -17,15 +17,15 @@ struct NewOrgView: View {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(tr("조직 이름", "Org name")).font(.tl(13, .medium)).foregroundStyle(tk.inkSecondary)
-                TextField("", text: $name, prompt: placeholder(tr("예) 마케팅팀", "e.g. Marketing"), tk))
+                Text(tr("조직 이름", "Org name", "チーム名")).font(.tl(13, .medium)).foregroundStyle(tk.inkSecondary)
+                TextField("", text: $name, prompt: placeholder(tr("예) 마케팅팀", "e.g. Marketing", "例）マーケティングチーム"), tk))
                     .focused($focused)
                     .submitLabel(.done)
                     .onSubmit { Task { await create() } }
                     .tlField()
             }
             if let error { Text(error).font(.tlCaption).foregroundStyle(tk.danger) }
-            Button(tr("만들기", "Create")) { Task { await create() } }
+            Button(tr("만들기", "Create", "作成")) { Task { await create() } }
                 .buttonStyle(TLButtonStyle(fill: true))
                 .disabled(busy || trimmed.isEmpty)
                 .padding(.top, 8)
@@ -64,20 +64,20 @@ struct ReceivedInvites: View {
     var body: some View {
         if !invites.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Text(tr("받은 초대 \(invites.count)", "Invites (\(invites.count))"))
+                Text(tr("받은 초대 \(invites.count)", "Invites (\(invites.count))", "届いた招待（\(invites.count)）"))
                     .font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary).padding(.horizontal, 4)
                 ForEach(invites) { inv in
                     VStack(alignment: .leading, spacing: 10) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(inv.orgName ?? tr("이름 없는 조직", "Unnamed org")).font(.tl(15, .semibold)).foregroundStyle(tk.ink)
+                            Text(inv.orgName ?? tr("이름 없는 조직", "Unnamed org", "名前のないチーム")).font(.tl(15, .semibold)).foregroundStyle(tk.ink)
                             Text(tr("\(inv.inviterName ?? "누군가")님이 초대 · \(Due.relative(Due.format(inv.createdAt)))",
-                                    "Invited by \(inv.inviterName ?? "someone") · \(Due.relative(Due.format(inv.createdAt)))"))
+                                    "Invited by \(inv.inviterName ?? "someone") · \(Due.relative(Due.format(inv.createdAt)))", "\(inv.inviterName ?? "誰か")さんからの招待 · \(Due.relative(Due.format(inv.createdAt)))"))
                                 .font(.tl(12)).foregroundStyle(tk.inkFaint)
                         }
                         HStack(spacing: 8) {
-                            Button(tr("거절", "Decline")) { respond(inv, false) }
+                            Button(tr("거절", "Decline", "断る")) { respond(inv, false) }
                                 .buttonStyle(TLButtonStyle(variant: .outline, size: .sm, fill: true))
-                            Button(tr("수락", "Accept")) { respond(inv, true) }
+                            Button(tr("수락", "Accept", "参加する")) { respond(inv, true) }
                                 .buttonStyle(TLButtonStyle(size: .sm, fill: true))
                         }
                         .disabled(busyId != nil)

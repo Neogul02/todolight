@@ -5,7 +5,7 @@ import Supabase
 struct LoginView: View {
     enum Mode: CaseIterable {
         case signIn, signUp
-        var label: String { self == .signIn ? tr("로그인", "Sign in") : tr("회원가입", "Sign up") }
+        var label: String { self == .signIn ? tr("로그인", "Sign in", "ログイン") : tr("회원가입", "Sign up", "新規登録") }
     }
     enum Field { case name, email, password }
 
@@ -42,8 +42,8 @@ struct LoginView: View {
 
                 VStack(alignment: .leading, spacing: 12) {
                     if mode == .signUp {
-                        labeled(tr("이름", "Name")) {
-                            TextField("", text: $name, prompt: placeholder(tr("팀원에게 보일 이름", "Name your teammates will see"), tk))
+                        labeled(tr("이름", "Name", "名前")) {
+                            TextField("", text: $name, prompt: placeholder(tr("팀원에게 보일 이름", "Name your teammates will see", "メンバーに表示される名前"), tk))
                                 .textContentType(.name)
                                 .focused($focus, equals: .name)
                                 .submitLabel(.next)
@@ -52,7 +52,7 @@ struct LoginView: View {
                         }
                     }
                     // iOS가 첫 글자를 대문자로 바꿔 로그인이 실패한다 — 웹과 같은 규칙(CLAUDE.md 「그 밖의 iOS 대응」)
-                    labeled(tr("이메일", "Email")) {
+                    labeled(tr("이메일", "Email", "メールアドレス")) {
                         TextField("", text: $email, prompt: placeholder("you@company.com", tk))
                             .keyboardType(.emailAddress)
                             .textContentType(.username)
@@ -63,8 +63,8 @@ struct LoginView: View {
                             .onSubmit { focus = .password }
                             .tlField()
                     }
-                    labeled(tr("비밀번호", "Password")) {
-                        SecureField("", text: $password, prompt: placeholder(tr("6자 이상", "6+ characters"), tk))
+                    labeled(tr("비밀번호", "Password", "パスワード")) {
+                        SecureField("", text: $password, prompt: placeholder(tr("6자 이상", "6+ characters", "6文字以上"), tk))
                             .textContentType(mode == .signUp ? .newPassword : .password)
                             .focused($focus, equals: .password)
                             .submitLabel(.go)
@@ -93,7 +93,7 @@ struct LoginView: View {
 
                     // 재설정은 웹 흐름 그대로 쓴다 — 메일 링크가 어차피 브라우저에서 열리고, 거기서 새 비밀번호를 정한다
                     if mode == .signIn {
-                        Link(tr("비밀번호를 잊으셨나요?", "Forgot your password?"),
+                        Link(tr("비밀번호를 잊으셨나요?", "Forgot your password?", "パスワードをお忘れですか？"),
                              destination: AppConfig.apiBaseURL.appending(path: "reset"))
                             .font(.tlCaption).foregroundStyle(tk.inkMuted)
                             .frame(maxWidth: .infinity)
@@ -125,11 +125,11 @@ struct LoginView: View {
 
     /// 「가입하면 이용약관과 개인정보 처리방침에 동의하게 돼요」 — 두 이름만 웹 문서로 가는 링크
     private var consent: AttributedString {
-        let terms = tr("이용약관", "Terms of Service")
-        let privacy = tr("개인정보 처리방침", "Privacy Policy")
+        let terms = tr("이용약관", "Terms of Service", "利用規約")
+        let privacy = tr("개인정보 처리방침", "Privacy Policy", "プライバシーポリシー")
         let base = AppConfig.apiBaseURL
         var text = AttributedString(tr("가입하면 \(terms)과 \(privacy)에 동의하게 돼요.",
-                                       "By signing up, you agree to the \(terms) and \(privacy)."))
+                                       "By signing up, you agree to the \(terms) and \(privacy).", "登録すると\(terms)と\(privacy)に同意したことになります。"))
         for (word, path) in [(terms, "legal/terms"), (privacy, "legal/privacy")] {
             if let range = text.range(of: word) {
                 text[range].link = base.appending(path: path)
@@ -163,7 +163,7 @@ struct LoginView: View {
                     password: password,
                     data: [
                         "display_name": .string(displayName.isEmpty ? String(trimmed.split(separator: "@").first ?? "") : displayName),
-                        "locale": .string(Locale.current.language.languageCode?.identifier == "en" ? "en" : "ko"),
+                        "locale": .string(AppLang.current.rawValue),
                     ],
                     // 메일 링크는 브라우저에서 열린다. 확인 자체는 링크를 누르는 순간 서버에서 끝나므로
                     // 거기서는 웹 로그인 화면만 보여 주고, 사용자는 앱으로 돌아와 로그인한다.
@@ -171,7 +171,7 @@ struct LoginView: View {
                 )
                 // 이메일 확인이 켜져 있으면 세션 없이 돌아온다 — 아무 말 없이 화면이 그대로면 고장처럼 보인다
                 if res.session == nil {
-                    notice = tr("\(trimmed) 주소로 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.", "We sent a confirmation email to \(trimmed). Tap the link in it, then sign in.")
+                    notice = tr("\(trimmed) 주소로 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.", "We sent a confirmation email to \(trimmed). Tap the link in it, then sign in.", "\(trimmed) に確認メールを送りました。メールのリンクを開いてから、ログインしてください。")
                     mode = .signIn
                 }
             } else {
@@ -186,16 +186,16 @@ struct LoginView: View {
     private static func message(for error: Error, signingUp: Bool) -> String {
         let m = String(describing: error).lowercased()
         if m.contains("already registered") {
-            return tr("이미 가입한 이메일이에요. 로그인해 주세요.", "That email already has an account. Please sign in.")
+            return tr("이미 가입한 이메일이에요. 로그인해 주세요.", "That email already has an account. Please sign in.", "すでに登録済みのメールアドレスです。ログインしてください。")
         }
         if m.contains("email address") && m.contains("invalid") {
-            return tr("이메일 주소를 다시 확인해 주세요. 받을 수 있는 주소여야 해요.", "Please check the email address. It needs to be one that can receive mail.")
+            return tr("이메일 주소를 다시 확인해 주세요. 받을 수 있는 주소여야 해요.", "Please check the email address. It needs to be one that can receive mail.", "メールアドレスをもう一度確認してください。受信できるアドレスである必要があります。")
         }
         if m.contains("rate limit") {
-            return tr("요청이 너무 많았어요. 잠시 뒤에 다시 시도해 주세요.", "Too many attempts. Please try again in a little while.")
+            return tr("요청이 너무 많았어요. 잠시 뒤에 다시 시도해 주세요.", "Too many attempts. Please try again in a little while.", "リクエストが多すぎます。しばらくしてからもう一度お試しください。")
         }
         return signingUp
-            ? tr("가입하지 못했어요. 잠시 뒤에 다시 시도해 주세요.", "Couldn't sign up. Please try again in a moment.")
-            : tr("이메일이나 비밀번호가 맞지 않아요.", "That email or password isn't right.")
+            ? tr("가입하지 못했어요. 잠시 뒤에 다시 시도해 주세요.", "Couldn't sign up. Please try again in a moment.", "登録できませんでした。しばらくしてからもう一度お試しください。")
+            : tr("이메일이나 비밀번호가 맞지 않아요.", "That email or password isn't right.", "メールアドレスかパスワードが正しくありません。")
     }
 }

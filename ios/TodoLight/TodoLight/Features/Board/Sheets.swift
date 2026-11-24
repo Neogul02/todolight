@@ -34,12 +34,12 @@ struct HandoffSheet: View {
 
     var body: some View {
         let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        SheetScaffold(title: tr("대신 처리", "Handle for them")) {
+        SheetScaffold(title: tr("대신 처리", "Handle for them", "代わりに対応")) {
             Text(todo.title).font(.tlBodySm).foregroundStyle(tk.ink)
-            Text(tr("\(ownerName)님의 할 일이에요. 어떻게 처리했는지 한 줄 남겨 주세요.", "This is \(ownerName)'s to-do. Leave a note on how you handled it."))
+            Text(tr("\(ownerName)님의 할 일이에요. 어떻게 처리했는지 한 줄 남겨 주세요.", "This is \(ownerName)'s to-do. Leave a note on how you handled it.", "\(ownerName)さんのタスクです。どう対応したか一言残してください。"))
                 .font(.tlCaption).foregroundStyle(tk.inkMuted).padding(.top, 4)
 
-            TextField("", text: $note, prompt: placeholder(tr("예) 거래처에 메일 보내 뒀어요. 회신 오면 공유할게요.", "e.g. Emailed the client — will share once they reply."), tk), axis: .vertical)
+            TextField("", text: $note, prompt: placeholder(tr("예) 거래처에 메일 보내 뒀어요. 회신 오면 공유할게요.", "e.g. Emailed the client — will share once they reply.", "例）取引先にメールしておきました。返信が来たら共有します。"), tk), axis: .vertical)
                 .lineLimit(3...6)
                 .focused($focused)
                 .padding(.vertical, 12)
@@ -47,13 +47,13 @@ struct HandoffSheet: View {
                 .padding(.top, 16)
 
             VStack(spacing: 8) {
-                Button(tr("완료 처리", "Mark done")) {
+                Button(tr("완료 처리", "Mark done", "完了にする")) {
                     onSubmit(trimmed)
                     dismiss()
                 }
                 .buttonStyle(TLButtonStyle(fill: true))
                 .disabled(trimmed.isEmpty)
-                Button(tr("취소", "Cancel")) { dismiss() }.buttonStyle(TLButtonStyle(variant: .outline, fill: true))
+                Button(tr("취소", "Cancel", "キャンセル")) { dismiss() }.buttonStyle(TLButtonStyle(variant: .outline, fill: true))
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 12)
@@ -74,13 +74,13 @@ struct GiveSheet: View {
     @State private var note = ""
 
     var body: some View {
-        SheetScaffold(title: tr("누구에게 넘길까요?", "Hand off to whom?")) {
+        SheetScaffold(title: tr("누구에게 넘길까요?", "Hand off to whom?", "誰に渡しますか？")) {
             Text(todo.title).font(.tlBodySm).foregroundStyle(tk.ink)
             if candidates.isEmpty {
-                Text(tr("넘길 팀원이 없어요. 조직 화면에서 먼저 초대해 주세요.", "No one to hand off to yet. Invite teammates from the Org page first."))
+                Text(tr("넘길 팀원이 없어요. 조직 화면에서 먼저 초대해 주세요.", "No one to hand off to yet. Invite teammates from the Org page first.", "渡せるメンバーがいません。チーム画面から先に招待してください。"))
                     .font(.tlCaption).foregroundStyle(tk.inkMuted).padding(.top, 16)
             } else {
-                TextField("", text: $note, prompt: placeholder(tr("한마디 남기기 (선택) — 예) 이거 좀 부탁해요", "Add a note (optional) — e.g. Could you take this?"), tk))
+                TextField("", text: $note, prompt: placeholder(tr("한마디 남기기 (선택) — 예) 이거 좀 부탁해요", "Add a note (optional) — e.g. Could you take this?", "一言残す（任意）— 例）これお願いできますか"), tk))
                     .tlField()
                     .padding(.top, 16)
                 VStack(spacing: 4) {
@@ -123,10 +123,10 @@ struct ProfileSheet: View {
 
     var body: some View {
         // 받은 초대 → 조직 전환 → 관리 → 로그아웃 (웹 아바타 메뉴와 같은 순서)
-        SheetScaffold(title: me?.displayName ?? tr("내 계정", "My account")) {
+        SheetScaffold(title: me?.displayName ?? tr("내 계정", "My account", "アカウント")) {
             ReceivedInvites(invites: invites, onRespond: onRespond).padding(.bottom, invites.isEmpty ? 0 : 20)
 
-            Text(tr("조직", "Orgs")).font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary).padding(.horizontal, 4).padding(.bottom, 8)
+            Text(tr("조직", "Orgs", "チーム")).font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary).padding(.horizontal, 4).padding(.bottom, 8)
             VStack(spacing: 4) {
                 ForEach(orgs) { o in
                     Button { onSwitchOrg(o.id) } label: {
@@ -134,7 +134,7 @@ struct ProfileSheet: View {
                             OrgIconView(name: o.name, imageUrl: o.imageUrl, seed: o.id, size: 32)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(o.name).font(.tl(15, .medium)).foregroundStyle(tk.ink).lineLimit(1)
-                                Text(tr("멤버 \(o.memberCount)명 · \(roleLabel(o.role))", "\(plural(o.memberCount, "member")) · \(roleLabel(o.role))"))
+                                Text(tr("멤버 \(o.memberCount)명 · \(roleLabel(o.role))", "\(plural(o.memberCount, "member")) · \(roleLabel(o.role))", "メンバー \(o.memberCount)人 · \(roleLabel(o.role))"))
                                     .font(.tl(12)).foregroundStyle(tk.inkFaint)
                             }
                             Spacer()
@@ -150,19 +150,19 @@ struct ProfileSheet: View {
                     .disabled(o.id == org.id)
                 }
                 Button { onOpen(.newOrg) } label: {
-                    Text(tr("+ 새 조직 만들기", "+ New org")).font(.tl(15, .medium)).foregroundStyle(tk.inkMuted)
+                    Text(tr("+ 새 조직 만들기", "+ New org", "+ 新しいチームを作る")).font(.tl(15, .medium)).foregroundStyle(tk.inkMuted)
                         .frame(maxWidth: .infinity, minHeight: 48)
                         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(tk.hairlineStrong, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
                 }
                 .buttonStyle(RowPressStyle())
                 .padding(.top, 4)
             }
-            Text(tr("관리", "Manage")).font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary)
+            Text(tr("관리", "Manage", "管理")).font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary)
                 .padding(.horizontal, 4).padding(.top, 20).padding(.bottom, 8)
-            manageRow(tr("조직", "Org")) { onOpen(.team) }
-            manageRow(tr("설정", "Settings")) { onOpen(.me) }
+            manageRow(tr("조직", "Org", "チーム")) { onOpen(.team) }
+            manageRow(tr("설정", "Settings", "設定")) { onOpen(.me) }
 
-            Button(tr("로그아웃", "Sign out"), action: onSignOut)
+            Button(tr("로그아웃", "Sign out", "ログアウト"), action: onSignOut)
                 .buttonStyle(TLButtonStyle(variant: .outline, fill: true))
                 .padding(.top, 16)
         }
@@ -185,9 +185,9 @@ struct ProfileSheet: View {
 
     private func roleLabel(_ role: MemberRole) -> String {
         switch role {
-        case .owner: tr("방장", "Owner")
-        case .admin: tr("관리자", "Admin")
-        case .member: tr("팀원", "Member")
+        case .owner: tr("방장", "Owner", "オーナー")
+        case .admin: tr("관리자", "Admin", "管理者")
+        case .member: tr("팀원", "Member", "メンバー")
         }
     }
 }

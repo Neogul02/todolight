@@ -118,7 +118,7 @@ final class LedgerStore {
         do {
             _ = try await api.deleteLedgerEntry(id: entry.id)
             await load()
-            banner(.init(message: tr("지출을 지웠어요", "Entry deleted")) { [weak self] in
+            banner(.init(message: tr("지출을 지웠어요", "Entry deleted", "支出を削除しました")) { [weak self] in
                 Task {
                     guard let self else { return }
                     do { _ = try await self.api.restoreLedgerEntry(id: entry.id) } catch {
@@ -183,11 +183,11 @@ struct LedgerView: View {
 
     private var monthBar: some View {
         HStack {
-            monthButton("chevron.left", tr("이전 달", "Previous month"), -1)
+            monthButton("chevron.left", tr("이전 달", "Previous month", "前の月"), -1)
             Spacer()
             Text(monthLabel).font(.tlTitle).foregroundStyle(tk.ink).monospacedDigit()
             Spacer()
-            monthButton("chevron.right", tr("다음 달", "Next month"), 1)
+            monthButton("chevron.right", tr("다음 달", "Next month", "次の月"), 1)
         }
     }
 
@@ -202,7 +202,7 @@ struct LedgerView: View {
 
     private var summaryCard: some View {
         PageCard {
-            Text(tr("쓴 돈", "Spent")).font(.tlCaption).foregroundStyle(tk.inkMuted)
+            Text(tr("쓴 돈", "Spent", "使ったお金")).font(.tlCaption).foregroundStyle(tk.inkMuted)
             if store.loading {
                 RoundedRectangle(cornerRadius: 6).fill(tk.canvasSoft).frame(width: 160, height: 32).padding(.top, 4)
                     .skeletonPulse()
@@ -210,7 +210,7 @@ struct LedgerView: View {
                 Text(Money.format(store.total)).font(.tl(26, .bold)).foregroundStyle(tk.ink).monospacedDigit()
                     .contentTransition(.numericText())
                     .padding(.top, 2)
-                Text(tr("\(store.entries.count)건", store.entries.count == 1 ? "1 entry" : "\(store.entries.count) entries"))
+                Text(tr("\(store.entries.count)건", store.entries.count == 1 ? "1 entry" : "\(store.entries.count) entries", "\(store.entries.count)件"))
                     .font(.tlCaption).foregroundStyle(tk.inkFaint)
                 if !store.byPayer.isEmpty {
                     Rectangle().fill(tk.hairline).frame(height: 1).padding(.vertical, 12)
@@ -219,7 +219,7 @@ struct LedgerView: View {
                             let m = board.member(row.payerId)
                             HStack(spacing: 8) {
                                 AvatarView(member: m, size: 24)
-                                Text(m?.displayName ?? tr("알 수 없음", "Unknown")).font(.tl(14)).foregroundStyle(tk.ink).lineLimit(1)
+                                Text(m?.displayName ?? tr("알 수 없음", "Unknown", "不明")).font(.tl(14)).foregroundStyle(tk.ink).lineLimit(1)
                                 Spacer()
                                 Text(Money.format(row.sum)).font(.tl(14)).foregroundStyle(tk.inkSecondary).monospacedDigit()
                             }
@@ -237,7 +237,7 @@ struct LedgerView: View {
             VStack(spacing: 10) {
                 HStack(spacing: 8) {
                     // 숫자 키패드 + 천 단위 쉼표 — "12000"과 "120000"을 눈으로 구분하기 어려운 게 오입력의 큰 원인
-                    TextField("", text: $amountText, prompt: placeholder(tr("금액", "Amount"), tk))
+                    TextField("", text: $amountText, prompt: placeholder(tr("금액", "Amount", "金額"), tk))
                         .keyboardType(.numberPad)
                         .focused($focus, equals: .amount)
                         .monospacedDigit()
@@ -248,7 +248,7 @@ struct LedgerView: View {
                         }
                         .tlField()
                         .frame(width: 130)
-                    TextField("", text: $title, prompt: placeholder(tr("어디에 썼나요", "What was it for?"), tk))
+                    TextField("", text: $title, prompt: placeholder(tr("어디에 썼나요", "What was it for?", "何に使いましたか"), tk))
                         .focused($focus, equals: .title)
                         .submitLabel(.done)
                         .onChange(of: title) { _, v in if v.count > 100 { title = String(v.prefix(100)) } }
@@ -261,10 +261,10 @@ struct LedgerView: View {
                 }
                 .id(store.month)
                 if amount > Self.maxAmount {
-                    Text(tr("1조 원 이하로 적어 주세요.", "Keep it under ₩1 trillion."))
+                    Text(tr("1조 원 이하로 적어 주세요.", "Keep it under ₩1 trillion.", "1兆ウォン以下で入力してください。"))
                         .font(.tlCaption).foregroundStyle(tk.danger)
                 }
-                Button(tr("추가", "Add")) { Task { await submit() } }
+                Button(tr("추가", "Add", "追加")) { Task { await submit() } }
                     .buttonStyle(TLButtonStyle(fill: true))
                     .disabled(!canSubmit)
             }
@@ -280,7 +280,7 @@ struct LedgerView: View {
         } else if let error = store.error {
             Text(error).font(.tlCaption).foregroundStyle(tk.danger).padding(.vertical, 24)
         } else if store.entries.isEmpty {
-            Text(tr("적어 둔 지출이 없어요", "Nothing logged yet")).font(.tlCaption).foregroundStyle(tk.inkFaint).padding(.vertical, 24)
+            Text(tr("적어 둔 지출이 없어요", "Nothing logged yet", "記録した支出はありません")).font(.tlCaption).foregroundStyle(tk.inkFaint).padding(.vertical, 24)
         } else {
             VStack(spacing: 8) {
                 ForEach(store.entries) { row($0).transition(.card) }
@@ -296,7 +296,7 @@ struct LedgerView: View {
             AvatarView(member: m, size: 24).padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
                 Text(e.title).font(.tlBodySm).foregroundStyle(tk.ink)
-                Text("\(m?.displayName ?? tr("알 수 없음", "Unknown")) · \(Due.relative(e.spentOn))")
+                Text("\(m?.displayName ?? tr("알 수 없음", "Unknown", "不明")) · \(Due.relative(e.spentOn))")
                     .font(.tlCaption).foregroundStyle(tk.inkFaint)
             }
             Spacer(minLength: 8)
@@ -308,7 +308,7 @@ struct LedgerView: View {
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(PressScale())
-                .accessibilityLabel(tr("삭제", "Delete"))
+                .accessibilityLabel(tr("삭제", "Delete", "削除"))
             }
         }
         .padding(.horizontal, 12)
@@ -362,7 +362,7 @@ struct PanelOffNotice: View {
     var body: some View {
         VStack(spacing: 20) {
             Text(title).font(.tl(22, .bold)).foregroundStyle(tk.ink)
-            Button(tr("설정으로 가기", "Go to settings"), action: onSettings)
+            Button(tr("설정으로 가기", "Go to settings", "設定へ"), action: onSettings)
                 .buttonStyle(TLButtonStyle())
         }
         .padding(24)

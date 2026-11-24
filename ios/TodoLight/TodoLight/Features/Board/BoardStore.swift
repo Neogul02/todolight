@@ -340,7 +340,7 @@ final class BoardStore {
                 offline = true
                 saveSnapshot()
                 if firstTime {
-                    banner = Banner(message: tr("오프라인이에요. 연결되면 바로 보낼게요.", "You're offline. We'll send it once you're back online."))
+                    banner = Banner(message: tr("오프라인이에요. 연결되면 바로 보낼게요.", "You're offline. We'll send it once you're back online.", "オフラインです。つながったらすぐに送ります。"))
                 }
             } catch {
                 todos = snapshot
@@ -414,7 +414,7 @@ final class BoardStore {
             try await api.deleteTodo(todoId: todo.id)
         }, onSuccess: { [weak self] in
             // 소프트 삭제라 확인 창 대신 실행취소를 준다
-            self?.banner = Banner(message: tr("할 일을 지웠어요", "To-do deleted")) { [weak self] in self?.restore(todo) }
+            self?.banner = Banner(message: tr("할 일을 지웠어요", "To-do deleted", "タスクを削除しました")) { [weak self] in self?.restore(todo) }
         })
     }
 
@@ -437,7 +437,7 @@ final class BoardStore {
         }, request: {
             _ = try await api.handleForMember(todoId: todo.id, note: note)
         }, onSuccess: { [weak self] in
-            self?.banner = Banner(message: tr("대신 처리했어요", "Handled for them"))
+            self?.banner = Banner(message: tr("대신 처리했어요", "Handled for them", "代わりに対応しました"))
         })
     }
 
@@ -459,7 +459,7 @@ final class BoardStore {
             guard let self, !isUndo, let original = self.member(from) else { return }
             var moved = todo
             moved.ownerId = member.userId
-            self.banner = Banner(message: tr("\(member.displayName)님에게 넘겼어요", "Handed off to \(member.displayName)")) { [weak self] in
+            self.banner = Banner(message: tr("\(member.displayName)님에게 넘겼어요", "Handed off to \(member.displayName)", "\(member.displayName)さんに渡しました")) { [weak self] in
                 self?.banner = nil
                 self?.give(moved, to: original, note: nil, isUndo: true)
             }
@@ -530,9 +530,9 @@ final class BoardStore {
     static func message(_ error: any Error) -> String {
         switch error {
         case APIError.server(let text): text
-        case APIError.unauthorized: tr("다시 로그인해 주세요.", "Please sign in again.")
-        case APIError.rateLimited: tr("잠시 후에 다시 시도해 주세요.", "Please try again shortly.")
-        default: tr("연결이 불안정해요. 잠시 후에 다시 시도해 주세요.", "Connection is unstable. Please try again shortly.")
+        case APIError.unauthorized: tr("다시 로그인해 주세요.", "Please sign in again.", "もう一度ログインしてください。")
+        case APIError.rateLimited: tr("잠시 후에 다시 시도해 주세요.", "Please try again shortly.", "しばらくしてからもう一度お試しください。")
+        default: tr("연결이 불안정해요. 잠시 후에 다시 시도해 주세요.", "Connection is unstable. Please try again shortly.", "接続が不安定です。しばらくしてからもう一度お試しください。")
         }
     }
 }

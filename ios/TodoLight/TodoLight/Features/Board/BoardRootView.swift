@@ -32,11 +32,11 @@ struct BoardRootView: View {
                 }
                 .navigationDestination(for: AppRoute.self) { route in
                     switch route {
-                    case .me: MeView(userId: userId).appTopBar(tr("내 설정", "Settings"))
+                    case .me: MeView(userId: userId).appTopBar(tr("내 설정", "Settings", "設定"))
                     case .team:
                         if let org = activeOrg {
                             TeamView(org: org, userId: userId, onOrgsChanged: loadOrgs, onLeftOrg: leftOrg)
-                                .appTopBar(tr("조직", "Org"))
+                                .appTopBar(tr("조직", "Org", "チーム"))
                         }
                     case .newOrg:
                         NewOrgView { id in
@@ -44,7 +44,7 @@ struct BoardRootView: View {
                             await loadOrgs()
                             storedOrgId = id
                         }
-                        .appTopBar(tr("새 조직 만들기", "New org"))
+                        .appTopBar(tr("새 조직 만들기", "New org", "新しいチームを作る"))
                     }
                 }
         }
@@ -64,7 +64,7 @@ struct BoardRootView: View {
                 ContentUnavailableView {
                     Label(error, systemImage: "wifi.exclamationmark")
                 } actions: {
-                    Button(tr("다시 시도", "Try again")) { Task { await loadOrgs() } }
+                    Button(tr("다시 시도", "Try again", "再試行")) { Task { await loadOrgs() } }
                 }
             } else {
                 // 조직 목록을 받는 동안 — 곧 뜰 보드와 같은 모양으로 자리를 잡아 둔다(스피너 대신)
@@ -142,13 +142,13 @@ private struct NoOrgView: View {
             VStack(alignment: .leading, spacing: 20) {
                 // 초대가 와 있으면 그게 할 일이다 — 초대받고 막 가입한 사람이 조직을 새로 만드는 길로 새지 않게
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(invites.isEmpty ? tr("아직 조직이 없어요", "No orgs yet") : tr("초대가 와 있어요", "You've been invited"))
+                    Text(invites.isEmpty ? tr("아직 조직이 없어요", "No orgs yet", "まだチームがありません") : tr("초대가 와 있어요", "You've been invited", "招待が届いています"))
                         .font(.tl(22, .bold)).foregroundStyle(tk.ink)
                 }
                 ReceivedInvites(invites: invites, onRespond: onRespond)
-                Button(tr("조직 만들기", "Create an org"), action: onCreate)
+                Button(tr("조직 만들기", "Create an org", "チームを作る"), action: onCreate)
                     .buttonStyle(TLButtonStyle(variant: invites.isEmpty ? .primary : .outline, fill: true))
-                Button(tr("로그아웃", "Sign out"), action: onSignOut).buttonStyle(TLButtonStyle(variant: .outline, fill: true))
+                Button(tr("로그아웃", "Sign out", "ログアウト"), action: onSignOut).buttonStyle(TLButtonStyle(variant: .outline, fill: true))
             }
             .padding(24)
             .padding(.top, 40)

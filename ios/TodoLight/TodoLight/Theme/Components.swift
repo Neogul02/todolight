@@ -299,7 +299,11 @@ enum Due {
         f.locale = AppLang.locale
         f.calendar = kst
         f.timeZone = kst.timeZone
-        f.dateFormat = AppLang.current == .ko ? "yyyy. M. d." : "MMM d, yyyy"
+        f.dateFormat = switch AppLang.current {
+        case .ko: "yyyy. M. d."
+        case .en: "MMM d, yyyy"
+        case .ja: "yyyy/M/d"
+        }
         return f.string(from: target)
     }
 }
@@ -317,7 +321,7 @@ struct DuePillView: View {
 
     var body: some View {
         let state = Due.state(value)
-        let label = value.map(Due.relative) ?? tr("마감 없음", "No due date")
+        let label = value.map(Due.relative) ?? tr("마감 없음", "No due date", "期限なし")
         // 지난 마감만 색으로 알린다. 오늘·나중은 기본값에 가까워서 색을 주면 경고처럼 읽힌다
         let (bg, fg, border): (Color, Color, Color) = switch state {
         case .overdue: (tk.dangerSoft, tk.danger, tk.danger.opacity(0.4))
@@ -340,7 +344,7 @@ struct DuePillView: View {
             .overlay(Capsule().strokeBorder(border, style: StrokeStyle(lineWidth: 1, dash: state == .none ? [3, 2] : [])))
         }
         .buttonStyle(PressScale(scale: 0.97))
-        .accessibilityLabel(tr("마감 \(label) · 눌러서 바꾸기", "Due \(label) — tap to change"))
+        .accessibilityLabel(tr("마감 \(label) · 눌러서 바꾸기", "Due \(label) — tap to change", "期限 \(label) · タップして変更"))
     }
 
     /// 펼쳐진 레일 — 알약과 따로 둬서 부모가 다음 줄 전체 폭에 놓을 수 있게 한다.
@@ -377,7 +381,7 @@ struct DuePicker: View {
                 HStack(spacing: 6) {
                     if allowNone {
                         Button { onChange(nil) } label: {
-                            Text(tr("마감 없음", "No due date")).font(.tl(13, .medium))
+                            Text(tr("마감 없음", "No due date", "期限なし")).font(.tl(13, .medium))
                                 .padding(.horizontal, 12)
                                 .frame(height: 44)
                                 .foregroundStyle(value == nil ? tk.accentInk : tk.inkFaint)
@@ -402,9 +406,9 @@ struct DuePicker: View {
         let parts = date.split(separator: "-").compactMap { Int($0) }
         let top = parts.count == 3 ? "\(parts[1])/\(parts[2])" : date
         let bottom: String = switch diff {
-        case 0: tr("오늘", "Today")
-        case 1: tr("내일", "Tomorrow")
-        case -1: tr("어제", "Yesterday")
+        case 0: tr("오늘", "Today", "今日")
+        case 1: tr("내일", "Tomorrow", "明日")
+        case -1: tr("어제", "Yesterday", "昨日")
         default: Due.date(date).map { $0.formatted(.dateTime.weekday(.abbreviated).locale(AppLang.locale)) } ?? ""
         }
         return Button { onChange(date) } label: {
@@ -488,7 +492,7 @@ struct SkeletonPulse: ViewModifier {
                 guard !reduceMotion else { return }
                 withAnimation(.easeInOut(duration: 0.9).repeatForever()) { dim = true }
             }
-            .accessibilityLabel(tr("불러오는 중", "Loading"))
+            .accessibilityLabel(tr("불러오는 중", "Loading", "読み込み中"))
     }
 }
 

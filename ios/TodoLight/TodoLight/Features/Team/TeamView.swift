@@ -77,7 +77,7 @@ struct TeamView: View {
             OrgIconView(name: org.name, imageUrl: org.imageUrl, seed: org.id, size: 48)
             VStack(alignment: .leading, spacing: 2) {
                 Text(org.name).font(.tl(22, .bold)).foregroundStyle(tk.ink).lineLimit(1)
-                Text(tr("멤버 \(org.memberCount)명", plural(org.memberCount, "member")))
+                Text(tr("멤버 \(org.memberCount)명", plural(org.memberCount, "member"), "メンバー \(org.memberCount)人"))
                     .font(.tlCaption).foregroundStyle(tk.inkMuted)
             }
         }
@@ -87,17 +87,17 @@ struct TeamView: View {
 
     private var inviteCard: some View {
         PageCard {
-            Text(tr("팀원 초대", "Invite teammates")).font(.tlTitle).foregroundStyle(tk.ink)
+            Text(tr("팀원 초대", "Invite teammates", "メンバーを招待")).font(.tlTitle).foregroundStyle(tk.ink)
             if let plan, plan.isFull, let limit = plan.seatLimit {
                 // 무료 조직의 인원이 다 찼다 — 서버도 같은 규칙으로 막는다(문구만 미리 보여 준다)
                 Text(isOwner
                      ? tr("무료 조직은 \(limit)명까지예요. Pro로 올리면 더 초대할 수 있어요.",
-                          "Free orgs can have up to \(limit) people. Upgrade to Pro to invite more.")
+                          "Free orgs can have up to \(limit) people. Upgrade to Pro to invite more.", "無料のチームは\(limit)人までです。Proにするとさらに招待できます。")
                      : tr("무료 조직은 \(limit)명까지예요. 방장이 Pro를 쓰면 더 초대할 수 있어요.",
-                          "Free orgs can have up to \(limit) people. The owner can upgrade to Pro to invite more."))
+                          "Free orgs can have up to \(limit) people. The owner can upgrade to Pro to invite more.", "無料のチームは\(limit)人までです。オーナーがProを使うと、さらに招待できます。"))
                     .font(.tlBodySm).foregroundStyle(tk.inkSecondary).padding(.top, 4)
                 if isOwner {
-                    Button(tr("Pro 알아보기", "See Pro")) { proOpen = true }
+                    Button(tr("Pro 알아보기", "See Pro", "Proを詳しく見る")) { proOpen = true }
                         .buttonStyle(TLButtonStyle(variant: .primary, fill: true))
                         .padding(.top, 12)
                 }
@@ -118,7 +118,7 @@ struct TeamView: View {
     private var inviteForm: some View {
             // 메일이 나가지 않는다는 사실을 초대하기 **전에** 말한다 — 보내고 나서 알면 늦다
             Text(tr("초대 메일은 가지 않아요. 아직 가입 안 한 사람에게는 직접 알려 주세요.",
-                    "No invite email is sent. Let people who haven't signed up know yourself."))
+                    "No invite email is sent. Let people who haven't signed up know yourself.", "招待メールは送られません。まだ登録していない人には、直接知らせてください。"))
                 .font(.tlCaption).foregroundStyle(tk.inkMuted).padding(.top, 4)
             HStack(spacing: 8) {
                 TextField("", text: $email, prompt: placeholder("teammate@company.com", tk))
@@ -128,7 +128,7 @@ struct TeamView: View {
                     .submitLabel(.send)
                     .onSubmit { Task { await sendInvite() } }
                     .tlField()
-                Button(tr("초대", "Invite")) { Task { await sendInvite() } }
+                Button(tr("초대", "Invite", "招待")) { Task { await sendInvite() } }
                     .buttonStyle(TLButtonStyle())
                     .disabled(busy || email.trimmingCharacters(in: .whitespaces).isEmpty)
             }
@@ -141,18 +141,18 @@ struct TeamView: View {
                 Text(inv.email).font(.tl(14)).foregroundStyle(tk.inkSecondary).lineLimit(1)
                 Spacer()
                 Text(Due.relative(Due.format(inv.createdAt))).font(.tl(11)).foregroundStyle(tk.inkFaint)
-                Button(tr("취소", "Cancel")) { Task { await revoke(inv) } }
+                Button(tr("취소", "Cancel", "キャンセル")) { Task { await revoke(inv) } }
                     .buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
             }
             // 아직 가입하지 않은 사람에게만 — 이미 쓰는 사람은 앱을 열면 초대장을 본다
             if inv.registered == false {
                 Rectangle().fill(tk.hairline).frame(height: 1)
                 HStack {
-                    Text(tr("아직 가입하지 않았어요", "Has not signed up yet")).font(.tl(12)).foregroundStyle(tk.inkMuted)
+                    Text(tr("아직 가입하지 않았어요", "Has not signed up yet", "まだ登録していません")).font(.tl(12)).foregroundStyle(tk.inkMuted)
                     Spacer()
                     // 공유 문구에 이메일을 싣되 링크에는 싣지 않는다 — 주소창·기록에 남을 이유가 없다
                     ShareLink(item: shareMessage(inv.email)) {
-                        Text(tr("알려 주기", "Send it yourself")).font(.tl(13, .medium)).foregroundStyle(tk.ink)
+                        Text(tr("알려 주기", "Send it yourself", "知らせる")).font(.tl(13, .medium)).foregroundStyle(tk.ink)
                             .padding(.horizontal, 12).frame(height: 32)
                             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(tk.hairlineStrong))
                     }
@@ -167,7 +167,7 @@ struct TeamView: View {
 
     private var membersCard: some View {
         PageCard {
-            Text(tr("멤버", "Members")).font(.tlTitle).foregroundStyle(tk.ink)
+            Text(tr("멤버", "Members", "メンバー")).font(.tlTitle).foregroundStyle(tk.ink)
             VStack(spacing: 2) {
                 if loading {
                     VStack(spacing: 2) {
@@ -182,10 +182,10 @@ struct TeamView: View {
                             AvatarView(member: m, size: 32)
                             HStack(spacing: 4) {
                                 Text(m.displayName).font(.tl(15, .medium)).foregroundStyle(tk.ink).lineLimit(1)
-                                if m.userId == userId { Text(tr("(나)", "(You)")).font(.tl(12)).foregroundStyle(tk.inkFaint) }
+                                if m.userId == userId { Text(tr("(나)", "(You)", "（自分）")).font(.tl(12)).foregroundStyle(tk.inkFaint) }
                             }
                             Spacer()
-                            if m.role != .member { BadgeView(m.role == .owner ? tr("방장", "Owner") : tr("관리자", "Admin")) }
+                            if m.role != .member { BadgeView(m.role == .owner ? tr("방장", "Owner", "オーナー") : tr("관리자", "Admin", "管理者")) }
                             if rights.any {
                                 Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(tk.inkFaint)
                             }
@@ -206,25 +206,25 @@ struct TeamView: View {
     private var settingsCard: some View {
         let nameChanged = !orgName.trimmingCharacters(in: .whitespaces).isEmpty && orgName.trimmingCharacters(in: .whitespaces) != org.name
         return PageCard {
-            Text(tr("조직 설정", "Org settings")).font(.tlTitle).foregroundStyle(tk.ink)
+            Text(tr("조직 설정", "Org settings", "チーム設定")).font(.tlTitle).foregroundStyle(tk.ink)
             HStack(spacing: 12) {
                 OrgIconView(name: org.name, imageUrl: org.imageUrl, seed: org.id, size: 48)
                 PhotosPicker(selection: $imageItem, matching: .images) {
-                    Text(uploading ? tr("올리는 중…", "Uploading…") : org.imageUrl == nil ? tr("이미지 올리기", "Upload image") : tr("이미지 바꾸기", "Change image"))
+                    Text(uploading ? tr("올리는 중…", "Uploading…", "アップロード中…") : org.imageUrl == nil ? tr("이미지 올리기", "Upload image", "画像をアップロード") : tr("이미지 바꾸기", "Change image", "画像を変更"))
                 }
                 .buttonStyle(TLButtonStyle(variant: .outline, size: .sm, fill: true))
                 .disabled(uploading)
                 if org.imageUrl != nil {
-                    Button(tr("삭제", "Delete")) { Task { await clearImage() } }
+                    Button(tr("삭제", "Delete", "削除")) { Task { await clearImage() } }
                         .buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
                         .disabled(uploading)
                 }
             }
             .padding(.top, 12)
-            labeled(tr("이름", "Name")) {
+            labeled(tr("이름", "Name", "名前")) {
                 TextField("", text: $orgName).submitLabel(.done).tlField()
             }
-            Button(tr("저장", "Save")) { Task { await saveSettings() } }
+            Button(tr("저장", "Save", "保存")) { Task { await saveSettings() } }
                 .buttonStyle(TLButtonStyle(fill: true))
                 .disabled(busy || !nameChanged)
                 .padding(.top, 16)
@@ -233,7 +233,7 @@ struct TeamView: View {
 
     /// 맨 아래 — 버튼 하나만(웹과 같다). 무엇이 사라지는지는 확인 시트가 말한다
     private var deleteCard: some View {
-        Button(tr("조직 삭제", "Delete org")) { deleteOpen = true }
+        Button(tr("조직 삭제", "Delete org", "チームを削除")) { deleteOpen = true }
             .buttonStyle(TLButtonStyle(variant: .danger, fill: true))
     }
 
@@ -269,8 +269,8 @@ struct TeamView: View {
             let inv = try await api.invite(orgId: org.id, email: value)
             email = ""
             toast = inv.registered == false
-                ? tr("초대했어요. 아직 가입하지 않은 분이라 직접 알려 주셔야 해요.", "Invited. They have not signed up yet, so you will need to tell them.")
-                : tr("초대장을 보냈어요.", "Invite sent.")
+                ? tr("초대했어요. 아직 가입하지 않은 분이라 직접 알려 주셔야 해요.", "Invited. They have not signed up yet, so you will need to tell them.", "招待しました。まだ登録していない方なので、直接知らせる必要があります。")
+                : tr("초대장을 보냈어요.", "Invite sent.", "招待を送りました。")
             await load()
         } catch {
             toast = BoardStore.message(error)
@@ -289,7 +289,7 @@ struct TeamView: View {
 
     private func shareMessage(_ email: String) -> String {
         tr("\(org.name)에 초대했어요.\n\(email) 주소로 가입하면 초대장이 떠요.\n\(AppConfig.apiBaseURL.absoluteString)",
-           "You are invited to \(org.name).\nSign up with \(email) and the invitation will be waiting.\n\(AppConfig.apiBaseURL.absoluteString)")
+           "You are invited to \(org.name).\nSign up with \(email) and the invitation will be waiting.\n\(AppConfig.apiBaseURL.absoluteString)", "\(org.name)に招待しました。\n\(email) で登録すると招待が表示されます。\n\(AppConfig.apiBaseURL.absoluteString)")
     }
 
     private func saveSettings() async {
@@ -297,7 +297,7 @@ struct TeamView: View {
         defer { busy = false }
         do {
             try await api.renameOrg(orgId: org.id, name: orgName.trimmingCharacters(in: .whitespaces))
-            toast = tr("저장했어요.", "Saved.")
+            toast = tr("저장했어요.", "Saved.", "保存しました。")
             await onOrgsChanged()
         } catch {
             toast = BoardStore.message(error)
@@ -317,10 +317,10 @@ struct TeamView: View {
             try await storage.upload(path, data: jpeg, options: .init(contentType: "image/jpeg", upsert: true))
             let url = try storage.getPublicURL(path: path).absoluteString + "?v=\(Int(Date().timeIntervalSince1970 * 1000))"
             try await api.updateOrgImage(orgId: org.id, imageUrl: url)
-            toast = tr("조직 이미지를 바꿨어요.", "Org image updated.")
+            toast = tr("조직 이미지를 바꿨어요.", "Org image updated.", "チームの画像を変更しました。")
             await onOrgsChanged()
         } catch {
-            toast = error is CancellationError ? tr("사진을 읽지 못했어요", "Couldn't read that photo") : BoardStore.message(error)
+            toast = error is CancellationError ? tr("사진을 읽지 못했어요", "Couldn't read that photo", "写真を読み込めませんでした") : BoardStore.message(error)
         }
     }
 
@@ -330,7 +330,7 @@ struct TeamView: View {
         do {
             _ = try await Backend.shared.supabase.storage.from("org-images").remove(paths: ["\(org.id)/icon.webp"])
             try await api.updateOrgImage(orgId: org.id, imageUrl: nil)
-            toast = tr("조직 이미지를 지웠어요.", "Org image removed.")
+            toast = tr("조직 이미지를 지웠어요.", "Org image removed.", "チームの画像を削除しました。")
             await onOrgsChanged()
         } catch {
             toast = BoardStore.message(error)
@@ -386,40 +386,40 @@ private struct MemberManageSheet: View {
             switch confirm {
             case .transfer:
                 confirmBox(
-                    tr("\(member.displayName)님에게 방장을 넘겨요.", "Make \(member.displayName) the owner of this org."),
-                    tr("넘기면 나는 관리자가 돼요. 되돌리려면 새 방장이 다시 넘겨 줘야 해요.", "You become an admin. To undo it, the new owner has to transfer it back."),
-                    action: tr("넘길래요", "Transfer")
+                    tr("\(member.displayName)님에게 방장을 넘겨요.", "Make \(member.displayName) the owner of this org.", "\(member.displayName)さんにオーナーを引き継ぎます。"),
+                    tr("넘기면 나는 관리자가 돼요. 되돌리려면 새 방장이 다시 넘겨 줘야 해요.", "You become an admin. To undo it, the new owner has to transfer it back.", "引き継ぐと、自分は管理者になります。元に戻すには、新しいオーナーにもう一度引き継いでもらう必要があります。"),
+                    action: tr("넘길래요", "Transfer", "引き継ぐ")
                 ) {
                     try await api.transferOwnership(orgId: org.id, newOwnerId: member.userId)
-                    await onChanged(tr("방장을 넘겼어요.", "Ownership transferred."))
+                    await onChanged(tr("방장을 넘겼어요.", "Ownership transferred.", "オーナーを引き継ぎました。"))
                 }
             case .kick:
                 confirmBox(
-                    tr("\(member.displayName)님을 이 조직에서 내보내요.", "This removes \(member.displayName) from the org."),
+                    tr("\(member.displayName)님을 이 조직에서 내보내요.", "This removes \(member.displayName) from the org.", "\(member.displayName)さんをこのチームから外します。"),
                     tr("내보내면 이 조직의 보드를 더 이상 볼 수 없어요. 그동안 쌓인 할 일과 메모는 그대로 남아요. 다시 부르려면 초대를 새로 보내야 해요.",
-                       "They'll lose access to this org's board. Their to-dos and notes stay as they are. You'd need to send a new invite to bring them back."),
-                    action: tr("내보내기", "Remove")
+                       "They'll lose access to this org's board. Their to-dos and notes stay as they are. You'd need to send a new invite to bring them back.", "外すと、このチームのボードは見られなくなります。これまでのタスクとメモはそのまま残ります。また加えるには、招待を新しく送る必要があります。"),
+                    action: tr("내보내기", "Remove", "外す")
                 ) {
                     try await api.removeMember(orgId: org.id, userId: member.userId)
-                    await onChanged(tr("멤버를 내보냈어요.", "Member removed."))
+                    await onChanged(tr("멤버를 내보냈어요.", "Member removed.", "メンバーを外しました。"))
                 }
             case nil:
                 if rights.canChangeRole {
-                    Button(member.role == .admin ? tr("관리자 해제", "Remove admin") : tr("관리자로", "Make admin")) {
+                    Button(member.role == .admin ? tr("관리자 해제", "Remove admin", "管理者を外す") : tr("관리자로", "Make admin", "管理者にする")) {
                         run {
                             try await api.updateMemberRole(orgId: org.id, userId: member.userId, role: member.role == .admin ? .member : .admin)
-                            await onChanged(tr("역할을 바꿨어요.", "Role updated."))
+                            await onChanged(tr("역할을 바꿨어요.", "Role updated.", "役割を変更しました。"))
                         }
                     }
                     .buttonStyle(TLButtonStyle(variant: .outline, fill: true))
                 }
                 if rights.canTransfer {
-                    Button(tr("방장 넘기기", "Transfer ownership")) { confirm = .transfer }
+                    Button(tr("방장 넘기기", "Transfer ownership", "オーナーを引き継ぐ")) { confirm = .transfer }
                         .buttonStyle(TLButtonStyle(variant: .outline, fill: true))
                 }
                 if rights.canRemove {
                     // 나가기는 나 자신의 일이라 한 번 더 묻지 않는다(웹과 같다)
-                    Button(rights.isSelf ? tr("나가기", "Leave") : tr("내보내기", "Remove")) {
+                    Button(rights.isSelf ? tr("나가기", "Leave", "抜ける") : tr("내보내기", "Remove", "外す")) {
                         if rights.isSelf {
                             run {
                                 try await api.removeMember(orgId: org.id, userId: member.userId)
@@ -451,7 +451,7 @@ private struct MemberManageSheet: View {
             .padding(14)
             .background(tk.canvasSoft, in: RoundedRectangle(cornerRadius: 12))
             HStack(spacing: 8) {
-                Button(tr("취소", "Cancel")) { confirm = nil }.buttonStyle(TLButtonStyle(variant: .outline, fill: true))
+                Button(tr("취소", "Cancel", "キャンセル")) { confirm = nil }.buttonStyle(TLButtonStyle(variant: .outline, fill: true))
                 Button(action) { run(work) }.buttonStyle(TLButtonStyle(variant: .danger, fill: true))
             }
         }
@@ -489,18 +489,18 @@ private struct DeleteOrgSheet: View {
             }
             VStack(alignment: .leading, spacing: 8) {
                 Text(tr("이 조직의 할 일·메모·일정·가계부가 전부 사라져요. 할 일 지우기와 달리 되살릴 수 없어요.",
-                        "Every to-do, note, event, and ledger entry in this org is gone. Unlike deleting a to-do, this cannot be restored."))
+                        "Every to-do, note, event, and ledger entry in this org is gone. Unlike deleting a to-do, this cannot be restored.", "このチームのタスク・メモ・予定・支出がすべて消えます。タスクの削除とは違い、元に戻せません。"))
                 Text(tr("멤버 \(org.memberCount)명이 이 조직에서 나가게 돼요. 다시 모으려면 조직을 새로 만들어 초대해야 해요.",
-                        "\(org.memberCount == 1 ? "The 1 member loses" : "All \(org.memberCount) members lose") access. Bringing them back means creating a new org and inviting them again."))
+                        "\(org.memberCount == 1 ? "The 1 member loses" : "All \(org.memberCount) members lose") access. Bringing them back means creating a new org and inviting them again.", "メンバー\(org.memberCount)人がこのチームから外れます。また集まるには、チームを新しく作って招待し直す必要があります。"))
             }
             .font(.tlBodySm).foregroundStyle(tk.ink)
             .padding(14)
             .background(tk.canvasSoft, in: RoundedRectangle(cornerRadius: 12))
-            Text(tr("이 동작은 되돌릴 수 없어요.", "This cannot be undone.")).font(.tlCaption).foregroundStyle(tk.danger)
+            Text(tr("이 동작은 되돌릴 수 없어요.", "This cannot be undone.", "この操作は元に戻せません。")).font(.tlCaption).foregroundStyle(tk.danger)
             if let error { Text(error).font(.tlCaption).foregroundStyle(tk.danger) }
             HStack(spacing: 8) {
-                Button(tr("취소", "Cancel")) { dismiss() }.buttonStyle(TLButtonStyle(variant: .outline, fill: true))
-                Button(busy ? tr("지우는 중…", "Deleting…") : tr("삭제할래요", "Delete")) {
+                Button(tr("취소", "Cancel", "キャンセル")) { dismiss() }.buttonStyle(TLButtonStyle(variant: .outline, fill: true))
+                Button(busy ? tr("지우는 중…", "Deleting…", "削除中…") : tr("삭제할래요", "Delete", "削除する")) {
                     Task {
                         busy = true
                         do {
