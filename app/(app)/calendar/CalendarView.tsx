@@ -447,40 +447,40 @@ export function CalendarView({
             aria-label={t('gridLabel', { month: monthLabel })}
             className="grid h-full auto-rows-fr grid-cols-7 gap-x-1 gap-y-1.5 sm:h-auto sm:auto-rows-auto"
           >
-        {days.map((date, i) => {
-          if (!date) return <span key={`blank-${i}`} role="gridcell" aria-hidden />;
+            {days.map((date, i) => {
+              if (!date) return <span key={`blank-${i}`} role="gridcell" aria-hidden />;
 
-          const dayTodos = todosByDate.get(date) ?? [];
-          const dayEvents = eventsByDate.get(date) ?? [];
-          const remaining = dayTodos.filter(t => t.status !== 'done').length;
-          const isToday = date === today;
-          const isSelected = date === selected;
+              const dayTodos = todosByDate.get(date) ?? [];
+              const dayEvents = eventsByDate.get(date) ?? [];
+              const remaining = dayTodos.filter(t => t.status !== 'done').length;
+              const isToday = date === today;
+              const isSelected = date === selected;
 
-          return (
-            <button
-              key={date}
-              type="button"
-              onClick={() => selectDate(date)}
-              role="gridcell"
-              aria-selected={isSelected}
-              aria-current={isToday ? 'date' : undefined}
-              /*
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  onClick={() => selectDate(date)}
+                  role="gridcell"
+                  aria-selected={isSelected}
+                  aria-current={isToday ? 'date' : undefined}
+                  /*
                 칸 안의 숫자·배지·띠는 눈으로 보면 한 덩어리지만 읽어 주면 파편이 된다 —
                 한 문장으로 합쳐서 들려 준다.
               */
-              aria-label={describeDay(date, remaining, dayEvents)}
-              className={cn(
-                /*
+                  aria-label={describeDay(date, remaining, dayEvents)}
+                  className={cn(
+                    /*
                   overflow-hidden을 걸지 말 것 — 일정 띠는 시작 칸의 자식인데 폭이
                   calc(100% * n)으로 여러 칸에 걸쳐 있어서, 칸에서 잘라 내면 띠가 시작한 하루만
                   남고 나머지 날은 빈칸이 된다(기간 일정이 중간중간 끊겨 보인다).
                   세로로 넘치는 건 칸이 납작해질 때의 문제인데, 그건 점 모드로 따로 해결한다.
                 */
-                'flex min-h-0 flex-col items-stretch gap-1 rounded-xl pt-1.5 pb-1 transition-colors sm:aspect-[6/7]',
-                isSelected ? 'bg-accent-soft' : 'active:bg-canvas-soft'
-              )}
-            >
-              {/*
+                    'flex min-h-0 flex-col items-stretch gap-1 rounded-xl pt-1.5 pb-1 transition-colors sm:aspect-[6/7]',
+                    isSelected ? 'bg-accent-soft' : 'active:bg-canvas-soft'
+                  )}
+                >
+                  {/*
                 **오늘과 고른 날은 다른 방식으로 표시한다.**
                 예전엔 오늘=굵은 숫자, 고른 날=칸 테두리라 둘의 세기가 비슷해서, 오늘이 아닌
                 날을 골라 두면 어느 쪽이 오늘인지 한 박자 늦게 찾았다.
@@ -491,44 +491,44 @@ export function CalendarView({
                 숫자는 칸 한가운데 고정한다. 담당자 점을 같은 흐름에 두면 할 일이 있는 날만
                 숫자가 옆으로 밀려 줄이 들쭉날쭉해진다 — 점은 아래 줄에 따로 놓는다.
               */}
-              <span className="flex items-center justify-center px-1">
-                <span
-                  className={cn(
-                    'grid h-[20px] min-w-[20px] place-items-center rounded-full px-1 text-[13px] tabular-nums transition-colors',
-                    isSelected && 'bg-accent font-semibold text-accent-ink',
-                    !isSelected && isToday && 'font-bold text-accent',
-                    !isSelected && !isToday && weekdayOf(date) === 0 && 'text-danger/80',
-                    !isSelected && !isToday && weekdayOf(date) !== 0 && 'text-ink'
-                  )}
-                >
-                  {Number(date.slice(-2))}
-                </span>
-              </span>
+                  <span className="flex items-center justify-center px-1">
+                    <span
+                      className={cn(
+                        'grid h-[20px] min-w-[20px] place-items-center rounded-full px-1 text-[13px] tabular-nums transition-colors',
+                        isSelected && 'bg-accent font-semibold text-accent-ink',
+                        !isSelected && isToday && 'font-bold text-accent',
+                        !isSelected && !isToday && weekdayOf(date) === 0 && 'text-danger/80',
+                        !isSelected && !isToday && weekdayOf(date) !== 0 && 'text-ink'
+                      )}
+                    >
+                      {Number(date.slice(-2))}
+                    </span>
+                  </span>
 
-              {/*
+                  {/*
                 남은 할 일을 **담당자 색 점**으로 찍는다. 점이 몇 개인지가 곧 개수이고,
                 색이 곧 누구인지다 — 아바타와 같은 팔레트라 새로 배울 것이 없다.
                 점이 없는 날은 이 줄이 아예 자리를 차지하지 않는다(칸 높이가 흔들리지 않게
                 min-h를 주지 않는다 — 어차피 아래 띠/점 영역이 높이를 잡는다).
               */}
-              {remaining > 0 && (
-                <span className="pointer-events-none flex items-center justify-center gap-[3px] px-1">
-                  {ownerDots(dayTodos).map(({ key, color }) => (
-                    <span
-                      key={key}
-                      className="size-[5px] shrink-0 rounded-full"
-                      style={{ background: color }}
-                    />
-                  ))}
-                  {remaining > MAX_OWNER_DOTS && (
-                    <span className="text-[8px] leading-none font-semibold text-ink-faint">
-                      +{remaining - MAX_OWNER_DOTS}
+                  {remaining > 0 && (
+                    <span className="pointer-events-none flex items-center justify-center gap-[3px] px-1">
+                      {ownerDots(dayTodos).map(({ key, color }) => (
+                        <span
+                          key={key}
+                          className="size-[5px] shrink-0 rounded-full"
+                          style={{ background: color }}
+                        />
+                      ))}
+                      {remaining > MAX_OWNER_DOTS && (
+                        <span className="text-[8px] leading-none font-semibold text-ink-faint">
+                          +{remaining - MAX_OWNER_DOTS}
+                        </span>
+                      )}
                     </span>
                   )}
-                </span>
-              )}
 
-              {/*
+                  {/*
                 일정 띠.
 
                 한 칸씩 그리지 않고 "세그먼트" 단위로 그린다 — 한 주 안에서 이어지는 구간
@@ -539,112 +539,102 @@ export function CalendarView({
                 세그먼트는 주 경계와 달 경계에서 끊는다. 달 경계를 안 끊으면 말일 다음
                 빈 칸(다음 달 자리) 위로 띠가 흘러간다.
               */}
-              {/*
+                  {/*
                 띠는 보여 주기만 한다. 세그먼트가 여러 칸에 걸쳐 넓어져 있어서 클릭을 받으면,
                 28일 위를 눌러도 그 세그먼트가 시작한 23일 칸이 선택된다 —
                 띠는 시작 칸 button의 자식이기 때문이다. 클릭은 칸이 받아야 한다.
               */}
-              {/*
+                  {/*
                 목록을 위로 끌어 칸이 납작해지면 띠 3줄(52px)이 안 들어간다 —
                 그대로 두면 일정 많은 날이 잘려 보이므로 그 상태에서는 점으로만 표시한다.
                 데스크톱은 패널이 높이를 뺏지 않으므로 compact 여부와 무관하게 늘 띠다(sm:flex).
               */}
-              <span
-                className={cn(
-                  'pointer-events-none min-h-[52px] flex-col gap-[2px] sm:flex',
-                  compact ? 'hidden' : 'flex'
-                )}
-              >
-                {Array.from({ length: MAX_LANES }, (_, lane) => {
-                  const event = dayEvents.find(e => laneOf.get(e.id) === lane);
-                  if (!event) return <span key={lane} className="h-4" />;
-
-                  // 세그먼트는 일정이 시작하거나, 주가 바뀌거나, 달이 바뀌는 칸에서 시작한다
-                  const startsHere =
-                    event.start_date === date || weekdayOf(date) === 0 || date === monthFirst;
-                  // 그 밖의 칸은 이미 앞 세그먼트가 덮고 있다 — 줄 높이만 유지한다
-                  if (!startsHere) return <span key={lane} className="h-4" />;
-
-                  const segEnd = minDate(
-                    event.end_date,
-                    addDays(date, 6 - weekdayOf(date)),
-                    monthLast
-                  );
-                  const span = daysBetween(date, segEnd) + 1;
-                  const color = getEventColor(event.color);
-
-                  // 잘린 쪽은 각지게 둔다 — 그래야 다음 줄/다음 주로 이어진다는 게 보인다
-                  const roundStart = event.start_date === date;
-                  const roundEnd = event.end_date === segEnd;
-
-                  return (
-                    <span
-                      key={lane}
-                      title={event.title}
-                      className={cn(
-                        'relative z-10 flex h-4 items-center overflow-hidden px-1.5',
-                        roundStart && 'rounded-l-full',
-                        roundEnd && 'rounded-r-full'
-                      )}
-                      style={{
-                        background: color.bar,
-                        color: color.ink,
-                        // 칸 폭(100%) × 칸 수 + 칸 사이 간격
-                        width: `calc(100% * ${span} + ${CELL_GAP_PX * (span - 1)}px)`,
-                      }}
-                    >
-                      <span className="truncate text-[9px] leading-none font-medium">
-                        {event.title}
-                      </span>
-                    </span>
-                  );
-                })}
-
-                {dayEvents.some(e => (laneOf.get(e.id) ?? 0) >= MAX_LANES) && (
                   <span
                     className={cn(
-                      'text-[9px] leading-none',
-                      'text-ink-faint'
+                      'pointer-events-none min-h-[52px] flex-col gap-[2px] sm:flex',
+                      compact ? 'hidden' : 'flex'
                     )}
                   >
-                    +{dayEvents.filter(e => (laneOf.get(e.id) ?? 0) >= MAX_LANES).length}
-                  </span>
-                )}
-              </span>
+                    {Array.from({ length: MAX_LANES }, (_, lane) => {
+                      const event = dayEvents.find(e => laneOf.get(e.id) === lane);
+                      if (!event) return <span key={lane} className="h-4" />;
 
-              {/*
+                      // 세그먼트는 일정이 시작하거나, 주가 바뀌거나, 달이 바뀌는 칸에서 시작한다
+                      const startsHere =
+                        event.start_date === date || weekdayOf(date) === 0 || date === monthFirst;
+                      // 그 밖의 칸은 이미 앞 세그먼트가 덮고 있다 — 줄 높이만 유지한다
+                      if (!startsHere) return <span key={lane} className="h-4" />;
+
+                      const segEnd = minDate(
+                        event.end_date,
+                        addDays(date, 6 - weekdayOf(date)),
+                        monthLast
+                      );
+                      const span = daysBetween(date, segEnd) + 1;
+                      const color = getEventColor(event.color);
+
+                      // 잘린 쪽은 각지게 둔다 — 그래야 다음 줄/다음 주로 이어진다는 게 보인다
+                      const roundStart = event.start_date === date;
+                      const roundEnd = event.end_date === segEnd;
+
+                      return (
+                        <span
+                          key={lane}
+                          title={event.title}
+                          className={cn(
+                            'relative z-10 flex h-4 items-center overflow-hidden px-1.5',
+                            roundStart && 'rounded-l-full',
+                            roundEnd && 'rounded-r-full'
+                          )}
+                          style={{
+                            background: color.bar,
+                            color: color.ink,
+                            // 칸 폭(100%) × 칸 수 + 칸 사이 간격
+                            width: `calc(100% * ${span} + ${CELL_GAP_PX * (span - 1)}px)`,
+                          }}
+                        >
+                          <span className="truncate text-[9px] leading-none font-medium">
+                            {event.title}
+                          </span>
+                        </span>
+                      );
+                    })}
+
+                    {dayEvents.some(e => (laneOf.get(e.id) ?? 0) >= MAX_LANES) && (
+                      <span className={cn('text-[9px] leading-none', 'text-ink-faint')}>
+                        +{dayEvents.filter(e => (laneOf.get(e.id) ?? 0) >= MAX_LANES).length}
+                      </span>
+                    )}
+                  </span>
+
+                  {/*
                 점 모드 — 위 띠 span과 자리를 맞바꾼다(칸이 납작할 때, 모바일에서만).
                 제목·기간 정보 없이 색만 찍어서, 일정이 몰린 날도 칸 높이가 줄어든 만큼만 차지한다.
               */}
-              {dayEvents.length > 0 && (
-                <span
-                  className={cn(
-                    'pointer-events-none min-h-[10px] flex-wrap items-center justify-center gap-[3px] px-1 sm:hidden',
-                    compact ? 'flex' : 'hidden'
-                  )}
-                >
-                  {dayEvents.slice(0, MAX_DOTS).map(e => (
-                    <span
-                      key={e.id}
-                      className="size-[5px] shrink-0 rounded-full"
-                      style={{ background: getEventColor(e.color).bar }}
-                    />
-                  ))}
-                  {dayEvents.length > MAX_DOTS && (
+                  {dayEvents.length > 0 && (
                     <span
                       className={cn(
-                        'text-[8px] leading-none',
-                        'text-ink-faint'
+                        'pointer-events-none min-h-[10px] flex-wrap items-center justify-center gap-[3px] px-1 sm:hidden',
+                        compact ? 'flex' : 'hidden'
                       )}
                     >
-                      +{dayEvents.length - MAX_DOTS}
+                      {dayEvents.slice(0, MAX_DOTS).map(e => (
+                        <span
+                          key={e.id}
+                          className="size-[5px] shrink-0 rounded-full"
+                          style={{ background: getEventColor(e.color).bar }}
+                        />
+                      ))}
+                      {dayEvents.length > MAX_DOTS && (
+                        <span className={cn('text-[8px] leading-none', 'text-ink-faint')}>
+                          +{dayEvents.length - MAX_DOTS}
+                        </span>
+                      )}
                     </span>
                   )}
-                </span>
-              )}
-            </button>
-          );
-        })}
+                </button>
+              );
+            })}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -712,76 +702,92 @@ export function CalendarView({
                 })}
               </p>
             </div>
-            <Button size="sm" variant="outline" onClick={openNewEvent} className="shrink-0">
-              {t('newEvent')}
-            </Button>
+            {/* 글자 버튼 대신 「+」 하나 — 날짜 머리줄 옆에서 자리를 덜 먹는다(iOS와 같다) */}
+            <button
+              type="button"
+              onClick={openNewEvent}
+              aria-label={t('newEvent')}
+              className="grid size-10 shrink-0 place-items-center rounded-full border border-hairline-strong bg-surface text-ink transition-transform active:scale-90"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                aria-hidden
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
           </div>
 
           {/* 목록은 화면 끝까지 내려가고 하단 탭바(알약)가 그 위에 뜬다 — 그만큼만 비운다 */}
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-tabbar sm:overflow-visible">
+            {selectedEvents.length > 0 && (
+              <ul className="mb-2 flex flex-col gap-1.5">
+                {selectedEvents.map(e => {
+                  const color = getEventColor(e.color);
+                  return (
+                    <li key={e.id}>
+                      <button
+                        type="button"
+                        onClick={() => openEvent(e)}
+                        className="flex w-full items-center gap-2.5 rounded-xl border border-hairline bg-surface px-3 py-2.5 text-left transition-colors active:bg-canvas-soft"
+                      >
+                        <span
+                          className="h-8 w-1 shrink-0 rounded-full"
+                          style={{ background: color.bar }}
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[14px] text-ink">{e.title}</span>
+                          <span className="block text-[11px] text-ink-faint">{formatRange(e)}</span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
 
-          {selectedEvents.length > 0 && (
-            <ul className="mb-2 flex flex-col gap-1.5">
-              {selectedEvents.map(e => {
-                const color = getEventColor(e.color);
-                return (
-                  <li key={e.id}>
-                    <button
-                      type="button"
-                      onClick={() => openEvent(e)}
-                      className="flex w-full items-center gap-2.5 rounded-xl border border-hairline bg-surface px-3 py-2.5 text-left transition-colors active:bg-canvas-soft"
-                    >
-                      <span
-                        className="h-8 w-1 shrink-0 rounded-full"
-                        style={{ background: color.bar }}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[14px] text-ink">{e.title}</span>
-                        <span className="block text-[11px] text-ink-faint">{formatRange(e)}</span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          {selectedTodos.length === 0 && selectedEvents.length === 0 ? (
-            <p className="py-6 text-center text-caption text-ink-faint">{t('emptyDay')}</p>
-          ) : (
-            <ul className="flex flex-col gap-1.5">
-              {selectedTodos.map(t => (
-                <TodoRow
-                  key={t.id}
-                  todo={t}
-                  owner={memberOf(t.owner_id)}
-                  unknownLabel={tBoard('unknown')}
-                  onToggle={() => toggleDone(t)}
-                  busy={toggleStatus.isPending}
-                />
-              ))}
-            </ul>
-          )}
-
-          {undated.length > 0 && (
-            <div className="mt-5 border-t border-hairline pt-3">
-              <h2 className="pb-2 text-caption font-semibold text-ink-secondary">
-                {t('noDueDate', { count: undated.length })}
-              </h2>
+            {selectedTodos.length === 0 && selectedEvents.length === 0 ? (
+              <p className="py-6 text-center text-caption text-ink-faint">{t('emptyDay')}</p>
+            ) : (
               <ul className="flex flex-col gap-1.5">
-                {undated.map(t => (
+                {selectedTodos.map(t => (
                   <TodoRow
                     key={t.id}
                     todo={t}
                     owner={memberOf(t.owner_id)}
                     unknownLabel={tBoard('unknown')}
                     onToggle={() => toggleDone(t)}
-                  busy={toggleStatus.isPending}
+                    busy={toggleStatus.isPending}
                   />
                 ))}
               </ul>
-            </div>
-          )}
+            )}
+
+            {undated.length > 0 && (
+              <div className="mt-5 border-t border-hairline pt-3">
+                <h2 className="pb-2 text-caption font-semibold text-ink-secondary">
+                  {t('noDueDate', { count: undated.length })}
+                </h2>
+                <ul className="flex flex-col gap-1.5">
+                  {undated.map(t => (
+                    <TodoRow
+                      key={t.id}
+                      todo={t}
+                      owner={memberOf(t.owner_id)}
+                      unknownLabel={tBoard('unknown')}
+                      onToggle={() => toggleDone(t)}
+                      busy={toggleStatus.isPending}
+                    />
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -832,7 +838,13 @@ function TodoRow({
           )}
         >
           {done && (
-            <svg viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              viewBox="0 0 12 12"
+              className="size-3"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M2.5 6.2 4.8 8.5 9.5 3.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           )}

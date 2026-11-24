@@ -229,11 +229,20 @@ struct CalendarView: View {
                     Text(tr("일정 \(dayEvents.count) · 할 일 \(dayTodos.count)", "\(plural(dayEvents.count, "event")) · \(plural(dayTodos.count, "to-do"))", "予定 \(dayEvents.count) · タスク \(dayTodos.count)")).font(.tl(11)).foregroundStyle(tk.inkFaint)
                 }
                 Spacer()
-                Button(tr("일정 추가", "Add event", "予定を追加")) {
+                // 글자 버튼 대신 「+」 하나 — 날짜 머리줄 옆에서 자리를 덜 먹는다(웹과 같다)
+                Button {
                     editing = nil
                     sheetOpen = true
+                } label: {
+                    Image(systemName: "plus").font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(tk.ink)
+                        .frame(width: 40, height: 40)
+                        .background(tk.surface, in: Circle())
+                        .overlay(Circle().strokeBorder(tk.hairlineStrong))
+                        .frame(width: 44, height: 44)
                 }
-                .buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
+                .buttonStyle(PressScale(scale: 0.9))
+                .accessibilityLabel(tr("일정 추가", "Add event", "予定を追加"))
             }
             .padding(.vertical, 10)
 

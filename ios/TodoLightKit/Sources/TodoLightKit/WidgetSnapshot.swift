@@ -39,7 +39,9 @@ public struct WidgetSnapshot: Codable, Equatable, Sendable {
     }
 
     /// 보드에서 내 컬럼의 미완료로 만든다 — 보드와 같은 정렬(`BoardRules.split`)을 쓴다
-    public static func make(orgName: String, todos: [Todo], userId: String, lang: String, limit: Int = 4) -> WidgetSnapshot {
+    /// - Parameter limit: 위젯이 한 번에 보이는 것(큰 위젯 7줄)보다 넉넉히 — 위젯에서 하나 끝내면
+    ///   앱을 열지 않아도 다음 것이 바로 올라온다
+    public static func make(orgName: String, todos: [Todo], userId: String, lang: String, limit: Int = 10) -> WidgetSnapshot {
         let column = BoardRules.split(todos.filter { $0.ownerId == userId || $0.participants.contains(userId) }).open
         return WidgetSnapshot(
             orgName: orgName,

@@ -24,7 +24,7 @@ struct MyTodosWidget: Widget {
         .description(Words.device.widgetDescription)
         .supportedFamilies([
             .accessoryCircular, .accessoryRectangular, .accessoryInline,
-            .systemSmall, .systemMedium,
+            .systemSmall, .systemMedium, .systemLarge,
         ])
     }
 }
@@ -70,7 +70,8 @@ struct MyTodosView: View {
             case .accessoryCircular: circular(s, t)
             case .accessoryRectangular: rectangular(s, t)
             case .accessoryInline: inline(s, t)
-            case .systemMedium: list(s, t, rows: 4)
+            case .systemLarge: list(s, t, rows: 7)
+            case .systemMedium: list(s, t, rows: 3)
             default: list(s, t, rows: 3)
             }
         } else {
@@ -95,14 +96,15 @@ struct MyTodosView: View {
         .accessibilityLabel(t.remaining(s.openCount))
     }
 
+    /// 잠금화면 — 개수 한 줄 + 급한 것 두 줄. 줄을 누르면 끝난다
     private func rectangular(_ s: WidgetSnapshot, _ t: Words) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(t.remaining(s.openCount)).font(.headline).widgetAccentable()
             if s.items.isEmpty {
                 Text(t.allDone).font(.caption)
             } else {
                 ForEach(s.items.prefix(2), id: \.id) { item in
-                    row(item, t, font: .caption)
+                    row(item, t, compact: true)
                 }
             }
         }
@@ -118,47 +120,62 @@ struct MyTodosView: View {
         }
     }
 
+    /// 홈 화면 — 위에 개수 하나, 아래로 내 할 일. 조직 이름은 작게(여러 조직을 오가는 사람용)
     private func list(_ s: WidgetSnapshot, _ t: Words, rows: Int) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(s.orgName).font(.caption.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1)
-                Spacer(minLength: 4)
-                Text("\(s.openCount)").font(.title3.weight(.bold)).monospacedDigit()
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("\(s.openCount)").font(.title2.weight(.bold)).monospacedDigit()
+                Text(s.orgName).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Spacer(minLength: 0)
             }
+            .padding(.bottom, 6)
             if s.items.isEmpty {
-                Spacer()
-                Label(t.allDone, systemImage: "checkmark").font(.subheadline)
-                Spacer()
+                Spacer(minLength: 0)
+                Label(t.allDone, systemImage: "checkmark.circle.fill").font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
             } else {
-                ForEach(s.items.prefix(rows), id: \.id) { item in
-                    row(item, t, font: .subheadline)
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(s.items.prefix(rows), id: \.id) { item in
+                        row(item, t, compact: false)
+                    }
                 }
                 Spacer(minLength: 0)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// 체크 + 제목 + 마감 — 지난 마감은 느낌표로(색을 못 쓰는 잠금화면에서도 보인다).
-    /// 체크는 내 것에만 단다(남의 할 일을 끝내는 건 메모가 필요한 "대신 처리"라 앱에서 한다)
-    private func row(_ item: WidgetSnapshot.Item, _ t: Words, font: Font) -> some View {
+    /// 한 줄 — **줄 전체가 체크 버튼이다**. 예전엔 작은 동그라미만 눌려서 손가락으로 맞추기 어려웠다.
+    /// 누르면 위젯에서 먼저 빠지고(낙관적) 서버에 끝냄을 보낸다. 실패하면 돌아온다(CompleteTodoIntent).
+    /// 내 것이 아닌 줄(같이하기로 참여한 남의 할 일)은 끝내려면 메모가 필요한 "대신 처리"라 버튼이 아니다 —
+    /// 누르면 위젯 기본 동작대로 앱이 열린다.
+    @ViewBuilder
+    private func row(_ item: WidgetSnapshot.Item, _ t: Words, compact: Bool) -> some View {
         let due = item.dueDate.map { DueLabel.state($0, today: entry.date) }
-        return HStack(spacing: 4) {
-            if item.mine == true {
-                Button(intent: CompleteTodoIntent(todoId: item.id)) {
-                    Image(systemName: "circle").font(font)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(t.markDone(item.title))
-            }
-            if due == .overdue { Image(systemName: "exclamationmark.circle.fill").font(font) }
-            Text(item.title).font(font).lineLimit(1)
+        let line = HStack(spacing: compact ? 4 : 8) {
+            Image(systemName: item.mine == true ? "circle" : "person.2")
+                .font(compact ? .caption : .body)
+                .foregroundStyle(.secondary)
+            // 잠금화면은 색이 빠진다 — 지난 마감을 기호로. 홈 화면은 오른쪽 빨간 글씨가 이미 말한다
+            if due == .overdue && compact { Image(systemName: "exclamationmark.circle.fill").font(.caption2) }
+            Text(item.title).font(compact ? .caption : .subheadline).lineLimit(1)
             Spacer(minLength: 4)
-            if let d = item.dueDate, family != .accessoryRectangular {
+            if let d = item.dueDate, !compact {
                 Text(DueLabel.text(d, today: entry.date, t: t))
                     .font(.caption2)
                     .foregroundStyle(due == .overdue ? .red : .secondary)
             }
+        }
+        .frame(maxWidth: .infinity, minHeight: compact ? 0 : 30, alignment: .leading)
+        .contentShape(Rectangle())
+
+        if item.mine == true {
+            Button(intent: CompleteTodoIntent(todoId: item.id)) { line }
+                .buttonStyle(.plain)
+                .accessibilityLabel(t.markDone(item.title))
+        } else {
+            line
         }
     }
 
