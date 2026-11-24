@@ -89,6 +89,7 @@ struct MyTodosView: View {
             } else {
                 VStack(spacing: 0) {
                     Text("\(s.openCount)").font(.title2.weight(.bold)).monospacedDigit()
+                    .contentTransition(.numericText(value: Double(s.openCount)))
                     Text(t.todo).font(.caption2)
                 }
             }
@@ -100,11 +101,13 @@ struct MyTodosView: View {
     private func rectangular(_ s: WidgetSnapshot, _ t: Words) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(t.remaining(s.openCount)).font(.headline).widgetAccentable()
+                .contentTransition(.numericText(value: Double(s.openCount)))
             if s.items.isEmpty {
                 Text(t.allDone).font(.caption)
             } else {
                 ForEach(s.items.prefix(2), id: \.id) { item in
                     row(item, t, compact: true)
+                        .transition(.asymmetric(insertion: .push(from: .bottom), removal: .opacity))
                 }
             }
         }
@@ -125,6 +128,7 @@ struct MyTodosView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("\(s.openCount)").font(.title2.weight(.bold)).monospacedDigit()
+                    .contentTransition(.numericText(value: Double(s.openCount)))
                 Text(s.orgName).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 Spacer(minLength: 0)
             }
@@ -136,8 +140,14 @@ struct MyTodosView: View {
                 Spacer(minLength: 0)
             } else {
                 VStack(alignment: .leading, spacing: 0) {
+                    // 끝낸 줄은 왼쪽으로 밀려 사라지고, 아래 줄이 올라와 그 자리를 채운다 —
+                    // 위젯은 항목 id가 같은 줄끼리 이어 그리므로 다음 그림과의 차이만 움직인다
                     ForEach(s.items.prefix(rows), id: \.id) { item in
                         row(item, t, compact: false)
+                            .transition(.asymmetric(
+                                insertion: .push(from: .bottom),
+                                removal: .move(edge: .leading).combined(with: .opacity)
+                            ))
                     }
                 }
                 Spacer(minLength: 0)
@@ -146,27 +156,34 @@ struct MyTodosView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// 한 줄 — **줄 전체가 체크 토글이다**.
+    /// 한 줄 — **줄 전체가 체크 버튼이다**(예전엔 작은 동그라미만 눌렸다).
     ///
-    /// Button이 아니라 Toggle인 이유: 위젯은 누른 뒤 intent(서버에 끝냄 보내기)가 다 끝나야 다시 그려진다.
-    /// Button이면 그동안 1~2초 아무 반응이 없어 "안 눌렸나"가 된다. Toggle은 시스템이 **누르는 즉시**
-    /// 켜진 모습(체크 + 취소선)을 먼저 그려 준다. 서버가 받으면 그 줄이 목록에서 빠진다.
-    /// 내 것이 아닌 줄(같이하기로 참여한 남의 할 일)은 끝내려면 메모가 필요한 "대신 처리"라 토글이 아니다 —
+    /// 누르는 순간: `invalidatableContent()`가 그 줄을 시스템의 "처리 중" 모습(흐리게)으로 바꾼다.
+    /// 서버가 받으면(보통 0.5초): 위젯이 다시 그려지며 그 줄이 왼쪽으로 밀려 사라지고 아래 줄이 올라온다.
+    ///
+    /// **Toggle로 하지 말 것.** Toggle은 누른 줄이 "켜진 채로" 다시 그려지길 기다리는데, 끝낸 줄은 목록에서
+    /// 빠지므로 누른 위젯만 흐린 채 멈췄다(같은 순간 다른 위젯은 정상으로 바뀌었다 — 시뮬레이터에서 재현).
+    /// 내 것이 아닌 줄(같이하기로 참여한 남의 할 일)은 끝내려면 메모가 필요한 "대신 처리"라 버튼이 아니다 —
     /// 누르면 위젯 기본 동작대로 앱이 열린다.
     @ViewBuilder
     private func row(_ item: WidgetSnapshot.Item, _ t: Words, compact: Bool) -> some View {
-        if item.mine == true {
-            Toggle(isOn: false, intent: CompleteTodoIntent(todoId: item.id)) {
-                rowLabel(item, t, compact: compact)
-            }
-            .toggleStyle(CheckRowStyle(compact: compact))
-            .accessibilityLabel(t.markDone(item.title))
+        let mine = item.mine == true
+        let line = HStack(spacing: compact ? 4 : 8) {
+            Image(systemName: mine ? "circle" : "person.2")
+                .font(compact ? .caption : .body)
+                .foregroundStyle(.secondary)
+            rowLabel(item, t, compact: compact)
+        }
+        .frame(maxWidth: .infinity, minHeight: compact ? 0 : 30, alignment: .leading)
+        .contentShape(Rectangle())
+
+        if mine {
+            Button(intent: CompleteTodoIntent(todoId: item.id)) { line }
+                .buttonStyle(.plain)
+                .invalidatableContent()
+                .accessibilityLabel(t.markDone(item.title))
         } else {
-            HStack(spacing: compact ? 4 : 8) {
-                Image(systemName: "person.2").font(compact ? .caption : .body).foregroundStyle(.secondary)
-                rowLabel(item, t, compact: compact)
-            }
-            .frame(maxWidth: .infinity, minHeight: compact ? 0 : 30, alignment: .leading)
+            line
         }
     }
 
@@ -193,26 +210,6 @@ struct MyTodosView: View {
                     .font(.caption).multilineTextAlignment(.center)
             }
         }
-    }
-}
-
-/// 체크 한 줄 — 켜지면(누른 순간, 시스템이 먼저 그린다) 동그라미가 채워지고 제목에 줄이 그어진다
-struct CheckRowStyle: ToggleStyle {
-    let compact: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: compact ? 4 : 8) {
-            Image(systemName: configuration.isOn ? "checkmark.circle.fill" : "circle")
-                .font(compact ? .caption : .body)
-                .foregroundStyle(configuration.isOn ? .primary : .secondary)
-                .contentTransition(.symbolEffect(.replace))
-            configuration.label
-                .strikethrough(configuration.isOn)
-                .opacity(configuration.isOn ? 0.45 : 1)
-        }
-        .frame(maxWidth: .infinity, minHeight: compact ? 0 : 30, alignment: .leading)
-        .contentShape(Rectangle())
-        .animation(.snappy(duration: 0.2), value: configuration.isOn)
     }
 }
 
