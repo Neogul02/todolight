@@ -29,6 +29,7 @@ struct BoardView: View {
     @State private var menuOpen = false
     /// 보드 · 달력 · 가계부는 라우트가 아니라 한 화면의 패널이다(웹 ViewPager) — 바꿔도 상태가 남는다
     @State private var pane: AppPane = .board
+    @State private var paneWidth: CGFloat = 0
     /// 처음 열릴 때 마운트하고 그 뒤로는 유지한다 — 한 번도 안 본 패널은 쿼리도 안 돈다
     @State private var mounted: Set<AppPane> = [.board]
     @State private var calendar: CalendarStore?
@@ -69,7 +70,7 @@ struct BoardView: View {
                             chips
                             pager
                         }
-                        .paneVisible(pane == .board)
+                        .paneSlot(.board, current: pane, width: paneWidth, reduce: reduce)
                         if mounted.contains(.calendar), let calendar {
                             Group {
                                 if store.showCalendar {
@@ -78,7 +79,9 @@ struct BoardView: View {
                                     PanelOffNotice(title: tr("달력을 꺼 두셨어요", "The calendar is turned off", "カレンダーをオフにしています")) { onOpen(.me) }
                                 }
                             }
-                            .paneVisible(pane == .calendar)
+                            .paneSlot(.calendar, current: pane, width: paneWidth, reduce: reduce)
+                            // 처음 열릴 때 마운트된다 — 제자리에 툭 나타나지 않고 오른쪽에서 들어오게
+                            .transition(reduce ? .opacity : .move(edge: .trailing))
                         }
                         if mounted.contains(.ledger), let ledger {
                             Group {
@@ -88,9 +91,16 @@ struct BoardView: View {
                                     PanelOffNotice(title: tr("가계부를 꺼 두셨어요", "The ledger is turned off", "支出をオフにしています")) { onOpen(.me) }
                                 }
                             }
-                            .paneVisible(pane == .ledger)
+                            .paneSlot(.ledger, current: pane, width: paneWidth, reduce: reduce)
+                            // 처음 열릴 때 마운트된다 — 제자리에 툭 나타나지 않고 오른쪽에서 들어오게
+                            .transition(reduce ? .opacity : .move(edge: .trailing))
                         }
                     }
+                    // 웹 ViewPager와 같은 가로 트랙 — 세 패널이 나란히 서 있고 미는 건 위치뿐이다.
+                    // 탭바의 스프링 대신 웹과 같은 곡선으로 민다(두 앱 손맛을 맞춘다)
+                    .animation(reduce ? Motion.quick : Motion.paneSlide, value: pane)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { paneWidth = $0 }
+                    .clipped()
                 }
             }
 
@@ -183,6 +193,8 @@ struct BoardView: View {
 
     /// 첫 진입과 "다시 시도"가 같은 순서를 탄다 — 읽기만 다시 하면 페이지도 실시간도 안 잡힌다.
     private func start() async {
+        // 캐시로 이미 그리고 있으면 첫 칩부터 켜 둔다 — 서버 응답을 기다리는 동안 선택 표시가 비어 있었다
+        if page == nil, store.phase == .ready { page = store.members.first?.userId }
         await store.load()
         guard store.phase == .ready else { return }
         if page == nil { page = store.members.first?.userId }
@@ -406,13 +418,27 @@ struct BoardSkeleton: View {
     }
 }
 
-enum AppPane: Hashable { case board, calendar, ledger }
+enum AppPane: Hashable {
+    case board, calendar, ledger
+
+    /// 탭바에 놓인 순서 = 트랙 위 자리
+    var order: Int {
+        switch self {
+        case .board: 0
+        case .calendar: 1
+        case .ledger: 2
+        }
+    }
+}
 
 extension View {
-    /// 안 보이는 패널 — 화면에서 감추되 언마운트하지 않는다(스크롤 위치·적다 만 글이 남는다).
-    /// 손가락과 VoiceOver가 안 보이는 패널에 닿지 않게 막는다(웹 `inert`).
-    func paneVisible(_ visible: Bool) -> some View {
-        opacity(visible ? 1 : 0)
+    /// 패널 하나의 자리 — 보고 있는 패널 기준으로 왼쪽·오른쪽 화면 밖에 세워 둔다(웹 ViewPager의 translateX).
+    /// 언마운트하지 않으니 스크롤 위치·적다 만 글이 남는다. 손가락과 VoiceOver는 안 보이는 패널에
+    /// 닿지 않게 막는다(웹 `inert`). 모션 줄이기면 밀지 않고 겹쳐 둔 채 투명도만 바꾼다.
+    func paneSlot(_ me: AppPane, current: AppPane, width: CGFloat, reduce: Bool) -> some View {
+        let visible = me == current
+        return offset(x: reduce ? 0 : CGFloat(me.order - current.order) * width)
+            .opacity(reduce && !visible ? 0 : 1)
             .allowsHitTesting(visible)
             .accessibilityHidden(!visible)
     }

@@ -577,6 +577,11 @@ realtime-js가 하트비트마다 토큰을 다시 물어본다. 로그인·갱�
   **ViewPager가 갖는다.** 패널마다 부르면 `board-{orgId}` 채널이 두 번 열린다 —
   예전엔 보드와 달력이 각자 불렀지만 라우트가 달라 동시에 떠 있을 일이 없었다.
 - 조직이 하나도 없을 때의 안내도 ViewPager 한 곳이다(예전엔 세 화면에 거의 같은 코드로 세 벌).
+- **iOS도 같은 트랙이다**(`BoardView`의 `paneSlot`) — 같은 240ms·같은 곡선(`Motion.paneSlide`)으로 민다.
+  처음 열리는 패널은 오른쪽에서 들어온다. 모션 줄이기면 밀지 않고 투명도만.
+- iOS는 앱이 비켜 있으면(`scenePhase != .active`) 흐린 판 + 로고로 덮는다(`PrivacyCover`) —
+  앱 전환기 스냅샷에 팀의 할 일·가계부 금액이 남지 않게.
+- iOS는 조직 목록도 캐시로 먼저 그린다 — 서버가 잠들어 있으면 앱을 열 때마다 몇 초씩 회색 상자였다.
 
 **시트는 `document.body`로 포털한다**(`BottomSheet`). `position: fixed`는 조상에 `transform`이
 있으면 뷰포트가 아니라 **그 조상** 기준으로 배치된다 — 트랙에 `translateX`가 상시 걸려 있어서,
@@ -885,6 +890,23 @@ Tailwind v4 preflight는 버튼 커서를 `default`로 되돌린다. 터치에�
 - **세로가 더 크면 손을 뗀다** — 페이지를 스크롤하려는 것이다. `touch-action: pan-y`로
   세로 스크롤은 브라우저에 남긴다.
 - 민 자리에 날짜 칸이 있으면 그게 눌린다 — 캐러셀과 같이 클릭 한 번을 capture에서 삼킨다.
+
+### 키보드는 적는 동안에만
+
+입력칸 밖을 누르면 키보드를 내린다 — 웹 `useDismissKeyboardOnOutsideTouch`(AppShell, 터치만),
+iOS `KeyboardDismissOnTap`(창에 단 UIKit 탭 인식기, 원래 탭은 그대로 간다).
+- 다른 입력칸을 누르면 그대로 옮겨 간다.
+- **지금 칸과 같은 줄의 버튼(「추가」·메모 보내기)에서는 내리지 않는다** — 웹은 같은 `<form>`,
+  iOS는 지금 칸 둘레 72pt. 거기서 내리면 보내고 포커스를 다시 잡느라 키보드가 깜빡인다.
+- 웹 시트는 `useKeyboardInset`(visualViewport)만큼 들어 올린다 — iOS Safari는
+  `resizes-content`를 안 따라서 시트 안 칸이 키보드 뒤에 깔렸다.
+- 대신 처리·새 조직처럼 **쓰는 게 목적인 화면**만 열자마자 키보드를 띄운다.
+
+### 지난 마감은 "N일 지남"
+
+마감 표시는 `formatDueDay`(웹) · `Due.label`(iOS) 하나다. 이틀 넘게 지난 마감은 "N일 지남" —
+"5일 전"은 만든 날처럼 읽히고, 일주일이 넘으면 절대 날짜로 바뀌어 얼마나 늦었는지 안 보였다.
+잠금화면 위젯과 같은 말이다. 메모·초대 시각은 그대로 `formatRelativeDay`.
 
 ### 폼의 키보드 흐름 — lib/forms.ts
 

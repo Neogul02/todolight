@@ -283,6 +283,15 @@ enum Due {
         return due < today ? .overdue : due == today ? .today : .upcoming
     }
 
+    /// 웹 `formatDueDay` — 마감 표시. 지난 마감은 이틀부터 "N일 지남"(잠금화면 위젯과 같은 말)
+    static func label(_ day: String) -> String {
+        if let target = date(day), let now = date(today()),
+           let late = kst.dateComponents([.day], from: target, to: now).day, late >= 2 {
+            return tr("\(late)일 지남", late == 1 ? "1 day overdue" : "\(late) days overdue", "\(late)日超過")
+        }
+        return relative(day)
+    }
+
     /// 웹 `formatRelativeDay` — 7일 안은 "오늘·내일·모레·3일 전", 그 밖은 "2026. 10. 25."
     static func relative(_ day: String) -> String {
         guard let target = date(day), let now = date(today()) else { return day }
@@ -321,7 +330,7 @@ struct DuePillView: View {
 
     var body: some View {
         let state = Due.state(value)
-        let label = value.map(Due.relative) ?? tr("마감 없음", "No due date", "期限なし")
+        let label = value.map(Due.label) ?? tr("마감 없음", "No due date", "期限なし")
         // 지난 마감만 색으로 알린다. 오늘·나중은 기본값에 가까워서 색을 주면 경고처럼 읽힌다
         let (bg, fg, border): (Color, Color, Color) = switch state {
         case .overdue: (tk.dangerSoft, tk.danger, tk.danger.opacity(0.4))

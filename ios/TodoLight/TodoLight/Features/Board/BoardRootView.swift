@@ -84,6 +84,10 @@ struct BoardRootView: View {
 
     private func loadOrgs() async {
         error = nil
+        // 마지막으로 받은 목록으로 보드부터 띄운다 — 서버가 잠들어 있으면 응답까지 몇 초 걸리는데,
+        // 그동안 회색 상자만 보이던 게 앱을 열 때마다 반복됐다. 새 목록이 오면 그 위에 덮는다.
+        // (로그아웃하면 캐시를 통째로 지우므로 다른 계정의 조직이 비칠 일은 없다)
+        if orgs == nil { orgs = OfflineCache.load([OrganizationSummary].self, key: "orgs") }
         async let list = Backend.shared.api.fetchMyOrgs()
         async let mine = try? Backend.shared.api.fetchMyInvites()
         do {
@@ -91,12 +95,8 @@ struct BoardRootView: View {
             orgs = fresh
             OfflineCache.save(fresh, as: "orgs")
         } catch {
-            // 오프라인이면 마지막으로 받은 목록으로 보드까지 간다(보드는 자기 캐시로 그린다)
-            if orgs == nil, APIError.isOffline(error), let cached = OfflineCache.load([OrganizationSummary].self, key: "orgs") {
-                orgs = cached
-            } else if orgs == nil {
-                self.error = BoardStore.message(error)
-            }
+            // 캐시로 이미 그리고 있으면 그대로 둔다(보드는 자기 캐시로 그린다)
+            if orgs == nil { self.error = BoardStore.message(error) }
         }
         if let mine = await mine { invites = mine.filter { $0.status == .pending } }
     }

@@ -283,7 +283,8 @@
     "today": "Today",
     "tomorrow": "Tomorrow",
     "yesterday": "Yesterday",
-    "changeDue": "Due {date} — tap to change"
+    "changeDue": "Due {date} — tap to change",
+    "overdueDays": "{count, plural, one {# day} other {# days}} overdue"
   },
   "toast": {
     "todoDeleted": "To-do deleted.",

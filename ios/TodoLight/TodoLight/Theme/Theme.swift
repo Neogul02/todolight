@@ -94,6 +94,8 @@ enum Motion {
     static let quick = Animation.easeOut(duration: 0.16)
     /// 탭바 활성 판 — 웹 `{ type: 'spring', stiffness: 420, damping: 34 }`
     static let tabSpring = Animation.interpolatingSpring(stiffness: 420, damping: 34)
+    /// 보드·달력·가계부 패널 전환 — 웹 `ViewPager`의 `240ms cubic-bezier(0.22, 0.61, 0.36, 1)` 그대로
+    static let paneSlide = Animation.timingCurve(0.22, 0.61, 0.36, 1, duration: 0.24)
 
     /// 모션 줄이기가 켜져 있으면 애니메이션 없이 바로 바꾼다(웹 `useReducedMotion`).
     @MainActor

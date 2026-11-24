@@ -6,7 +6,14 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useTodoMutations } from '@/hooks/useTodoMutations';
 import { useOutsideClick, useOutsideClickGroup } from '@/hooks/useOutsideClick';
 import { caretToEnd } from '@/lib/forms';
-import { cn, dueState, formatKSTTime, formatRelativeDay, subjectParticle } from '@/lib/utils';
+import {
+  cn,
+  dueState,
+  formatDueDay,
+  formatKSTTime,
+  formatRelativeDay,
+  subjectParticle,
+} from '@/lib/utils';
 import { getAvatarColor } from '@/lib/avatar';
 import { vibrateTick } from '@/lib/haptics';
 import { Avatar } from '@/components/Avatar';
@@ -69,6 +76,7 @@ export default function TodoCard({
 }) {
   const locale = useLocale() as Locale;
   const t = useTranslations('board');
+  const tDue = useTranslations('duePicker');
   const reduceMotion = useReducedMotion();
   const { toggleStatus, remove } = useTodoMutations(todo.org_id);
   const busy = toggleStatus.isPending || remove.isPending;
@@ -88,9 +96,7 @@ export default function TodoCard({
   */
   const givenByOther = Boolean(todo.given_by) && todo.given_by !== todo.owner_id;
   const askedByOther = !givenByOther && todo.created_by !== todo.owner_id;
-  const requester = askedByOther
-    ? members.find(m => m.user_id === todo.created_by)
-    : undefined;
+  const requester = askedByOther ? members.find(m => m.user_id === todo.created_by) : undefined;
   const giver = givenByOther ? members.find(m => m.user_id === todo.given_by) : undefined;
 
   /**
@@ -102,7 +108,9 @@ export default function TodoCard({
   const givenByText = (name: string) =>
     locale === 'ko' ? `${name}${subjectParticle(name)} 넘김` : t('card.givenBy', { name });
   const handledByText = (name: string) =>
-    locale === 'ko' ? `${name}${subjectParticle(name)} 대신 처리` : t('card.handledByOther', { name });
+    locale === 'ko'
+      ? `${name}${subjectParticle(name)} 대신 처리`
+      : t('card.handledByOther', { name });
 
   const requesterName = requester?.display_name ?? t('someone');
   const handlerName = handler?.display_name ?? t('someone');
@@ -221,7 +229,9 @@ export default function TodoCard({
   const focusMembers = (focusUsers ?? [])
     .map(f => members.find(m => m.user_id === f.userId))
     .filter((m): m is MemberSummary => Boolean(m));
-  const focusColor = focusMembers[0] ? getAvatarColor(focusMembers[0].avatar_color, focusMembers[0].user_id).bg : null;
+  const focusColor = focusMembers[0]
+    ? getAvatarColor(focusMembers[0].avatar_color, focusMembers[0].user_id).bg
+    : null;
 
   // 유리 카드. border를 떼고 glass-card의 inset 그림자에 맡긴다 — border는 1px이 요소
   // 크기에 더해져서, 체크박스·제목·X의 py-2로 맞춰 둔 터치 영역이 밀린다.
@@ -311,10 +321,7 @@ export default function TodoCard({
           aria-expanded={open}
           // 꾹 눌러 드래그하는 손잡이다 — no-select 없으면 iOS가 그 자리 텍스트를 선택하고
           // 콜아웃을 띄워서 포인터 제스처가 pointercancel로 끊긴다(순서 바꾸기가 시작하다 만다).
-          className={cn(
-            'min-w-0 flex-1 py-2 text-left',
-            draggable && 'touch-pan-y no-select'
-          )}
+          className={cn('min-w-0 flex-1 py-2 text-left', draggable && 'touch-pan-y no-select')}
         >
           <p
             className={cn(
@@ -336,7 +343,7 @@ export default function TodoCard({
               {titleTypers.length > 0 && <Badge>{typingText(titleTypers)}</Badge>}
               {todo.due_date && (
                 <Badge tone={DUE_TONE[due]}>
-                  {formatRelativeDay(`${todo.due_date}T00:00:00Z`, locale)}
+                  {formatDueDay(todo.due_date, locale, n => tDue('overdueDays', { count: n }))}
                 </Badge>
               )}
               {askedByOther && (
@@ -753,7 +760,11 @@ function TodoCardOpenContent({
                 stroke="currentColor"
                 strokeWidth="2"
               >
-                <path d="M4 10h11M10.5 5 15.5 10l-5 5" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="M4 10h11M10.5 5 15.5 10l-5 5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </button>
           </form>

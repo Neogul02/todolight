@@ -76,9 +76,11 @@ export function monthRange(month: string): { start: string; end: string } {
 /** "2026년 8월" · "August 2026" */
 export function formatMonth(month: string, locale: Locale = DEFAULT_LOCALE): string {
   const [y, m] = month.split('-').map(Number);
-  return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long', timeZone: 'UTC' }).format(
-    new Date(Date.UTC(y, m - 1, 1))
-  );
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(y, m - 1, 1)));
 }
 
 /**
@@ -106,6 +108,20 @@ export function daysFromToday(date: string): number {
   return Math.round(
     (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${todayKST()}T00:00:00Z`)) / 86_400_000
   );
+}
+
+/**
+ * 마감 표시 — 지난 마감은 이틀부터 "N일 지남"으로 센다.
+ * 상대 날짜("5일 전")는 마감에선 "5일 전에 만든 것"처럼 읽히고, 일주일을 넘기면 절대 날짜로 바뀌어
+ * 얼마나 늦었는지가 안 보였다. 잠금화면 위젯도 같은 말을 쓴다.
+ */
+export function formatDueDay(
+  date: string,
+  locale: Locale,
+  overdue: (days: number) => string
+): string {
+  const late = -daysFromToday(date);
+  return late >= 2 ? overdue(late) : formatRelativeDay(`${date}T00:00:00Z`, locale);
 }
 
 /** 마감일 상태 — 컬럼 배지 색 결정용 */

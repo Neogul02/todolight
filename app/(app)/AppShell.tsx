@@ -10,6 +10,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { fetchMyInvites, fetchMyOrgs, respondToInvite } from '@/app/actions/orgs';
 import { fetchMyProfile } from '@/app/actions/profile';
 import { useActiveOrg } from '@/hooks/useActiveOrg';
+import { useDismissKeyboardOnOutsideTouch } from '@/hooks/useDismissKeyboardOnOutsideTouch';
 import { applyTheme } from '@/app/providers';
 import { applyLocale, readLocaleCookie } from '@/lib/locale-client';
 import { Avatar } from '@/components/Avatar';
@@ -41,6 +42,8 @@ export default function AppShell({
   profile: Profile | null;
   children: React.ReactNode;
 }) {
+  // 입력칸 밖을 터치하면 키보드를 내린다(iOS 앱과 같은 규칙)
+  useDismissKeyboardOnOutsideTouch();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

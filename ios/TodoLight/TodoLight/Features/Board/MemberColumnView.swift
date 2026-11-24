@@ -34,11 +34,13 @@ struct MemberColumnView: View {
         VStack(spacing: 0) {
             header(openCount: open.count, doneTotal: store.doneTotals[member.userId] ?? done.count)
             addField
+            ScrollViewReader { proxy in
             ScrollView {
                 VStack(spacing: 8) {
                     // 미완료와 완료를 한 ForEach에 — 체크하면 같은 카드가 자리를 옮기며 미끄러진다(웹 layout 애니메이션)
                     ForEach(open + shownDone) { todo in
                         card(todo)
+                            .id(todo.id)
                             .transition(.card)
                             .modifier(ReorderHandle(
                                 id: todo.id, enabled: todo.status != .done && store.openTodoId != todo.id,
@@ -69,12 +71,23 @@ struct MemberColumnView: View {
                 .animation(reduce ? nil : Motion.quick, value: (open + shownDone).map(\.id))
                 .coordinateSpace(.named("column"))
                 .padding(.horizontal, 12)
-                // 하단 탭바 알약이 콘텐츠 위에 뜬다 — 마지막 카드가 그 밑에 갇히지 않게(웹 pb-tabbar)
-                .padding(.bottom, 96)
             }
+            // 하단 탭바 알약이 콘텐츠 위에 뜬다 — 마지막 카드가 그 밑에 갇히지 않게(웹 pb-tabbar).
+            // 안쪽 패딩이 아니라 스크롤 영역의 여백으로 둬야 scrollTo가 "탭바 위까지 보이게"로 계산한다
+            .safeAreaPadding(.bottom, 96)
             .refreshable { await store.load() }
             .scrollDismissesKeyboard(.interactively)
             .scrollDisabled(reorder.dragging != nil)
+            // 아래쪽 카드를 펼치면 메모 칸·동작 줄이 탭바 밑으로 들어가 눌리지도 않았다 —
+            // 펼침 애니메이션이 끝난 뒤 카드 전체가 보이게 필요한 만큼만 민다(이미 보이면 그대로)
+            .onChange(of: store.openTodoId) { _, id in
+                guard let id, (open + shownDone).contains(where: { $0.id == id }) else { return }
+                Task {
+                    try? await Task.sleep(for: .milliseconds(180))
+                    Motion.run(Motion.quick, reduce: reduce) { proxy.scrollTo(id) }
+                }
+            }
+            }
         }
         // 잠금화면 "할 일 추가" — 내 컬럼만 받는다
         .onAppear { if isMe && QuickAdd.shared.consume() { adding = true } }

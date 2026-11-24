@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
-import { cn, dueState, formatRelativeDay } from '@/lib/utils';
+import { cn, dueState, formatDueDay } from '@/lib/utils';
 import { DuePicker } from './DuePicker';
 import type { Locale } from '@/lib/locales';
 
@@ -61,7 +61,9 @@ export function DuePill({
   const reduceMotion = useReducedMotion();
 
   const state = dueState(value);
-  const label = value ? formatRelativeDay(`${value}T00:00:00Z`, locale) : t('noDue');
+  const label = value
+    ? formatDueDay(value, locale, n => t('overdueDays', { count: n }))
+    : t('noDue');
 
   return (
     <div className={className}>
@@ -110,7 +112,13 @@ export function DuePill({
 
 function CalendarGlyph({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" className={className} fill="none" stroke="currentColor" strokeWidth="1.6">
+    <svg
+      viewBox="0 0 16 16"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+    >
       <rect x="2.25" y="3.25" width="11.5" height="10.5" rx="2.5" />
       <path d="M2.25 6.5h11.5M5.5 2v2.5M10.5 2v2.5" strokeLinecap="round" />
     </svg>
@@ -119,7 +127,13 @@ function CalendarGlyph({ className }: { className?: string }) {
 
 function ChevronGlyph({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" className={className} fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      viewBox="0 0 16 16"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <path d="m4 6.5 4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );

@@ -109,7 +109,7 @@ struct TodoCardView: View {
                     case .today: .warning
                     default: .neutral
                     }
-                    BadgeView(Due.relative(due), tone: tone)
+                    BadgeView(Due.label(due), tone: tone)
                 }
                 // "이거 왜 내 목록에 있지"를 카드에서 바로 — 넘김이 부탁보다 우선(넘긴 사람에게 물어야 한다)
                 if todo.isGivenByOther {

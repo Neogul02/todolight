@@ -145,7 +145,8 @@ struct CalendarView: View {
                 let isSel = day == selected
                 let isToday = day == today
                 let remaining = todos.filter { $0.status != .done }
-                let dayEvents = store.events.filter { $0.startDate <= day && day <= $0.endDate }
+                // 일정 점은 칸이 납작할 때만 그린다 — 그때만 훑는다(평소엔 띠가 따로 그린다)
+                let dayEvents = compact ? store.events.filter { $0.startDate <= day && day <= $0.endDate } : []
                 Button { selected = day } label: {
                     VStack(spacing: 4) {
                         // 고른 날만 채운 원 — 오늘은 색과 굵기로만(채운 원은 언제나 하나뿐이어야 헷갈리지 않는다)

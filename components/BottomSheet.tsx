@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useIsClient } from '@/hooks/useIsClient';
+import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 import { cn } from '@/lib/utils';
 
 /**
@@ -90,6 +91,8 @@ export function BottomSheet({
   // 서버 렌더에는 document가 없다 — 하이드레이션 전에는 아무것도 그리지 않는다.
   // 시트는 사용자가 눌러야 열리므로 첫 페인트에 보일 일이 없다.
   const isClient = useIsClient();
+  // 시트 안 입력칸이 키보드 뒤로 숨지 않게 — 키보드 높이만큼 시트를 들어 올린다
+  const keyboard = useKeyboardInset();
   if (!isClient) return null;
 
   return createPortal(
@@ -97,14 +100,18 @@ export function BottomSheet({
       {open && (
         <motion.div
           key="scrim"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
+          /*
+            배경 블러도 투명도와 같이 0에서 올린다 — 클래스로 박아 두면 어두워지는 건 서서히인데
+            흐려지는 건 첫 프레임에 툭 켜진다.
+          */
+          initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+          animate={{ opacity: 1, backdropFilter: 'blur(3px)' }}
+          exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+          transition={{ duration: 0.18 }}
           onMouseDown={e => {
             if (e.target === e.currentTarget) onClose();
           }}
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 backdrop-blur-[3px] sm:items-center sm:p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 sm:items-center sm:p-4"
         >
           <motion.div
             key="sheet"
@@ -140,8 +147,10 @@ export function BottomSheet({
               카드의 글자가 시트 글자와 겹쳐 둘 다 못 읽는 상태가 된다.
               테두리는 유틸리티가 inset 그림자로 그리므로 border 클래스를 붙이지 않는다.
             */
+            style={keyboard ? { marginBottom: keyboard } : undefined}
             className={cn(
               'w-full max-w-[480px] rounded-t-3xl glass-strong pb-safe',
+              'transition-[margin] duration-200 ease-out',
               'sm:rounded-2xl sm:pb-0',
               className
             )}
@@ -162,7 +171,11 @@ export function BottomSheet({
               패널 전체를 스크롤 컨테이너로 만들면 드래그로 닫기와 엉킨다.
               목록 맨 위에서 아래로 당기면 시트가 닫히는데, iOS 시트의 표준 동작이라 그대로 둔다.
             */}
-            <div className="max-h-[70dvh] overflow-y-auto overscroll-contain px-5 pt-2 pb-5">
+            <div
+              className="max-h-[70dvh] overflow-y-auto overscroll-contain px-5 pt-2 pb-5"
+              // 키보드가 떠 있으면 남은 높이 안에 들어오게 줄인다(제목·핸들 몫으로 6rem을 남긴다)
+              style={keyboard ? { maxHeight: `calc(100dvh - ${keyboard}px - 6rem)` } : undefined}
+            >
               {children}
             </div>
           </motion.div>
