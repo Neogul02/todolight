@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE, isValidLocale, type Locale } from '@/lib/locales';
 import 'server-only';
 import { createPrivateKey, sign } from 'node:crypto';
 import { connect, type ClientHttp2Session } from 'node:http2';
@@ -71,7 +72,7 @@ export interface PushParams {
   count?: number;
 }
 
-type Lang = 'ko' | 'en';
+type Lang = Locale;
 
 function quote(s?: string | null) {
   return s ? ` "${s.length > 80 ? `${s.slice(0, 80)}…` : s}"` : '';
@@ -80,7 +81,9 @@ function quote(s?: string | null) {
 function due(d: string | null | undefined, lang: Lang) {
   if (!d) return '';
   const [, m, day] = d.split('-').map(Number);
-  return lang === 'ko' ? ` · ${m}월 ${day}일 마감` : ` · due ${m}/${day}`;
+  return { ko: ` · ${m}월 ${day}일 마감`, en: ` · due ${m}/${day}`, ja: ` · ${m}月${day}日まで` }[
+    lang
+  ];
 }
 
 /** 받는 사람의 언어로 쓴다(`profiles.locale`) — 보내는 사람의 언어가 아니다 */
@@ -89,72 +92,143 @@ export function pushText(
   p: PushParams,
   lang: Lang
 ): { title: string; body: string } {
-  const a = p.actor ?? (lang === 'ko' ? '누군가' : 'Someone');
+  const a = p.actor ?? { ko: '누군가', en: 'Someone', ja: '誰か' }[lang];
   const t = p.title ?? '';
-  const ko = lang === 'ko';
+  // 세 언어를 한 자리에 나란히 둔다 — 한 언어만 고치는 사고를 막는다
+  const L = (ko: string, en: string, ja: string) => ({ ko, en, ja })[lang];
   switch (kind) {
     case 'requested':
       return {
-        title: ko ? `${a}님이 할 일을 부탁했어요` : `${a} asked you to do something`,
+        title: L(
+          `${a}님이 할 일을 부탁했어요`,
+          `${a} asked you to do something`,
+          `${a}さんからタスクの依頼が届きました`
+        ),
         body: t + due(p.due, lang),
       };
     case 'given':
       return {
-        title: ko ? `${a}님이 할 일을 넘겼어요` : `${a} handed you a to-do`,
+        title: L(
+          `${a}님이 할 일을 넘겼어요`,
+          `${a} handed you a to-do`,
+          `${a}さんからタスクが渡されました`
+        ),
         body: t + quote(p.note),
       };
     case 'handled':
       return {
-        title: ko ? `${a}님이 내 할 일을 끝냈어요` : `${a} finished your to-do`,
+        title: L(
+          `${a}님이 내 할 일을 끝냈어요`,
+          `${a} finished your to-do`,
+          `${a}さんがあなたのタスクを完了しました`
+        ),
         body: t + quote(p.note),
       };
     case 'noted':
       return {
-        title: ko ? `${a}님이 메모를 남겼어요` : `${a} left a note`,
+        title: L(`${a}님이 메모를 남겼어요`, `${a} left a note`, `${a}さんがメモを残しました`),
         body: `${t}: ${p.note ?? ''}`,
       };
     case 'edited':
       return {
-        title: ko ? `${a}님이 내 할 일을 고쳤어요` : `${a} edited your to-do`,
+        title: L(
+          `${a}님이 내 할 일을 고쳤어요`,
+          `${a} edited your to-do`,
+          `${a}さんがあなたのタスクを編集しました`
+        ),
         body: t + due(p.due, lang),
       };
     case 'deleted':
-      return { title: ko ? `${a}님이 내 할 일을 지웠어요` : `${a} deleted your to-do`, body: t };
+      return {
+        title: L(
+          `${a}님이 내 할 일을 지웠어요`,
+          `${a} deleted your to-do`,
+          `${a}さんがあなたのタスクを削除しました`
+        ),
+        body: t,
+      };
     case 'joined':
-      return { title: ko ? `${a}님이 같이하기로 했어요` : `${a} joined your to-do`, body: t };
+      return {
+        title: L(
+          `${a}님이 같이하기로 했어요`,
+          `${a} joined your to-do`,
+          `${a}さんが一緒にやることになりました`
+        ),
+        body: t,
+      };
     case 'requestDone':
       return {
-        title: ko ? `${a}님이 부탁한 일을 끝냈어요` : `${a} finished what you asked`,
+        title: L(
+          `${a}님이 부탁한 일을 끝냈어요`,
+          `${a} finished what you asked`,
+          `${a}さんが依頼したタスクを完了しました`
+        ),
         body: t,
       };
     case 'eventNew':
-      return { title: ko ? '새 일정이 생겼어요' : 'New event', body: `${t} · ${p.range ?? ''}` };
+      return {
+        title: L('새 일정이 생겼어요', 'New event', '新しい予定ができました'),
+        body: `${t} · ${p.range ?? ''}`,
+      };
     case 'eventChanged':
-      return { title: ko ? '일정이 바뀌었어요' : 'Event changed', body: `${t} · ${p.range ?? ''}` };
+      return {
+        title: L('일정이 바뀌었어요', 'Event changed', '予定が変更されました'),
+        body: `${t} · ${p.range ?? ''}`,
+      };
     case 'memberJoined':
-      return { title: ko ? `${a}님이 ${p.org}에 들어왔어요` : `${a} joined ${p.org}`, body: '' };
+      return {
+        title: L(
+          `${a}님이 ${p.org}에 들어왔어요`,
+          `${a} joined ${p.org}`,
+          `${a}さんが${p.org}に参加しました`
+        ),
+        body: '',
+      };
     case 'teamTodo':
       return {
-        title: ko ? `${a}님이 할 일을 올렸어요` : `${a} added a to-do`,
+        title: L(
+          `${a}님이 할 일을 올렸어요`,
+          `${a} added a to-do`,
+          `${a}さんがタスクを追加しました`
+        ),
         body: t + due(p.due, lang),
       };
     case 'teamTodoEdited':
-      return { title: ko ? `${a}님이 할 일을 고쳤어요` : `${a} edited a to-do`, body: t };
+      return {
+        title: L(
+          `${a}님이 할 일을 고쳤어요`,
+          `${a} edited a to-do`,
+          `${a}さんがタスクを編集しました`
+        ),
+        body: t,
+      };
     case 'invited':
       return {
-        title: ko ? `${p.org}에 초대받았어요` : `You're invited to ${p.org}`,
-        body: ko ? `${a}님이 초대했어요. 눌러서 수락해요` : `${a} invited you. Tap to accept`,
+        title: L(
+          `${p.org}에 초대받았어요`,
+          `You're invited to ${p.org}`,
+          `${p.org}に招待されました`
+        ),
+        body: L(
+          `${a}님이 초대했어요. 눌러서 수락해요`,
+          `${a} invited you. Tap to accept`,
+          `${a}さんからの招待です。タップして参加できます`
+        ),
       };
     case 'digest': {
       const n = p.count ?? 0;
       return {
-        title: ko ? `오늘 마감 ${n}개` : `${n} due today`,
-        body: n > 1 ? (ko ? `${t} 외 ${n - 1}개` : `${t} and ${n - 1} more`) : t,
+        title: L(`오늘 마감 ${n}개`, `${n} due today`, `今日が期限のタスク ${n}件`),
+        body: n > 1 ? L(`${t} 외 ${n - 1}개`, `${t} and ${n - 1} more`, `${t} ほか${n - 1}件`) : t,
       };
     }
     case 'owner':
       return {
-        title: ko ? `${p.org}의 방장이 됐어요` : `You're now the owner of ${p.org}`,
+        title: L(
+          `${p.org}의 방장이 됐어요`,
+          `You're now the owner of ${p.org}`,
+          `${p.org}のオーナーになりました`
+        ),
         body: '',
       };
   }
@@ -301,7 +375,9 @@ export async function notify(input: NotifyInput): Promise<void> {
       );
     if (!devices?.length) return;
 
-    const langOf = new Map(recipients.map(r => [r.id, (r.locale === 'en' ? 'en' : 'ko') as Lang]));
+    const langOf = new Map(
+      recipients.map(r => [r.id, isValidLocale(r.locale) ? r.locale : DEFAULT_LOCALE] as const)
+    );
     const ownerOf = new Map(devices.map(d => [d.token, d.user_id]));
     const params: PushParams = { ...input.params, actor: actor?.display_name, org: org?.name };
 

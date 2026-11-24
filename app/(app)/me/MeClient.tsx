@@ -293,7 +293,7 @@ export default function MeClient() {
       <Card className="p-5">
         <h2 className="text-title text-ink">{t('language.title')}</h2>
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-3 gap-2">
           {LOCALES.map(l => (
             <button
               key={l}

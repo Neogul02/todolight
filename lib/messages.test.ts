@@ -43,7 +43,10 @@ describe('messages', async () => {
   });
 
   it('영어 복수형', async () => {
-    const t = createTranslator({ locale: 'en', messages: await load('en') });
+    const t = createTranslator({ locale: 'en', messages: await load('en') }) as unknown as (
+      k: string,
+      v: Record<string, number>
+    ) => string;
     expect(t('team.memberCount', { count: 1 })).toBe('1 member');
     expect(t('team.memberCount', { count: 3 })).toBe('3 members');
     expect(t('calendar.selectedCounts', { events: 1, todos: 2 })).toBe('1 event · 2 to-dos');

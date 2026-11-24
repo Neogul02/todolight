@@ -26,4 +26,15 @@ describe('pushText', () => {
     expect(pushText('digest', { title: '견적서', count: 3 }, 'ko')).toEqual({ title: '오늘 마감 3개', body: '견적서 외 2개' });
     expect(pushText('digest', { title: '견적서', count: 1 }, 'en')).toEqual({ title: '1 due today', body: '견적서' });
   });
+  it('일본어', () => {
+    expect(pushText('requested', { ...p, due: '2026-11-25' }, 'ja')).toEqual({
+      title: '진우さんからタスクの依頼が届きました',
+      body: '거래처 견적서 보내기 · 11月25日まで',
+    });
+    expect(pushText('digest', { title: '見積書', count: 3 }, 'ja')).toEqual({
+      title: '今日が期限のタスク 3件',
+      body: '見積書 ほか2件',
+    });
+    expect(pushText('invited', { org: 'Hiyori Sando' }, 'ja').body).toBe('誰かさんからの招待です。タップして参加できます');
+  });
 });

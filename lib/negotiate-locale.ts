@@ -3,6 +3,9 @@ import { DEFAULT_LOCALE, type Locale, isValidLocale } from '@/lib/locales';
 /**
  * 쿠키도 계정 설정도 없는 첫 방문 — 브라우저가 보낸 Accept-Language로 기본값을 정한다.
  * q값 순으로 정렬해 지원하는 로케일 중 가장 선호되는 걸 고른다.
+ *
+ * 헤더는 있는데 지원하는 언어가 하나도 없으면(프랑스어 등) **영어**다 — 한국어를 모르는
+ * 사람에게 한국어를 띄우는 것보다 낫다. iOS(`AppLang.current`)도 같은 규칙이다.
  */
 export function negotiateLocale(acceptLanguage: string | null | undefined): Locale {
   if (!acceptLanguage) return DEFAULT_LOCALE;
@@ -19,5 +22,5 @@ export function negotiateLocale(acceptLanguage: string | null | undefined): Loca
   for (const { lang } of ranked) {
     if (isValidLocale(lang)) return lang;
   }
-  return DEFAULT_LOCALE;
+  return ranked.some(r => r.lang && r.lang !== '*') ? 'en' : DEFAULT_LOCALE;
 }
