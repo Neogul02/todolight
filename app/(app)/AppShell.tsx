@@ -604,7 +604,7 @@ function TabBarButton({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'relative flex w-16 flex-col items-center gap-0.5 rounded-full py-1.5 transition-colors',
+        'relative flex w-16 flex-col items-center gap-0.5 rounded-full py-1.5 transition-[color,transform] active:scale-[0.92]',
         active ? 'text-accent' : 'text-ink-muted',
         className
       )}

@@ -184,7 +184,7 @@ struct CalendarView: View {
                     .background(isSel ? tk.accentSoft : .clear, in: RoundedRectangle(cornerRadius: 12))
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressScale(scale: 0.94))
                 .accessibilityLabel(describe(day, remaining: remaining.count, events: dayEvents))
                 .accessibilityAddTraits(isSel ? .isSelected : [])
             } else {

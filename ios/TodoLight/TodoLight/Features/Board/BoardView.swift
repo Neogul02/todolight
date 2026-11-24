@@ -387,7 +387,7 @@ private struct TabBar: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressScale(scale: 0.92))
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 }

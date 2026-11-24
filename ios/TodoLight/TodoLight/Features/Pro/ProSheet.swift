@@ -100,7 +100,7 @@ struct ProSheet: View {
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? tk.accent : tk.hairline, lineWidth: selected ? 2 : 1))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressScale(scale: 0.98))
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 

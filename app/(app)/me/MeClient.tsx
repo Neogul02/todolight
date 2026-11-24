@@ -444,7 +444,7 @@ function SettingCheckbox({
   label: string;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-3">
+    <label className="flex cursor-pointer items-center gap-3 transition-transform active:scale-[0.98]">
       <button
         type="button"
         role="checkbox"

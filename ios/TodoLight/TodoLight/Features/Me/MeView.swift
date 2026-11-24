@@ -266,7 +266,7 @@ struct MeView: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressScale(scale: 0.98))
         .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 

@@ -101,7 +101,7 @@ export function DuePicker({
           onClick={() => onChange(null)}
           aria-pressed={value === null}
           className={cn(
-            'flex h-11 shrink-0 items-center rounded-xl border px-3 text-[13px] font-medium transition-colors sm:h-10',
+            'flex h-11 shrink-0 items-center rounded-xl border px-3 text-[13px] font-medium transition-[color,background-color,transform] active:scale-[0.94] sm:h-10',
             value === null
               ? 'border-accent bg-accent text-accent-ink'
               : 'border-hairline bg-surface text-ink-faint'
@@ -125,7 +125,7 @@ export function DuePicker({
             aria-pressed={active}
             aria-label={date}
             className={cn(
-              'flex h-11 w-[56px] shrink-0 flex-col items-center justify-center rounded-xl border tabular-nums transition-colors sm:h-10',
+              'flex h-11 w-[56px] shrink-0 flex-col items-center justify-center rounded-xl border tabular-nums transition-[color,background-color,transform] active:scale-[0.94] sm:h-10',
               active
                 ? 'border-accent bg-accent text-accent-ink'
                 : 'border-hairline bg-surface text-ink',

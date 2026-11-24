@@ -297,23 +297,49 @@ enum Due {
         guard let target = date(day), let now = date(today()) else { return day }
         let diff = kst.dateComponents([.day], from: now, to: target).day ?? 0
         if abs(diff) <= 7 {
-            let f = RelativeDateTimeFormatter()
-            f.locale = AppLang.locale
-            f.dateTimeStyle = .named
-            f.calendar = kst
-            let text = f.localizedString(from: DateComponents(day: diff))
+            let text = Formatters.relative(AppLang.current).localizedString(from: DateComponents(day: diff))
             return AppLang.current == .en ? text.prefix(1).uppercased() + text.dropFirst() : text
         }
-        let f = DateFormatter()
-        f.locale = AppLang.locale
-        f.calendar = kst
-        f.timeZone = kst.timeZone
-        f.dateFormat = switch AppLang.current {
-        case .ko: "yyyy. M. d."
-        case .en: "MMM d, yyyy"
-        case .ja: "yyyy/M/d"
+        return Formatters.absolute(AppLang.current).string(from: target)
+    }
+
+    /// 날짜 글자를 만드는 포매터는 만드는 비용이 커서 카드마다·그릴 때마다 새로 만들면 보드 한 번 그리는 데
+    /// 수십 개가 생겼다(Time Profiler에서 이 화면 앱 코드 중 가장 무거웠다). 언어마다 하나씩 두고 다시 쓴다.
+    /// 캐시는 락 안에서만 만진다(`@unchecked Sendable`의 근거). 포매터 자체는 화면 코드(메인 스레드)만 쓴다.
+    private final class Formatters: @unchecked Sendable {
+        private static let shared = Formatters()
+        private let lock = NSLock()
+        private var relatives: [AppLang: RelativeDateTimeFormatter] = [:]
+        private var absolutes: [AppLang: DateFormatter] = [:]
+
+        static func relative(_ lang: AppLang) -> RelativeDateTimeFormatter {
+            shared.lock.withLock {
+                if let f = shared.relatives[lang] { return f }
+                let f = RelativeDateTimeFormatter()
+                f.locale = AppLang.locale
+                f.dateTimeStyle = .named
+                f.calendar = kst
+                shared.relatives[lang] = f
+                return f
+            }
         }
-        return f.string(from: target)
+
+        static func absolute(_ lang: AppLang) -> DateFormatter {
+            shared.lock.withLock {
+                if let f = shared.absolutes[lang] { return f }
+                let f = DateFormatter()
+                f.locale = AppLang.locale
+                f.calendar = kst
+                f.timeZone = kst.timeZone
+                f.dateFormat = switch lang {
+                case .ko: "yyyy. M. d."
+                case .en: "MMM d, yyyy"
+                case .ja: "yyyy/M/d"
+                }
+                shared.absolutes[lang] = f
+                return f
+            }
+        }
     }
 }
 
@@ -397,7 +423,7 @@ struct DuePicker: View {
                                 .background(value == nil ? tk.accent : tk.surface, in: RoundedRectangle(cornerRadius: 12))
                                 .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(value == nil ? tk.accent : tk.hairline))
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressScale(scale: 0.94))
                         .id("none")
                     }
                     ForEach(dates, id: \.self) { date in cell(date, today: today) }
@@ -433,7 +459,7 @@ struct DuePicker: View {
                     .strokeBorder(active ? tk.accent : isToday ? tk.hairlineStrong : tk.hairline)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressScale(scale: 0.94))
         .id(date)
         .accessibilityLabel(date)
     }
