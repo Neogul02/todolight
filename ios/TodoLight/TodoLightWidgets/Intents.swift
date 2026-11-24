@@ -28,7 +28,9 @@ struct CompleteTodoIntent: AppIntent {
 
     func perform() async throws -> some IntentResult {
         guard let before = SharedStore.removeItem(todoId) else { return .result() }
-        WidgetCenter.shared.reloadAllTimelines()
+        // 여기서 reloadAllTimelines를 부르지 않는다 — 위젯 버튼의 intent는 끝나는 즉시 시스템이 알아서
+        // 다시 그린다. 서버 응답 전에 먼저 부르면 그 갱신과 겹쳐, 누른 줄이 흐린 채로 멈춰 있다가
+        // 화면을 껐다 켜야 빠졌다(시뮬레이터에서 재현). 앱이 위젯을 갱신할 때만 직접 부른다.
         do {
             _ = try await WidgetBackend.api(lang: before.lang).setTodoStatus(todoId: todoId, status: .done)
         } catch {

@@ -146,17 +146,33 @@ struct MyTodosView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    /// 한 줄 — **줄 전체가 체크 버튼이다**. 예전엔 작은 동그라미만 눌려서 손가락으로 맞추기 어려웠다.
-    /// 누르면 위젯에서 먼저 빠지고(낙관적) 서버에 끝냄을 보낸다. 실패하면 돌아온다(CompleteTodoIntent).
-    /// 내 것이 아닌 줄(같이하기로 참여한 남의 할 일)은 끝내려면 메모가 필요한 "대신 처리"라 버튼이 아니다 —
+    /// 한 줄 — **줄 전체가 체크 토글이다**.
+    ///
+    /// Button이 아니라 Toggle인 이유: 위젯은 누른 뒤 intent(서버에 끝냄 보내기)가 다 끝나야 다시 그려진다.
+    /// Button이면 그동안 1~2초 아무 반응이 없어 "안 눌렸나"가 된다. Toggle은 시스템이 **누르는 즉시**
+    /// 켜진 모습(체크 + 취소선)을 먼저 그려 준다. 서버가 받으면 그 줄이 목록에서 빠진다.
+    /// 내 것이 아닌 줄(같이하기로 참여한 남의 할 일)은 끝내려면 메모가 필요한 "대신 처리"라 토글이 아니다 —
     /// 누르면 위젯 기본 동작대로 앱이 열린다.
     @ViewBuilder
     private func row(_ item: WidgetSnapshot.Item, _ t: Words, compact: Bool) -> some View {
+        if item.mine == true {
+            Toggle(isOn: false, intent: CompleteTodoIntent(todoId: item.id)) {
+                rowLabel(item, t, compact: compact)
+            }
+            .toggleStyle(CheckRowStyle(compact: compact))
+            .accessibilityLabel(t.markDone(item.title))
+        } else {
+            HStack(spacing: compact ? 4 : 8) {
+                Image(systemName: "person.2").font(compact ? .caption : .body).foregroundStyle(.secondary)
+                rowLabel(item, t, compact: compact)
+            }
+            .frame(maxWidth: .infinity, minHeight: compact ? 0 : 30, alignment: .leading)
+        }
+    }
+
+    private func rowLabel(_ item: WidgetSnapshot.Item, _ t: Words, compact: Bool) -> some View {
         let due = item.dueDate.map { DueLabel.state($0, today: entry.date) }
-        let line = HStack(spacing: compact ? 4 : 8) {
-            Image(systemName: item.mine == true ? "circle" : "person.2")
-                .font(compact ? .caption : .body)
-                .foregroundStyle(.secondary)
+        return HStack(spacing: 4) {
             // 잠금화면은 색이 빠진다 — 지난 마감을 기호로. 홈 화면은 오른쪽 빨간 글씨가 이미 말한다
             if due == .overdue && compact { Image(systemName: "exclamationmark.circle.fill").font(.caption2) }
             Text(item.title).font(compact ? .caption : .subheadline).lineLimit(1)
@@ -166,16 +182,6 @@ struct MyTodosView: View {
                     .font(.caption2)
                     .foregroundStyle(due == .overdue ? .red : .secondary)
             }
-        }
-        .frame(maxWidth: .infinity, minHeight: compact ? 0 : 30, alignment: .leading)
-        .contentShape(Rectangle())
-
-        if item.mine == true {
-            Button(intent: CompleteTodoIntent(todoId: item.id)) { line }
-                .buttonStyle(.plain)
-                .accessibilityLabel(t.markDone(item.title))
-        } else {
-            line
         }
     }
 
@@ -187,6 +193,26 @@ struct MyTodosView: View {
                     .font(.caption).multilineTextAlignment(.center)
             }
         }
+    }
+}
+
+/// 체크 한 줄 — 켜지면(누른 순간, 시스템이 먼저 그린다) 동그라미가 채워지고 제목에 줄이 그어진다
+struct CheckRowStyle: ToggleStyle {
+    let compact: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: compact ? 4 : 8) {
+            Image(systemName: configuration.isOn ? "checkmark.circle.fill" : "circle")
+                .font(compact ? .caption : .body)
+                .foregroundStyle(configuration.isOn ? .primary : .secondary)
+                .contentTransition(.symbolEffect(.replace))
+            configuration.label
+                .strikethrough(configuration.isOn)
+                .opacity(configuration.isOn ? 0.45 : 1)
+        }
+        .frame(maxWidth: .infinity, minHeight: compact ? 0 : 30, alignment: .leading)
+        .contentShape(Rectangle())
+        .animation(.snappy(duration: 0.2), value: configuration.isOn)
     }
 }
 
