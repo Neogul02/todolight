@@ -289,7 +289,9 @@ private struct MemberChip: View {
                 AvatarView(member: member, size: 24)
                 Text(isMe ? tr("나", "Me", "自分") : member.displayName).font(.tl(13, .medium)).lineLimit(1).frame(maxWidth: 80)
                 if remaining > 0 {
+                    // 글자를 키우면 두 자리 수가 "1/3"처럼 두 줄로 쪼개진다 — 한 줄로 고정하고 판이 늘어나게 둔다
                     Text("\(remaining)").font(.tl(11, .bold)).monospacedDigit()
+                        .lineLimit(1).fixedSize()
                         .foregroundStyle(active ? tk.accentInk : tk.inkSecondary)
                         .frame(minWidth: 18, minHeight: 18)
                         .padding(.horizontal, 2)

@@ -153,6 +153,8 @@ struct CalendarView: View {
                             .font(.tl(13, isSel ? .semibold : isToday ? .bold : .regular)).monospacedDigit()
                             .foregroundStyle(isSel ? tk.accentInk : isToday ? tk.accent
                                              : CalendarMath.weekday(day) == 0 ? tk.danger.opacity(0.8) : tk.ink)
+                            // 글자를 키우면 두 자리 수가 원 가장자리에 닿는다 — 좌우 여유를 둔다(기본 크기에선 20 안에 들어가 그대로다)
+                            .padding(.horizontal, 3)
                             .frame(minWidth: 20, minHeight: 20)
                             .background(isSel ? tk.accent : .clear, in: Capsule())
                         // 남은 할 일을 담당자 색 점으로 — 점 개수가 곧 개수, 색이 곧 사람
