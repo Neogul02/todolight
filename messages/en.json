@@ -5,11 +5,7 @@
   },
   "me": {
     "title": "Settings",
-    "noName": "No name",
     "you": "Me",
-    "uploading": "Uploading…",
-    "changePhoto": "Change photo",
-    "uploadPhoto": "Upload photo",
     "nameLabel": "Name",
     "language": {
       "title": "Language",
@@ -231,9 +227,6 @@
     "promoteAdmin": "Make admin",
     "leave": "Leave",
     "kick": "Remove",
-    "uploading": "Uploading…",
-    "changeImage": "Change image",
-    "uploadImage": "Upload image",
     "renameTitle": "Name",
     "kickConfirmDescription": "This removes {name} from the org.",
     "kickConfirmDetail": "They'll lose access to this org's board. Their to-dos and notes stay as they are. You'd need to send a new invite to bring them back.",
@@ -405,5 +398,11 @@
     "title": "Hand off to whom?",
     "notePlaceholder": "Add a note (optional) — e.g. Could you take this?",
     "noOne": "No one to hand off to yet. Invite teammates from the Org page first."
+  },
+  "photo": {
+    "chooseAnother": "Choose another photo",
+    "remove": "Remove photo",
+    "changeProfile": "Change profile photo",
+    "changeOrg": "Change org image"
   }
 }

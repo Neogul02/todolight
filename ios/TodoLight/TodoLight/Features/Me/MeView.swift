@@ -72,12 +72,13 @@ struct MeView: View {
     private var profileCard: some View {
         PageCard {
             // 이름은 아래 칸이 이미 보여 준다 — 아바타 옆에 또 적지 않는다
-            HStack(spacing: 12) {
-                AvatarView(member: profile.map(meSummary), size: 56)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(email ?? "").font(.tlCaption).foregroundStyle(tk.inkFaint).lineLimit(1)
-                    photoButtons
+            // 사진을 누르면 고르기·지우기가 뜬다(EditablePhoto) — 버튼 두 개를 늘어놓지 않는다
+            HStack(spacing: 14) {
+                EditablePhoto(hasPhoto: photoURL != nil, uploading: uploading, item: $photoItem,
+                              onRemove: { Task { await clearPhoto() } }) {
+                    AvatarView(member: profile.map(meSummary), size: 64)
                 }
+                Text(email ?? "").font(.tlCaption).foregroundStyle(tk.inkFaint).lineLimit(1)
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text(tr("이름", "Name", "名前")).font(.tl(13, .medium)).foregroundStyle(tk.inkSecondary)
@@ -87,21 +88,6 @@ struct MeView: View {
                     .onChange(of: name) { _, v in if v.count > 30 { name = String(v.prefix(30)) } }
             }
             .padding(.top, 16)
-        }
-    }
-
-    private var photoButtons: some View {
-        HStack(spacing: 8) {
-            PhotosPicker(selection: $photoItem, matching: .images) {
-                Text(uploading ? tr("올리는 중…", "Uploading…", "アップロード中…") : photoURL == nil ? tr("사진 올리기", "Upload photo", "写真をアップロード") : tr("사진 바꾸기", "Change photo", "写真を変更"))
-            }
-            .buttonStyle(TLButtonStyle(variant: .outline, size: .sm, fill: true))
-            .disabled(uploading)
-            if photoURL != nil {
-                Button(tr("삭제", "Delete", "削除")) { Task { await clearPhoto() } }
-                    .buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
-                    .disabled(uploading)
-            }
         }
     }
 

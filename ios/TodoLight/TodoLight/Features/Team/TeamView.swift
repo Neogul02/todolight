@@ -207,23 +207,18 @@ struct TeamView: View {
         let nameChanged = !orgName.trimmingCharacters(in: .whitespaces).isEmpty && orgName.trimmingCharacters(in: .whitespaces) != org.name
         return PageCard {
             Text(tr("조직 설정", "Org settings", "チーム設定")).font(.tlTitle).foregroundStyle(tk.ink)
-            HStack(spacing: 12) {
-                OrgIconView(name: org.name, imageUrl: org.imageUrl, seed: org.id, size: 48)
-                PhotosPicker(selection: $imageItem, matching: .images) {
-                    Text(uploading ? tr("올리는 중…", "Uploading…", "アップロード中…") : org.imageUrl == nil ? tr("이미지 올리기", "Upload image", "画像をアップロード") : tr("이미지 바꾸기", "Change image", "画像を変更"))
+            // 아이콘을 누르면 고르기·지우기가 뜬다(EditablePhoto) — 이름 칸과 한 줄에 선다
+            HStack(alignment: .bottom, spacing: 14) {
+                EditablePhoto(hasPhoto: org.imageUrl != nil, uploading: uploading, item: $imageItem,
+                              onRemove: { Task { await clearImage() } }) {
+                    OrgIconView(name: org.name, imageUrl: org.imageUrl, seed: org.id, size: 56)
                 }
-                .buttonStyle(TLButtonStyle(variant: .outline, size: .sm, fill: true))
-                .disabled(uploading)
-                if org.imageUrl != nil {
-                    Button(tr("삭제", "Delete", "削除")) { Task { await clearImage() } }
-                        .buttonStyle(TLButtonStyle(variant: .outline, size: .sm))
-                        .disabled(uploading)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(tr("이름", "Name", "名前")).font(.tl(13, .medium)).foregroundStyle(tk.inkSecondary)
+                    TextField("", text: $orgName).submitLabel(.done).tlField()
                 }
             }
             .padding(.top, 12)
-            labeled(tr("이름", "Name", "名前")) {
-                TextField("", text: $orgName).submitLabel(.done).tlField()
-            }
             Button(tr("저장", "Save", "保存")) { Task { await saveSettings() } }
                 .buttonStyle(TLButtonStyle(fill: true))
                 .disabled(busy || !nameChanged)

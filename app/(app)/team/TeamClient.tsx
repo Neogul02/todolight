@@ -22,6 +22,7 @@ import { useOrgMembers } from '@/hooks/useOrgBoard';
 import { useApp } from '../OrgContext';
 import { Avatar } from '@/components/Avatar';
 import { OrgIcon } from '@/components/OrgIcon';
+import { EditablePhoto } from '@/components/EditablePhoto';
 import { BottomSheet } from '@/components/BottomSheet';
 import { Badge, Button, Card, EmptyState, Input } from '@/components/ui';
 import { showMsg } from '@/lib/toast';
@@ -42,6 +43,7 @@ export default function TeamClient() {
   const tToast = useTranslations('toast');
   const tRole = useTranslations('appshell');
   const tCommon = useTranslations('common');
+  const tPhoto = useTranslations('photo');
   const tBoard = useTranslations('board');
   const { activeOrgId, activeOrg, userId, isManager, orgsStatus, retryOrgs } = useApp();
 
@@ -63,7 +65,6 @@ export default function TeamClient() {
   /** 조직 삭제 — 이 앱에서 유일하게 소프트 삭제가 아닌 지우기라 별도 시트로 묻는다 */
   const [deleteOrgOpen, setDeleteOrgOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const orgFileRef = useRef<HTMLInputElement | null>(null);
 
   // 아이콘도 아바타와 같게 — 고르는 즉시 올리고 반영한다
   async function pickOrgImage(e: React.ChangeEvent<HTMLInputElement>) {
@@ -493,48 +494,35 @@ export default function TeamClient() {
         <Card className="p-5">
           <h2 className="text-title text-ink">{t('orgSettingsTitle')}</h2>
 
-          <input
-            ref={orgFileRef}
-            type="file"
-            accept="image/*"
-            onChange={pickOrgImage}
-            className="hidden"
-          />
-          <div className="mt-3 flex items-center gap-3">
-            <OrgIcon
-              name={activeOrg.name}
-              imageUrl={activeOrg.image_url}
-              seed={activeOrg.id}
-              size="lg"
-            />
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => orgFileRef.current?.click()}
-              disabled={uploading}
+          {/* 아이콘을 누르면 고르기·지우기(EditablePhoto) — 이름 칸과 한 줄에 선다 */}
+          <div className="mt-3 flex items-end gap-4">
+            <EditablePhoto
+              hasPhoto={!!activeOrg.image_url}
+              uploading={uploading}
+              onPick={pickOrgImage}
+              onRemove={clearOrgImage}
+              label={tPhoto('changeOrg')}
+              className="rounded-2xl"
             >
-              {uploading
-                ? t('uploading')
-                : activeOrg.image_url
-                  ? t('changeImage')
-                  : t('uploadImage')}
-            </Button>
-            {activeOrg.image_url && (
-              <Button variant="ghost" onClick={clearOrgImage} disabled={uploading}>
-                {tCommon('delete')}
-              </Button>
-            )}
+              <OrgIcon
+                name={activeOrg.name}
+                imageUrl={activeOrg.image_url}
+                seed={activeOrg.id}
+                size="lg"
+              />
+            </EditablePhoto>
+            <label className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <span className="text-caption font-medium text-ink-secondary">
+                {t('renameTitle')}
+              </span>
+              <Input
+                value={orgName || activeOrg.name}
+                onChange={e => setOrgName(e.target.value)}
+                enterKeyHint="done"
+                maxLength={60}
+              />
+            </label>
           </div>
-
-          <label className="mt-4 flex flex-col gap-1.5">
-            <span className="text-caption font-medium text-ink-secondary">{t('renameTitle')}</span>
-            <Input
-              value={orgName || activeOrg.name}
-              onChange={e => setOrgName(e.target.value)}
-              enterKeyHint="done"
-              maxLength={60}
-            />
-          </label>
 
           <Button
             className="mt-4 w-full"

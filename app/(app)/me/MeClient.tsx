@@ -13,6 +13,7 @@ import { THEMES } from '@/lib/themes';
 import { LOCALES, type Locale } from '@/lib/locales';
 import { removeAvatar, uploadAvatar, uploadErrorMessage } from '@/lib/image-upload';
 import { Avatar } from '@/components/Avatar';
+import { EditablePhoto } from '@/components/EditablePhoto';
 import { Button, Card, Input } from '@/components/ui';
 import { showMsg } from '@/lib/toast';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ export default function MeClient() {
   const router = useRouter();
   const t = useTranslations('me');
   const tCommon = useTranslations('common');
+  const tPhoto = useTranslations('photo');
   const tToast = useTranslations('toast');
   const { profile, email, userId } = useApp();
 
@@ -48,7 +50,6 @@ export default function MeClient() {
   const [notifyTeam, setNotifyTeam] = useState(profile?.notify_team_todos ?? false);
   const [photo, setPhoto] = useState<string | null>(profile?.avatar_url ?? null);
   const [uploading, setUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement | null>(null);
 
   /*
     계정 삭제. 되돌릴 수 없는 유일한 동작이라 빨간 버튼 하나로 끝내지 않고, 무슨 일이
@@ -204,36 +205,25 @@ export default function MeClient() {
       <h1 className="text-heading-2 text-ink">{t('title')}</h1>
 
       <Card className="p-5">
-        <div className="flex items-center gap-3">
-          <Avatar
-            name={name || t('you')}
-            color={profile?.avatar_color}
-            imageUrl={photo}
-            seed={userId}
-            size="lg"
-            className="size-14 text-[20px]"
-          />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-semibold text-ink">{name || t('noName')}</p>
-            <p className="truncate text-caption text-ink-faint">{email}</p>
-          </div>
-        </div>
-
-        <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} className="hidden" />
-        <div className="mt-3 flex gap-2">
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
+        {/* 사진을 누르면 고르기·지우기(EditablePhoto). 이름은 아래 칸이 보여 준다 — 옆에 또 적지 않는다 */}
+        <div className="flex items-center gap-4">
+          <EditablePhoto
+            hasPhoto={!!photo}
+            uploading={uploading}
+            onPick={pickPhoto}
+            onRemove={clearPhoto}
+            label={tPhoto('changeProfile')}
           >
-            {uploading ? t('uploading') : photo ? t('changePhoto') : t('uploadPhoto')}
-          </Button>
-          {photo && (
-            <Button variant="ghost" onClick={clearPhoto} disabled={uploading}>
-              {tCommon('delete')}
-            </Button>
-          )}
+            <Avatar
+              name={name || t('you')}
+              color={profile?.avatar_color}
+              imageUrl={photo}
+              seed={userId}
+              size="lg"
+              className="size-16 text-[22px]"
+            />
+          </EditablePhoto>
+          <p className="min-w-0 truncate text-caption text-ink-faint">{email}</p>
         </div>
 
         <label className="mt-4 flex flex-col gap-1.5">

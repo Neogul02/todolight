@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 import TodoLightKit
 
@@ -561,6 +562,57 @@ struct LogoMark: View {
             var path = Path()
             path.move(to: p(19, 53)); path.addLine(to: p(40, 75)); path.addLine(to: p(83, 25)); path.closeSubpath()
             return path
+        }
+    }
+}
+
+/// 누르면 사진을 바꾸는 사진 — 없으면 바로 고르기, 있으면 「다른 사진 고르기 · 사진 지우기」 — 프로필 사진과 조직 아이콘이 같이 쓴다(웹 `EditablePhoto`).
+///
+/// 예전엔 사진 옆에 「사진 바꾸기」·「삭제」 버튼 두 개를 늘어놓았다. 어쩌다 한 번 하는 일이 카드 한 줄을
+/// 통째로 차지했고, 빨간 동작이 아닌데도 「삭제」가 늘 눈에 걸렸다. 사진 자체가 버튼이고 오른쪽 아래
+/// 카메라 표시가 "누를 수 있다"를 알린다. 올리는 동안은 스피너 대신 사진이 은은하게 깜빡인다.
+struct EditablePhoto<Photo: View>: View {
+    @Environment(\.tokens) private var tk
+    let hasPhoto: Bool
+    let uploading: Bool
+    @Binding var item: PhotosPickerItem?
+    let onRemove: () -> Void
+    @ViewBuilder let photo: Photo
+
+    @State private var menuOpen = false
+    @State private var pickerOpen = false
+
+    var body: some View {
+        // 사진이 없으면 고를 것뿐이니 바로 고르기를 연다 — 메뉴는 고를 게 둘일 때만
+        Button { if hasPhoto { menuOpen = true } else { pickerOpen = true } } label: {
+            photo
+                .opacity(uploading ? 0.5 : 1)
+                .modifier(PulseIf(active: uploading))
+                .overlay(alignment: .bottomTrailing) {
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(tk.ink)
+                        .frame(width: 22, height: 22)
+                        .background(tk.surface, in: Circle())
+                        .overlay(Circle().strokeBorder(tk.hairlineStrong))
+                        .offset(x: 3, y: 3)
+                }
+        }
+        .buttonStyle(PressScale(scale: 0.94))
+        .disabled(uploading)
+        .accessibilityLabel(hasPhoto ? tr("사진 바꾸기", "Change photo", "写真を変更") : tr("사진 올리기", "Upload photo", "写真をアップロード"))
+        .confirmationDialog(tr("사진", "Photo", "写真"), isPresented: $menuOpen, titleVisibility: .hidden) {
+            Button(tr("다른 사진 고르기", "Choose another photo", "別の写真を選ぶ")) { pickerOpen = true }
+            Button(tr("사진 지우기", "Remove photo", "写真を削除"), role: .destructive, action: onRemove)
+            Button(tr("취소", "Cancel", "キャンセル"), role: .cancel) {}
+        }
+        .photosPicker(isPresented: $pickerOpen, selection: $item, matching: .images)
+    }
+
+    private struct PulseIf: ViewModifier {
+        let active: Bool
+        func body(content: Content) -> some View {
+            if active { content.skeletonPulse() } else { content }
         }
     }
 }

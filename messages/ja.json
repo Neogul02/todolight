@@ -5,11 +5,7 @@
   },
   "me": {
     "title": "設定",
-    "noName": "名前なし",
     "you": "自分",
-    "uploading": "アップロード中…",
-    "changePhoto": "写真を変更",
-    "uploadPhoto": "写真をアップロード",
     "nameLabel": "名前",
     "language": {
       "title": "言語",
@@ -231,9 +227,6 @@
     "promoteAdmin": "管理者にする",
     "leave": "抜ける",
     "kick": "外す",
-    "uploading": "アップロード中…",
-    "changeImage": "画像を変更",
-    "uploadImage": "画像をアップロード",
     "renameTitle": "名前",
     "kickConfirmDescription": "{name}さんをこのチームから外します。",
     "kickConfirmDetail": "外すと、このチームのボードは見られなくなります。これまでのタスクとメモはそのまま残ります。また加えるには、招待を新しく送る必要があります。",
@@ -405,5 +398,11 @@
     "title": "誰に渡しますか？",
     "notePlaceholder": "一言残す（任意）— 例）これお願いできますか",
     "noOne": "渡せるメンバーがいません。チーム画面から先に招待してください。"
+  },
+  "photo": {
+    "chooseAnother": "別の写真を選ぶ",
+    "remove": "写真を削除",
+    "changeProfile": "プロフィール写真を変更",
+    "changeOrg": "チームの画像を変更"
   }
 }

@@ -5,11 +5,7 @@
   },
   "me": {
     "title": "내 설정",
-    "noName": "이름 없음",
     "you": "나",
-    "uploading": "올리는 중…",
-    "changePhoto": "사진 바꾸기",
-    "uploadPhoto": "사진 올리기",
     "nameLabel": "이름",
     "language": {
       "title": "언어",
@@ -231,9 +227,6 @@
     "promoteAdmin": "관리자로",
     "leave": "나가기",
     "kick": "내보내기",
-    "uploading": "올리는 중…",
-    "changeImage": "이미지 바꾸기",
-    "uploadImage": "이미지 올리기",
     "renameTitle": "이름",
     "kickConfirmDescription": "{name}님을 이 조직에서 내보내요.",
     "kickConfirmDetail": "내보내면 이 조직의 보드를 더 이상 볼 수 없어요. 그동안 쌓인 할 일과 메모는 그대로 남아요. 다시 부르려면 초대를 새로 보내야 해요.",
@@ -405,5 +398,11 @@
     "title": "누구에게 넘길까요?",
     "notePlaceholder": "한마디 남기기 (선택) — 예) 이거 좀 부탁해요",
     "noOne": "넘길 팀원이 없어요. 조직 화면에서 먼저 초대해 주세요."
+  },
+  "photo": {
+    "chooseAnother": "다른 사진 고르기",
+    "remove": "사진 지우기",
+    "changeProfile": "프로필 사진 바꾸기",
+    "changeOrg": "조직 이미지 바꾸기"
   }
 }
