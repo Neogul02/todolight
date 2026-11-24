@@ -21,6 +21,8 @@ struct TeamView: View {
     @State private var loading = true
     @State private var email = ""
     @State private var orgName = ""
+    /// 서버에 있는 이름 — 이것과 다를 때만 보낸다
+    @State private var savedOrgName = ""
     @State private var managing: MemberSummary?
     @State private var deleteOpen = false
     @State private var imageItem: PhotosPickerItem?
@@ -49,7 +51,9 @@ struct TeamView: View {
         .background(CanvasBackground())
         .overlay(alignment: .bottom) { Toast(message: $toast) }
         .task { await load() }
-        .onAppear { orgName = org.name }
+        .onAppear { orgName = org.name; savedOrgName = org.name }
+        // 조직 이름도 내 설정의 이름처럼 저장 버튼 없이 — 입력이 멎으면(700ms) 조용히 보낸다
+        .task(id: orgName) { await saveNameAfterPause() }
         .onChange(of: imageItem) { _, item in if let item { Task { await uploadImage(item) } } }
         .sheet(item: $managing) { m in
             MemberManageSheet(org: org, member: m, userId: userId) { message in
@@ -204,7 +208,6 @@ struct TeamView: View {
     // MARK: 조직 설정 — 이미지 · 이름
 
     private var settingsCard: some View {
-        let nameChanged = !orgName.trimmingCharacters(in: .whitespaces).isEmpty && orgName.trimmingCharacters(in: .whitespaces) != org.name
         return PageCard {
             Text(tr("조직 설정", "Org settings", "チーム設定")).font(.tlTitle).foregroundStyle(tk.ink)
             // 아이콘을 누르면 고르기·지우기가 뜬다(EditablePhoto) — 이름 칸과 한 줄에 선다
@@ -219,10 +222,6 @@ struct TeamView: View {
                 }
             }
             .padding(.top, 12)
-            Button(tr("저장", "Save", "保存")) { Task { await saveSettings() } }
-                .buttonStyle(TLButtonStyle(fill: true))
-                .disabled(busy || !nameChanged)
-                .padding(.top, 16)
         }
     }
 
@@ -287,14 +286,20 @@ struct TeamView: View {
            "You are invited to \(org.name).\nSign up with \(email) and the invitation will be waiting.\n\(AppConfig.apiBaseURL.absoluteString)", "\(org.name)に招待しました。\n\(email) で登録すると招待が表示されます。\n\(AppConfig.apiBaseURL.absoluteString)")
     }
 
-    private func saveSettings() async {
-        busy = true
-        defer { busy = false }
+    /// 비우면 보내지 않는다(조직 이름은 비울 수 없다). 실패하면 이유를 알리고 서버 이름으로 되돌린다.
+    private func saveNameAfterPause() async {
+        let next = orgName.trimmingCharacters(in: .whitespaces)
+        guard !next.isEmpty, next != savedOrgName else { return }
+        try? await Task.sleep(for: .milliseconds(700))
+        if Task.isCancelled { return }
+        let before = savedOrgName
+        savedOrgName = next
         do {
-            try await api.renameOrg(orgId: org.id, name: orgName.trimmingCharacters(in: .whitespaces))
-            toast = tr("저장했어요.", "Saved.", "保存しました。")
+            try await api.renameOrg(orgId: org.id, name: next)
             await onOrgsChanged()
         } catch {
+            savedOrgName = before
+            orgName = before
             toast = BoardStore.message(error)
         }
     }

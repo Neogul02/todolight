@@ -114,7 +114,9 @@ export default function TodoCard({
 
   const requesterName = requester?.display_name ?? t('someone');
   const handlerName = handler?.display_name ?? t('someone');
-  const due = dueState(todo.due_date);
+  // 끝낸 일은 늦었다고 하지 않는다 — 마감은 회색 날짜로만 남긴다
+  const isDone = todo.status === 'done';
+  const due = isDone ? 'none' : dueState(todo.due_date);
   const canRemove = isMine || todo.created_by === currentUserId || isManager;
 
   function toggleDone() {
@@ -343,7 +345,9 @@ export default function TodoCard({
               {titleTypers.length > 0 && <Badge>{typingText(titleTypers)}</Badge>}
               {todo.due_date && (
                 <Badge tone={DUE_TONE[due]}>
-                  {formatDueDay(todo.due_date, locale, n => tDue('overdueDays', { count: n }))}
+                  {isDone
+                    ? formatRelativeDay(`${todo.due_date}T00:00:00Z`, locale)
+                    : formatDueDay(todo.due_date, locale, n => tDue('overdueDays', { count: n }))}
                 </Badge>
               )}
               {askedByOther && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -55,7 +55,8 @@ export default function TeamClient() {
 
   const members = useOrgMembers(activeOrgId);
   const [email, setEmail] = useState('');
-  const [orgName, setOrgName] = useState('');
+  // 고치는 중인 조직 이름 — 어느 조직 것인지 같이 들고 있어야 조직을 바꿨을 때 남의 이름이 남지 않는다
+  const [orgDraft, setOrgDraft] = useState<{ orgId: string; value: string } | null>(null);
   /** 관리 동작을 여는 멤버. 목록에 버튼을 늘어놓지 않고 누른 사람 것만 시트로 연다 */
   const [managing, setManaging] = useState<MemberSummary | null>(null);
   /** 내보내기는 되돌릴 수 없다 — 시트 안에서 한 번 더 확인받는다 */
@@ -272,24 +273,33 @@ export default function TeamClient() {
   });
 
   const rename = useMutation({
-    mutationFn: async (value: string) => {
-      const res = await renameOrg(activeOrgId!, value);
+    mutationFn: async ({ orgId, value }: { orgId: string; value: string }) => {
+      const res = await renameOrg(orgId, value);
       if (!res.success) throw new Error(res.error);
     },
-    onSuccess: () => {
-      setOrgName('');
-      router.refresh();
+    onSuccess: () => router.refresh(),
+    onError: (e: Error) => {
+      // 되돌린다 — 칸에는 서버에 있는 이름이 다시 보인다(/me의 이름과 같은 규칙)
+      setOrgDraft(null);
+      showMsg(e.message, 'error');
     },
-    onError: (e: Error) => showMsg(e.message, 'error'),
   });
 
-  const nameChanged = orgName.trim().length > 0 && orgName.trim() !== activeOrg?.name;
+  const orgNameValue =
+    orgDraft && orgDraft.orgId === activeOrgId ? orgDraft.value : (activeOrg?.name ?? '');
 
-  async function saveOrgSettings() {
-    if (rename.isPending || !nameChanged) return;
-    await rename.mutateAsync(orgName.trim());
-    showMsg(tCommon('saved'), 'success');
-  }
+  /*
+    조직 이름도 /me의 내 이름처럼 저장 버튼 없이 — 입력이 멎으면(700ms) 조용히 보낸다.
+    비우면 보내지 않는다(조직 이름은 비울 수 없다). 칸을 떠나면 서버 이름으로 돌아온다.
+  */
+  const renameMutate = rename.mutate;
+  useEffect(() => {
+    if (!orgDraft) return;
+    const next = orgDraft.value.trim();
+    if (!next || next === activeOrg?.name) return;
+    const timer = setTimeout(() => renameMutate({ orgId: orgDraft.orgId, value: next }), 700);
+    return () => clearTimeout(timer);
+  }, [orgDraft, activeOrg?.name, renameMutate]);
 
   // 조직 쿼리가 아직 진행 중이거나 실패했을 때는 "조직 없음"이 아니다 —
   // 안 가리면 오래 백그라운드에 뒀다 돌아왔을 때 여기도 얼어붙은 것처럼 보인다.
@@ -516,21 +526,16 @@ export default function TeamClient() {
                 {t('renameTitle')}
               </span>
               <Input
-                value={orgName || activeOrg.name}
-                onChange={e => setOrgName(e.target.value)}
+                value={orgNameValue}
+                onChange={e => setOrgDraft({ orgId: activeOrg.id, value: e.target.value })}
+                onBlur={() => {
+                  if (!orgDraft?.value.trim()) setOrgDraft(null);
+                }}
                 enterKeyHint="done"
                 maxLength={60}
               />
             </label>
           </div>
-
-          <Button
-            className="mt-4 w-full"
-            onClick={saveOrgSettings}
-            disabled={rename.isPending || !nameChanged}
-          >
-            {tCommon('save')}
-          </Button>
         </Card>
       )}
 

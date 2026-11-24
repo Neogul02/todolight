@@ -104,12 +104,13 @@ struct TodoCardView: View {
             FlowLayout(spacing: 6) {
                 if !titleTypers.isEmpty { BadgeView(typingText(titleTypers)) }
                 if let due = todo.dueDate {
-                    let tone: BadgeView<EmptyView>.Tone = switch Due.state(due) {
+                    // 끝낸 일은 늦었다고 하지 않는다 — 마감은 회색 날짜로만 남긴다
+                    let tone: BadgeView<EmptyView>.Tone = switch done ? .none : Due.state(due) {
                     case .overdue: .danger
                     case .today: .warning
                     default: .neutral
                     }
-                    BadgeView(Due.label(due), tone: tone)
+                    BadgeView(done ? Due.relative(due) : Due.label(due), tone: tone)
                 }
                 // "이거 왜 내 목록에 있지"를 카드에서 바로 — 넘김이 부탁보다 우선(넘긴 사람에게 물어야 한다)
                 if todo.isGivenByOther {
