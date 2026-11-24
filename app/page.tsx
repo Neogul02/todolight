@@ -1,3 +1,4 @@
+import { LogoMark } from '@/components/LogoMark';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
@@ -13,8 +14,11 @@ export default async function LandingPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-[880px] flex-col px-5 pt-6 pb-8 sm:px-6 sm:pt-14">
       <header className="flex items-center justify-between">
-        <span lang="en" className="text-title tracking-tight">
-          todolight
+        <span className="flex items-center gap-2">
+          <LogoMark size={28} />
+          <span lang="en" className="text-title tracking-tight">
+            todolight
+          </span>
         </span>
         <Link
           href="/login"

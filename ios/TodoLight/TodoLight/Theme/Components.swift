@@ -499,3 +499,33 @@ struct SkeletonPulse: ViewModifier {
 extension View {
     func skeletonPulse() -> some View { modifier(SkeletonPulse()) }
 }
+
+
+/// todolight 로고 — 홈 화면 아이콘과 **같은 그림**(흰 판 위 검은 삼각형, 웹 `LogoMark`·`lib/app-icon.tsx`와 같은 좌표).
+/// 테마 토큰을 쓰지 않는다: 어두운 테마에서도 흰 판이어야 홈 화면에서 본 그 아이콘으로 알아본다.
+struct LogoMark: View {
+    @Environment(\.tokens) private var tk
+    let size: CGFloat
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
+            .fill(Color.white)
+            .overlay(RoundedRectangle(cornerRadius: size * 0.225, style: .continuous).strokeBorder(tk.hairline))
+            .overlay(Triangle().fill(Self.ink).overlay(Triangle().stroke(Self.ink, style: .init(lineWidth: size * 0.56 * 0.13, lineCap: .round, lineJoin: .round)))
+                .frame(width: size * 0.56, height: size * 0.56))
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+
+    private static let ink = Color(red: 0x14 / 255, green: 0x12 / 255, blue: 0x0f / 255)
+
+    /// 100×100 상자의 (19,53) (40,75) (83,25)
+    private struct Triangle: Shape {
+        func path(in r: CGRect) -> Path {
+            func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: r.minX + r.width * x / 100, y: r.minY + r.height * y / 100) }
+            var path = Path()
+            path.move(to: p(19, 53)); path.addLine(to: p(40, 75)); path.addLine(to: p(83, 25)); path.closeSubpath()
+            return path
+        }
+    }
+}

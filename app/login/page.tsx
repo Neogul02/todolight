@@ -1,3 +1,4 @@
+import { LogoMark } from '@/components/LogoMark';
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
@@ -9,7 +10,9 @@ export default async function LoginPage() {
   if (data?.claims) redirect('/board');
 
   return (
-    <main className="flex min-h-dvh items-center justify-center px-5 py-10 pb-safe sm:px-6 sm:py-12">
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-6 px-5 py-10 pb-safe sm:px-6 sm:py-12">
+      {/* 이름 대신 로고 하나 — 홈 화면 아이콘과 같은 그림이라 어디에 들어왔는지 바로 안다 */}
+      <LogoMark size={56} />
       <Suspense fallback={null}>
         <LoginForm />
       </Suspense>

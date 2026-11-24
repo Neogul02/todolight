@@ -24,8 +24,11 @@ struct LoginView: View {
     var body: some View {
         ZStack {
             CanvasBackground()
+            VStack(spacing: 12) {
+            // 이름 대신 로고 하나(웹과 같다) — 홈 화면 아이콘과 같은 그림이라 어디에 들어왔는지 바로 안다.
+            // 작게 둔다: 카드를 그만큼 밀어 내리면 회원가입 칸이 키보드 밑으로 들어간다
+            LogoMark(size: 40)
             VStack(alignment: .leading, spacing: 0) {
-                // 앱 이름은 두지 않는다 — 이 화면이 할 일은 로그인·회원가입 중 하나를 고르는 것뿐이다(웹과 같다)
                 HStack(spacing: 0) {
                     ForEach(Mode.allCases, id: \.self) { m in
                         Button { mode = m } label: {
@@ -115,10 +118,11 @@ struct LoginView: View {
             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(tk.hairline))
             .shadow(color: .black.opacity(0.04), radius: 9, y: 4)
             .padding(.horizontal, 20)
+            }
             // 가운데가 아니라 위쪽에 고정한다 — 가운데 정렬이면 키보드가 올라오고 내려갈 때마다
             // 남은 높이가 바뀌어 카드가 위아래로 튄다. 이 높이면 회원가입(칸 3개)도 키보드 위에 들어간다.
             .frame(maxHeight: .infinity, alignment: .top)
-            .padding(.top, 64)
+            .padding(.top, 12)
         }
         .ignoresSafeArea(.keyboard)
     }

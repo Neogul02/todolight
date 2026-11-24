@@ -97,8 +97,8 @@ export default function LoginForm() {
     <Card className="w-full max-w-[400px] p-6 sm:p-7">
       {/*
         링크로 모드를 바꾸던 걸 탭으로 바꿨다 — 로그인·회원가입이 같은 무게로 보여야 한다.
-        카드 위에 앱 이름을 두지 않는다: 들어오는 길(랜딩·앱 아이콘)에서 이미 봤고, 이 화면이
-        할 일은 둘 중 하나를 고르는 것뿐이다.
+        카드 위에는 글자 대신 로고만 둔다(login/page.tsx): 앱 이름은 들어오는 길에서 이미 봤고,
+        이 화면이 할 일은 둘 중 하나를 고르는 것뿐이다.
       */}
       <div className="flex overflow-hidden rounded-xl border border-hairline no-select">
         {(['signin', 'signup'] as Mode[]).map(m => (

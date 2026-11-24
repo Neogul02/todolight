@@ -9,8 +9,11 @@
  * 배경은 흰색 하나로 — 작은 탭 파비콘에서는 그라디언트도 그냥 얼룩으로 뭉개져
  * 순백 배경 위 체크 하나가 가장 선명하게 남는다.
  */
-const BACKGROUND = '#ffffff';
-const INK = '#14120f';
+export const BACKGROUND = '#ffffff';
+export const INK = '#14120f';
+/** 체크의 두 끝을 이은 삼각형 — 100×100 상자 기준. 화면 안 로고(`LogoMark`)와 iOS도 같은 좌표다 */
+export const MARK_PATH = 'M19 53 L40 75 L83 25 Z';
+export const MARK_STROKE = 13;
 
 /* 스플래시는 화면을 꽉 채우므로 어두운 테마에서 흰 판이 번쩍이지 않게 밝기를 따라간다.
    값은 globals.css의 ink / ink-dark 캔버스·잉크와 같다 */
@@ -40,10 +43,10 @@ export function AppIconMark({
       {/* 짧은 팔과 긴 팔의 비대칭 비율을 살짝 조정해 기계적이지 않고 손으로 그린 듯한 체크로 잡았다 */}
       <svg width={mark} height={mark} viewBox="0 0 100 100" fill="none">
         <path
-          d="M19 53 L40 75 L83 25 Z"
+          d={MARK_PATH}
           fill={INK}
           stroke={INK}
-          strokeWidth={13}
+          strokeWidth={MARK_STROKE}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -82,10 +85,10 @@ export function AppSplashMark({
     >
       <svg width={mark} height={mark} viewBox="0 0 100 100" fill="none">
         <path
-          d="M19 53 L40 75 L83 25 Z"
+          d={MARK_PATH}
           fill={dark ? DARK_INK : INK}
           stroke={dark ? DARK_INK : INK}
-          strokeWidth={13}
+          strokeWidth={MARK_STROKE}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
