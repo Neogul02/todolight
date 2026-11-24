@@ -49,14 +49,21 @@ export function useLedgerRealtime(orgId: string | null) {
   useEffect(() => {
     if (!orgId) return;
     const supabase = getRealtimeClient();
+    const resync = () => queryClient.invalidateQueries({ queryKey: ledgerKeys.org(orgId) });
+    let joined = false;
     const channel = supabase
       .channel(`ledger-${orgId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'ledger_entries', filter: `org_id=eq.${orgId}` },
-        () => queryClient.invalidateQueries({ queryKey: ledgerKeys.org(orgId) })
+        resync
       )
-      .subscribe();
+      // 다시 붙은 순간 한 번 맞춘다 — 끊긴 사이 변경은 다시 오지 않는다(보드와 같다)
+      .subscribe(status => {
+        if (status !== 'SUBSCRIBED') return;
+        if (joined) resync();
+        joined = true;
+      });
 
     return () => {
       supabase.removeChannel(channel);

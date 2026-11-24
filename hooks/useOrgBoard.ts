@@ -59,7 +59,9 @@ export function useOrgTodos(orgId: string | null) {
       return res.data.todos;
     },
     staleTime: 30_000,
-    refetchOnWindowFocus: true,
+    // 'always' — 소켓이 끊긴 사이 놓친 변경은 실시간으로 다시 오지 않는다.
+    // 30초 안에 돌아와도 한 번 맞춘다(보드 하나 읽기는 가볍다).
+    refetchOnWindowFocus: 'always',
     refetchOnReconnect: true,
   });
 }
@@ -103,6 +105,7 @@ export function useBoardRealtime(orgId: string | null) {
     if (!orgId) return;
     const supabase = getRealtimeClient();
     const key = boardKeys.todos(orgId);
+    let joined = false;
 
     const channel = supabase
       .channel(`board-${orgId}`)
@@ -167,7 +170,13 @@ export function useBoardRealtime(orgId: string | null) {
           queryClient.invalidateQueries({ queryKey: key });
         }
       )
-      .subscribe();
+      .subscribe(status => {
+        // 끊겼다 다시 붙으면(잠자기·네트워크 전환·백그라운드) 그 사이 변경은 다시 오지 않는다 —
+        // 다시 붙은 순간 한 번 읽어 맞춘다. 첫 연결은 막 읽어 온 참이라 건너뛴다.
+        if (status !== 'SUBSCRIBED') return;
+        if (joined) queryClient.invalidateQueries({ queryKey: key });
+        joined = true;
+      });
 
     return () => {
       supabase.removeChannel(channel);

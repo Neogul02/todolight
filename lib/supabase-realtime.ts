@@ -30,7 +30,9 @@ export function getRealtimeClient(): SupabaseClient {
     const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
     client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, publishableKey, {
-      realtime: { params: { eventsPerSecond: 10 } },
+      // worker: 백그라운드 탭은 타이머가 1분에 한 번으로 묶여 하트비트를 놓치고, 서버가 소켓을
+      // 끊는다 — 다른 기기(폰 위젯 등)에서 바꾼 게 이 탭에 안 올 수 있다. 워커 타이머는 묶이지 않는다.
+      realtime: { params: { eventsPerSecond: 10 }, worker: true },
       // 이 클라이언트는 채널 전용이다. 세션을 저장·복원하게 두면 로그인을 담당하는
       // @supabase/ssr 클라이언트와 같은 저장소를 두고 다툰다.
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },

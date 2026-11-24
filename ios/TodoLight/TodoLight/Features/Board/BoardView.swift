@@ -14,6 +14,7 @@ struct BoardView: View {
     let onRespond: (OrgInvite, Bool) async -> String?
     /// 설정·조직 화면에서 돌아올 때마다 바뀐다 — 그 화면들이 바꾼 값(가계부 쓰기·완료 보기·멤버)을 다시 읽는 신호
     let refreshToken: Int
+    @Environment(\.scenePhase) private var scenePhase
 
     @Environment(SessionStore.self) private var session
     @Environment(ThemeStore.self) private var theme
@@ -124,6 +125,10 @@ struct BoardView: View {
             }
         }
         .onChange(of: refreshToken) { _, _ in Task { await store.load() } }
+        // 앱이 비켜 있던 사이(위젯 체크·웹·팀원) 바뀐 건 소켓이 잠들어 있어 안 온다 — 돌아오면 한 번 맞춘다
+        .onChange(of: scenePhase) { old, now in
+            if now == .active && old != .active { Task { await store.load() } }
+        }
         // 잠금화면 "할 일 추가" — 다른 패널·다른 사람 컬럼을 보고 있었어도 내 컬럼으로(추가 칸은 그 컬럼이 연다)
         // 알림을 눌러 열렸을 때 — 일정이면 달력, 초대면 메뉴, 나머지는 보드
         // 조직을 바꾸며 새로 그려졌으면 onChange가 안 불리므로 나타날 때도 본다
