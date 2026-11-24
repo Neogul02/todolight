@@ -53,7 +53,7 @@ struct MemberColumnView: View {
                         dashedButton(tr("완료 \(hiddenDone)개 더 보기", "Show \(hiddenDone) more done")) { showAllDone = true }
                     }
                     if store.showDone && showAllDone && notLoaded > 0 {
-                        Text(tr("그 전에 끝낸 \(notLoaded)개는 여기 안 실려요", "\(notLoaded) older finished to-dos aren't loaded here"))
+                        Text(tr("그 전에 끝낸 \(notLoaded)개는 여기 안 실려요", "\(notLoaded) finished earlier are not loaded here"))
                             .font(.tlCaption).foregroundStyle(tk.inkFaint).padding(.top, 4)
                     }
                     if store.showDone && showAllDone && done.count > Self.visibleDone {
@@ -115,7 +115,7 @@ struct MemberColumnView: View {
         let empty = draft.trimmingCharacters(in: .whitespaces).isEmpty
         return VStack(alignment: .leading, spacing: 6) {
             ZStack(alignment: .trailing) {
-                TextField("", text: $draft, prompt: placeholder(isMe ? tr("할 일 추가", "Add a to-do") : tr("\(member.displayName)님에게 부탁하기", "Ask \(member.displayName)"), tk))
+                TextField("", text: $draft, prompt: placeholder(isMe ? tr("할 일 추가", "Add a to-do") : tr("\(member.displayName)님에게 부탁하기", "Ask \(member.displayName) to do something"), tk))
                     .focused($adding)
                     .submitLabel(.done)
                     .onSubmit(submit)

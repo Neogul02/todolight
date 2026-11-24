@@ -130,7 +130,7 @@ profiles        id, email, display_name, avatar_color, avatar_url,
                 notify_my_todos, notify_org, notify_team_todos, member_order, deleted_at, created_at
 push_devices    token(PK), user_id, platform, updated_at
 push_log        id, user_id, kind, ref_id, created_at   — 연달아 고칠 때 알림 묶기
-pro_subscriptions user_id(PK), source('apple'|'web'), product_id, original_transaction_id(UNIQUE),
+pro_subscriptions user_id(PK), source('apple'|'web'|'grant'), product_id, original_transaction_id(UNIQUE),
                 environment, expires_at, updated_at
                 — show_avatars 컬럼이 남아 있지만 코드에서는 쓰지 않는다(설정을 없앴다)
                 — **id는 더 이상 auth.users를 참조하지 않는다.** 아래 「계정 삭제」 참고
@@ -482,7 +482,7 @@ export const POST = apiRoute<{ todoId: string; status: TodoStatus }>(b =>
 구독이 끝나도 이미 있는 멤버는 그대로다 — 새 초대만 막힌다.
 
 - **Pro인지는 서버의 `pro_subscriptions` 한 표가 답한다**(쓰기는 service_role만). 앱이 StoreKit만
-  보고 판정하면 웹에서 결제한 사람이 앱에서 무료로 보인다. `source`가 `apple`·`web`이고 웹 결제는
+  보고 판정하면 웹에서 결제한 사람이 앱에서 무료로 보인다. `source`는 `apple`·`web`·`grant`(운영자가 준 것)이고 웹 결제는
   아직 없다 — 붙일 때 결제대행사 웹훅이 같은 표에 쓰면 된다.
 - 상품은 `com.neogul02.todolight.pro.{monthly,halfyear,yearly}`($1.99 / $10.99 / $19.99).
   `lib/pro.ts`의 `PRO_PRODUCT_IDS`와 iOS `ProStore.productIDs`가 같아야 한다. 할인율은 iOS가

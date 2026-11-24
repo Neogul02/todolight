@@ -25,6 +25,6 @@ describe('verifyAppleJws', () => {
     vi.stubEnv('NODE_ENV', 'production');
     expect(() => verifyAppleJws(local)).toThrow();
     vi.stubEnv('NODE_ENV', 'development');
-    expect(verifyAppleJws<{ productId: string }>(local).productId).toBe('x');
+    expect(verifyAppleJws<{ environment?: string; productId: string }>(local).productId).toBe('x');
   });
 });

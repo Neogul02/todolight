@@ -220,7 +220,7 @@ struct MeView: View {
                     Button(tr("구독 관리", "Manage subscription")) { manageOpen = true }
                         .buttonStyle(TLButtonStyle(variant: .outline, fill: true))
                         .padding(.top, 12)
-                } else {
+                } else if s.source == "web" {
                     Text(tr("웹에서 결제했어요. 해지도 웹에서 해요.", "Purchased on the web. Cancel it there."))
                         .font(.tlCaption).foregroundStyle(tk.inkMuted).padding(.top, 4)
                 }

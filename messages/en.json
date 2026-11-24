@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "TodoLight",
+    "title": "todolight",
     "description": "A shared to-do board where teammates see and help with each other's tasks, all in one screen"
   },
   "me": {
@@ -54,7 +54,7 @@
     "viewBoard": "Board",
     "viewCalendar": "Calendar",
     "viewLedger": "Ledger",
-    "pendingInvitesAria": "{count} pending invites",
+    "pendingInvitesAria": "{count, plural, one {# pending invite} other {# pending invites}}",
     "receivedInvites": "Invites ({count})",
     "unnamedOrg": "Unnamed org",
     "inviterLine": "Invited by {inviter} · {when}",
@@ -62,7 +62,7 @@
     "decline": "Decline",
     "accept": "Accept",
     "orgsTitle": "Orgs",
-    "memberCountRole": "{count} members · {role}",
+    "memberCountRole": "{count, plural, one {# member} other {# members}} · {role}",
     "roleOwner": "Owner",
     "roleAdmin": "Admin",
     "roleMember": "Member",
@@ -137,7 +137,7 @@
       "markUndone": "Mark not done",
       "requestedBy": "Requested by {name}",
       "handledByOther": "Handled by {name}",
-      "notesCount": "{count} notes",
+      "notesCount": "{count, plural, one {# note} other {# notes}}",
       "deleteAria": "Delete to-do",
       "edit": "Edit",
       "deleteNoteAria": "Delete note",
@@ -171,7 +171,7 @@
     "prevMonth": "Previous month",
     "nextMonth": "Next month",
     "totalLabel": "Spent",
-    "entryCount": "{count} entries",
+    "entryCount": "{count, plural, one {# entry} other {# entries}}",
     "amountPlaceholder": "Amount",
     "titlePlaceholder": "What was it for?",
     "addEntry": "Add",
@@ -192,7 +192,7 @@
     "selectedSummary": "{date}",
     "resizePanel": "Resize the list",
     "loadingAria": "Loading the calendar",
-    "selectedCounts": "{events} events · {todos} to-dos",
+    "selectedCounts": "{events, plural, one {# event} other {# events}} · {todos, plural, one {# to-do} other {# to-dos}}",
     "disabledTitle": "The calendar is turned off"
   },
   "event": {
@@ -219,7 +219,7 @@
   "team": {
     "noOrgTitle": "No org yet",
     "createOrg": "Create an org",
-    "memberCount": "{count} members",
+    "memberCount": "{count, plural, one {# member} other {# members}}",
     "inviteTitle": "Invite teammates",
     "inviteButton": "Invite",
     "cancelInvite": "Cancel",
@@ -247,13 +247,13 @@
     "deleteOrgConfirm": "Delete",
     "deletingOrg": "Deleting…",
     "deleteOrgEffectAll": "Every to-do, note, event, and ledger entry in this org is gone. Unlike deleting a to-do, this cannot be restored.",
-    "deleteOrgEffectMembers": "All {count} members lose access. Bringing them back means creating a new org and inviting them again.",
+    "deleteOrgEffectMembers": "{count, plural, one {The # member loses} other {All # members lose}} access. Bringing them back means creating a new org and inviting them again.",
     "deleteOrgIrreversible": "This cannot be undone.",
     "inviteNoEmailNotice": "No invite email is sent. Let people who haven't signed up know yourself.",
     "inviteUnregisteredHint": "Has not signed up yet",
     "inviteShare": "Send it yourself",
-    "seatsFullOwner": "Free organizations can have up to {limit} people. You can start Pro from Settings in the iOS app.",
-    "seatsFull": "Free organizations can have up to {limit} people. The owner can upgrade to Pro to invite more.",
+    "seatsFullOwner": "Free orgs can have up to {limit} people. You can start Pro from Settings in the iOS app.",
+    "seatsFull": "Free orgs can have up to {limit} people. The owner can upgrade to Pro to invite more.",
     "inviteShareMessage": "You are invited to {org}.\nSign up with {email} and the invitation will be waiting.\n{url}"
   },
   "landing": {
@@ -337,8 +337,9 @@
     "cannotInviteSelf": "You can't invite yourself.",
     "alreadyMember": "That person is already a member.",
     "inviteAlreadySent": "An invite was already sent.",
-    "seatLimitOwner": "Free organizations can have up to {limit} people. Upgrade to Pro to invite more.",
-    "seatLimit": "Free organizations can have up to {limit} people. The owner can upgrade to Pro to invite more.",
+    "seatLimitOwner": "Free orgs can have up to {limit} people. Upgrade to Pro to invite more.",
+    "seatLimit": "Free orgs can have up to {limit} people. The owner can upgrade to Pro to invite more.",
+    "purchaseNotVerified": "Couldn’t verify the purchase. Please try again shortly.",
     "noEmailForInvite": "No email on file, so this invite can't be processed.",
     "inviteNotFound": "Couldn't find that invite.",
     "inviteAlreadyHandled": "That invite was already handled.",
@@ -401,6 +402,6 @@
   "give": {
     "title": "Hand off to whom?",
     "notePlaceholder": "Add a note (optional) — e.g. Could you take this?",
-    "noOne": "No one to hand off to yet. Invite teammates from the Team page first."
+    "noOne": "No one to hand off to yet. Invite teammates from the Org page first."
   }
 }

@@ -64,7 +64,7 @@ struct ReceivedInvites: View {
     var body: some View {
         if !invites.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Text(tr("받은 초대 \(invites.count)", "Invites \(invites.count)"))
+                Text(tr("받은 초대 \(invites.count)", "Invites (\(invites.count))"))
                     .font(.tl(13, .semibold)).foregroundStyle(tk.inkSecondary).padding(.horizontal, 4)
                 ForEach(invites) { inv in
                     VStack(alignment: .leading, spacing: 10) {

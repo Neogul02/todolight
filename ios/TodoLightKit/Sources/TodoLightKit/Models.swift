@@ -243,7 +243,7 @@ public struct DeletedId: Decodable, Sendable {
 
 public struct MyPro: Decodable, Sendable, Equatable {
     public let active: Bool
-    /// "apple" | "web" — 해지는 결제한 곳에서만 된다
+    /// "apple" | "web" | "grant"(운영자가 준 것) — 해지는 결제한 곳에서만 된다
     public let source: String?
     public let productId: String?
     public let expiresAt: Date?

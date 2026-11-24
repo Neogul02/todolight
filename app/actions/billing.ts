@@ -11,12 +11,13 @@ import {
   verifyAppleJws,
   type AppleTransaction,
 } from '@/lib/pro';
+import { getActionT } from '@/lib/server-i18n';
 import type { ApiResponse } from '@/types/api';
 
 export interface MyPro {
   active: boolean;
   /** 결제한 곳 — 해지는 거기서만 된다 */
-  source: 'apple' | 'web' | null;
+  source: 'apple' | 'web' | 'grant' | null;
   productId: string | null;
   expiresAt: string | null;
 }
@@ -70,8 +71,15 @@ export async function fetchOrgPlan(orgId: string): Promise<ApiResponse<OrgPlan>>
 export async function syncAppleTransaction(signedTransaction: string): Promise<ApiResponse<MyPro>> {
   return wrap(async () => {
     const user = await requireAuth();
-    const tx = verifyAppleJws<AppleTransaction>(signedTransaction);
-    await applyAppleTransaction(tx, user.id);
+    try {
+      const tx = verifyAppleJws<AppleTransaction>(signedTransaction);
+      await applyAppleTransaction(tx, user.id);
+    } catch (e) {
+      // 검증 실패의 자세한 이유는 로그에만 남긴다 — 사용자에게는 한 문장이면 된다
+      console.error('[appleSync]', e);
+      const t = await getActionT();
+      throw new Error(t('purchaseNotVerified'));
+    }
     const res = await fetchMyPro();
     if (!res.success) throw new Error(res.error);
     return res.data;

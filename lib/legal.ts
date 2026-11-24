@@ -103,7 +103,7 @@ export const TERMS: LegalDoc = {
     {
       heading: '1. About these terms',
       body: [
-        'todolight ("the Service") is a shared todo board that lets a team see each other’s tasks on one screen and take care of them for one another. These terms describe the agreement between you and the operator of the Service. By creating an account you agree to them.',
+        'todolight ("the Service") is a shared to-do board that lets a team see each other’s tasks on one screen and take care of them for one another. These terms describe the agreement between you and the operator of the Service. By creating an account you agree to them.',
       ],
     },
     {
@@ -117,7 +117,7 @@ export const TERMS: LegalDoc = {
     {
       heading: '3. Organizations and sharing',
       body: [
-        'Sharing is the point of the Service. Members of the same organization can see each other’s todos, notes, events, and ledger entries, and can complete each other’s tasks. Joining an organization means agreeing to show those people what you write.',
+        'Sharing is the point of the Service. Members of the same organization can see each other’s to-dos, notes, events, and ledger entries, and can complete each other’s tasks. Joining an organization means agreeing to show those people what you write.',
         'Do not write anything you would not want them to see. In particular, never enter passwords, card numbers, or government identification numbers into any field.',
         'An organization owner can invite and remove members and can change the organization’s name and icon.',
       ],
@@ -133,7 +133,7 @@ export const TERMS: LegalDoc = {
     {
       heading: '5. Your content',
       body: [
-        'You keep the rights to the todos, notes, events, and ledger entries you write. The operator stores and processes them only as far as is needed to run and back up the Service.',
+        'You keep the rights to the to-dos, notes, events, and ledger entries you write. The operator stores and processes them only as far as is needed to run and back up the Service.',
         'They are, by design, visible to the other members of your organization. If you leave an organization or delete your account, what you left with the team stays in the organization without your name attached — a team’s records should not change because one person left.',
       ],
     },
@@ -173,6 +173,7 @@ export const PRIVACY: LegalDoc = {
         '계정 정보 — 이메일 주소, 비밀번호(암호화되어 저장되며 운영자도 원문을 볼 수 없습니다), 가입 시각.',
         '프로필 — 팀원에게 보일 이름, 프로필 사진(올린 경우), 테마·언어·화면 표시 설정.',
         '서비스 이용 내용 — 할 일과 그 상태·마감일, 메모, 일정, 가계부 기록(금액·항목·쓴 날), 조직과 멤버 관계, 초대 이메일 주소.',
+        '알림 — iOS 앱에서 알림을 허용하면 그 기기로 알림을 보내기 위한 기기 토큰과, 내 설정의 알림 켜고 끄기 값.',
         '구독 정보 — todolight Pro를 구독하면 상품·만료일·App Store 거래 번호. 카드 번호 등 결제 수단 정보는 Apple이 처리하며 저희는 받지 않습니다.',
         '별도의 광고 식별자나 위치 정보, 연락처 목록은 수집하지 않습니다. 광고를 붙이지 않고, 제3자 분석 도구도 쓰지 않습니다.',
       ],
@@ -180,7 +181,7 @@ export const PRIVACY: LegalDoc = {
     {
       heading: '2. 무엇에 쓰나요',
       body: [
-        '로그인과 본인 확인, 조직 안에서 누구의 할 일인지 구분하기, 팀원에게 초대장을 띄우기, 서비스 오류를 확인하고 고치기 — 이 네 가지가 전부입니다.',
+        '로그인과 본인 확인, 조직 안에서 누구의 할 일인지 구분하기, 팀원에게 초대장을 띄우기, 앱 알림 보내기, 구독 확인하기, 서비스 오류를 확인하고 고치기 — 이것이 전부입니다.',
         '모은 정보를 광고에 쓰거나 제3자에게 판매하지 않습니다.',
       ],
     },
@@ -194,14 +195,14 @@ export const PRIVACY: LegalDoc = {
     {
       heading: '4. 어디에 보관하나요',
       body: [
-        '데이터베이스·인증·파일 저장은 Supabase(서울 리전, ap-northeast-2)를 씁니다. 애플리케이션 호스팅은 Vercel을 씁니다. 두 곳 모두 서비스 제공에 필요한 범위에서 데이터를 처리하는 수탁자입니다.',
+        '데이터베이스·인증·파일 저장은 Supabase(서울 리전, ap-northeast-2)를 씁니다. 애플리케이션 호스팅은 Vercel을 씁니다. 앱 알림은 Apple 푸시 알림 서비스(APNs)를 거쳐 전달되고, 구독 결제는 Apple이 처리합니다. 모두 서비스 제공에 필요한 범위에서 데이터를 처리하는 수탁자입니다.',
         '프로필 사진과 조직 아이콘은 공개 URL로 저장됩니다 — 주소를 아는 사람은 볼 수 있으니, 남에게 보여도 괜찮은 사진만 올려 주세요.',
       ],
     },
     {
       heading: '5. 얼마나 보관하나요',
       body: [
-        '계정이 살아 있는 동안 보관합니다.',
+        '계정이 살아 있는 동안 보관합니다. 알림용 기기 토큰은 로그아웃하거나 알림을 받을 수 없게 된 기기에서 지웁니다.',
         '할 일·일정·가계부의 "지우기"는 되돌릴 수 있도록 표시만 하는 방식(소프트 삭제)이라, 지운 뒤에도 행 자체는 데이터베이스에 남습니다. 화면에는 더 이상 보이지 않습니다.',
         '계정을 삭제하면 로그인 정보(이메일·비밀번호)와 이름·프로필 사진이 지워지고 다시 로그인할 수 없습니다. 팀에 남긴 할 일·메모·가계부 기록은 이름 없이 조직에 남습니다 — 팀의 기록이 한 사람이 나갔다고 바뀌면 안 되기 때문입니다. 이 기록까지 지워야 한다면 아래 연락처로 알려 주세요.',
       ],
@@ -234,7 +235,8 @@ export const PRIVACY: LegalDoc = {
       body: [
         'Account details — your email address, your password (stored hashed; the operator cannot read it), and when you signed up.',
         'Profile — the name your teammates see, a profile photo if you upload one, and your theme, language, and display preferences.',
-        'Your use of the Service — todos with their status and due dates, notes, events, ledger entries (amount, title, date spent), organization membership, and the email addresses used for invitations.',
+        'Your use of the Service — to-dos with their status and due dates, notes, events, ledger entries (amount, title, date spent), organization membership, and the email addresses used for invitations.',
+        'Notifications — if you allow notifications in the iOS app, a device token used to deliver them to that device, plus your notification preferences.',
         'Subscription — if you subscribe to todolight Pro, the plan, expiry date, and App Store transaction ID. Payment details such as card numbers are handled by Apple and never reach us.',
         'We do not collect advertising identifiers, location, or your contacts. There are no ads and no third-party analytics.',
       ],
@@ -242,29 +244,29 @@ export const PRIVACY: LegalDoc = {
     {
       heading: '2. What we use it for',
       body: [
-        'Signing you in, telling whose todo is whose inside an organization, showing invitations to the people they were sent to, and diagnosing and fixing errors. That is all.',
+        'Signing you in, telling whose to-do is whose inside an organization, showing invitations to the people they were sent to, sending app notifications, checking your subscription, and diagnosing and fixing errors. That is all.',
         'We do not use this information for advertising and we do not sell it to third parties.',
       ],
     },
     {
       heading: '3. Who can see it',
       body: [
-        'Members of your organization see your name, your profile photo, and the todos, notes, events, and ledger entries you wrote in that organization. This sharing is the purpose of the Service.',
+        'Members of your organization see your name, your profile photo, and the to-dos, notes, events, and ledger entries you wrote in that organization. This sharing is the purpose of the Service.',
         'When you invite someone, their email address is visible to that organization’s owner and admins.',
       ],
     },
     {
       heading: '4. Where it is stored',
       body: [
-        'The database, authentication, and file storage run on Supabase (Seoul region, ap-northeast-2). The application is hosted on Vercel. Both process data on our behalf only as needed to run the Service.',
+        'The database, authentication, and file storage run on Supabase (Seoul region, ap-northeast-2). The application is hosted on Vercel. App notifications are delivered through the Apple Push Notification service (APNs), and subscription payments are handled by Apple. All of them process data on our behalf only as needed to run the Service.',
         'Profile photos and organization icons are stored at public URLs — anyone with the address can view them, so please only upload images you are comfortable sharing.',
       ],
     },
     {
       heading: '5. How long it is kept',
       body: [
-        'For as long as your account exists.',
-        'Deleting a todo, event, or ledger entry marks it deleted so it can be undone (a soft delete); the row remains in the database but is no longer shown anywhere in the app.',
+        'For as long as your account exists. Device tokens for notifications are deleted when you sign out or when the device can no longer receive them.',
+        'Deleting a to-do, event, or ledger entry marks it deleted so it can be undone (a soft delete); the row remains in the database but is no longer shown anywhere in the app.',
         'Deleting your account removes your sign-in details, name, and profile photo, and you can no longer sign in. Todos, notes, and ledger entries you left with a team remain in that organization without your name attached — a team’s records should not change because one person left. If you need those removed as well, contact us at the address below.',
       ],
     },

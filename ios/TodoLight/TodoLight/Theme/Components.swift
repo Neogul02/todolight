@@ -340,7 +340,7 @@ struct DuePillView: View {
             .overlay(Capsule().strokeBorder(border, style: StrokeStyle(lineWidth: 1, dash: state == .none ? [3, 2] : [])))
         }
         .buttonStyle(PressScale(scale: 0.97))
-        .accessibilityLabel(tr("마감 \(label) · 눌러서 바꾸기", "Due \(label) · tap to change"))
+        .accessibilityLabel(tr("마감 \(label) · 눌러서 바꾸기", "Due \(label) — tap to change"))
     }
 
     /// 펼쳐진 레일 — 알약과 따로 둬서 부모가 다음 줄 전체 폭에 놓을 수 있게 한다.
