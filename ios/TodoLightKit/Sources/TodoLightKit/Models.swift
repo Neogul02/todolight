@@ -238,3 +238,21 @@ public struct GiveResult: Decodable, Sendable {
 public struct DeletedId: Decodable, Sendable {
     public let id: String
 }
+
+// MARK: - todolight Pro
+
+public struct MyPro: Decodable, Sendable, Equatable {
+    public let active: Bool
+    /// "apple" | "web" — 해지는 결제한 곳에서만 된다
+    public let source: String?
+    public let productId: String?
+    public let expiresAt: Date?
+}
+
+public struct OrgPlan: Decodable, Sendable, Equatable {
+    /// nil이면 제한 없음(방장이 Pro)
+    public let seatLimit: Int?
+    /// 멤버 + 대기 중 초대
+    public let seatsUsed: Int
+    public var isFull: Bool { seatLimit.map { seatsUsed >= $0 } ?? false }
+}

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchOrgPlan } from '@/app/actions/billing';
 import { useLocale, useTranslations } from 'next-intl';
 import {
   deleteOrg,
@@ -110,6 +111,18 @@ export default function TeamClient() {
     },
   });
 
+  // 무료 조직의 인원 제한 — 다 차면 초대 칸 대신 Pro 안내를 띄운다(서버도 같은 규칙으로 막는다)
+  const plan = useQuery({
+    queryKey: ['org-plan', activeOrgId],
+    enabled: !!activeOrgId && isManager,
+    queryFn: async () => {
+      const res = await fetchOrgPlan(activeOrgId!);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+  });
+  const seatsFull = !!plan.data?.seatLimit && plan.data.seatsUsed >= plan.data.seatLimit;
+
   const invite = useMutation({
     mutationFn: async (value: string) => {
       const res = await inviteMember(activeOrgId!, value);
@@ -129,6 +142,7 @@ export default function TeamClient() {
         invited.registered ? 'success' : 'info'
       );
       queryClient.invalidateQueries({ queryKey: ['org-invites', activeOrgId] });
+      queryClient.invalidateQueries({ queryKey: ['org-plan', activeOrgId] });
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
   });
@@ -138,7 +152,10 @@ export default function TeamClient() {
       const res = await revokeInvite(id);
       if (!res.success) throw new Error(res.error);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['org-invites', activeOrgId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['org-invites', activeOrgId] });
+      queryClient.invalidateQueries({ queryKey: ['org-plan', activeOrgId] });
+    },
     onError: (e: Error) => showMsg(e.message, 'error'),
   });
 
@@ -191,6 +208,7 @@ export default function TeamClient() {
       showMsg(targetId === userId ? tToast('leftOrg') : tToast('memberRemoved'), 'success');
       closeManage();
       queryClient.invalidateQueries({ queryKey: ['members', activeOrgId] });
+      queryClient.invalidateQueries({ queryKey: ['org-plan', activeOrgId] });
       router.refresh();
     },
     onError: (e: Error) => showMsg(e.message, 'error'),
@@ -338,30 +356,40 @@ export default function TeamClient() {
         <Card className="p-5">
           <h2 className="text-title text-ink">{t('inviteTitle')}</h2>
           {/* 메일이 나가지 않는다는 사실을 초대하기 **전에** 말한다 — 보내고 나서 알면 늦다 */}
-          <p className="mt-1 text-caption text-ink-muted">{t('inviteNoEmailNotice')}</p>
-          <form
-            onSubmit={e => {
-              e.preventDefault();
-              if (email.trim()) invite.mutate(email);
-            }}
-            className="mt-3 flex gap-2"
-          >
-            <Input
-              type="email"
-              inputMode="email"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              enterKeyHint="send"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="teammate@company.com"
-              required
-            />
-            <Button type="submit" disabled={invite.isPending}>
-              {t('inviteButton')}
-            </Button>
-          </form>
+          {seatsFull ? (
+            <p className="mt-1 text-body text-ink-secondary">
+              {activeOrg.owner_id === userId
+                ? t('seatsFullOwner', { limit: plan.data!.seatLimit! })
+                : t('seatsFull', { limit: plan.data!.seatLimit! })}
+            </p>
+          ) : (
+            <>
+              <p className="mt-1 text-caption text-ink-muted">{t('inviteNoEmailNotice')}</p>
+              <form
+                onSubmit={e => {
+                  e.preventDefault();
+                  if (email.trim()) invite.mutate(email);
+                }}
+                className="mt-3 flex gap-2"
+              >
+                <Input
+                  type="email"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  enterKeyHint="send"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="teammate@company.com"
+                  required
+                />
+                <Button type="submit" disabled={invite.isPending}>
+                  {t('inviteButton')}
+                </Button>
+              </form>
+            </>
+          )}
 
           {invites.isLoading && (
             <ul className="mt-4 flex flex-col gap-1.5">

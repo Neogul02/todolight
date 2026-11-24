@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { after } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { FREE_ORG_SEATS, isPro, orgSeatsUsed } from '@/lib/pro';
 import { notify, orgMemberIds } from '@/lib/push';
 import { requireAuth, wrap } from './_base';
 import { assertMembers, requireManager, requireMembership } from '@/lib/guards';
@@ -206,6 +207,18 @@ export async function inviteMember(
         .eq('user_id', existingProfile.id)
         .maybeSingle();
       if (already) throw new Error(t('alreadyMember'));
+    }
+
+    // 무료 조직은 FREE_ORG_SEATS명까지 — 방장이 Pro면 제한이 없다
+    const { data: org } = await getSupabaseAdmin()
+      .from('organizations')
+      .select('owner_id')
+      .eq('id', orgId)
+      .single();
+    if (org && !(await isPro(org.owner_id)) && (await orgSeatsUsed(orgId)) >= FREE_ORG_SEATS) {
+      throw new Error(
+        t(org.owner_id === user.id ? 'seatLimitOwner' : 'seatLimit', { limit: FREE_ORG_SEATS })
+      );
     }
 
     const { data, error } = await getSupabaseAdmin()

@@ -24,11 +24,10 @@ import type { Locale } from '@/lib/locales';
  * 개인정보 처리방침에 "(문의처 미설정)"이 그대로 뜬다 — 하필 App Store 심사자가 계정도
  * 없이 열어 보는 페이지다. 운영자가 바꾸고 싶으면 환경 변수로 덮는다.
  */
-export const CONTACT_EMAIL =
-  process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'neogul02@icloud.com';
+export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'neogul02@icloud.com';
 
 /** 본문을 마지막으로 고친 날. 문서를 고치면 **반드시 같이 올린다** */
-export const LEGAL_UPDATED = '2026-11-23';
+export const LEGAL_UPDATED = '2026-11-24';
 
 export type LegalSection = { heading: string; body: string[] };
 export type LegalDoc = Record<Locale, LegalSection[]>;
@@ -82,13 +81,21 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      heading: '7. 약관의 변경',
+      heading: '7. todolight Pro(유료 구독)',
+      body: [
+        '조직은 멤버와 대기 중인 초대를 합쳐 5명까지 무료로 쓸 수 있습니다. 방장이 todolight Pro를 구독하면 그 사람이 방장인 조직에는 인원 제한이 없습니다.',
+        'iOS 앱에서는 App Store 인앱 결제로 1개월·6개월·1년 단위로 구독합니다. 결제는 Apple 계정으로 청구되며, 기간이 끝나기 24시간 전까지 해지하지 않으면 같은 기간으로 자동 갱신됩니다. 해지와 환불은 App Store 계정 설정과 Apple의 정책을 따릅니다.',
+        '구독이 끝나도 이미 들어와 있는 멤버와 기록은 그대로 남습니다. 새로 초대하는 것만 다시 제한됩니다.',
+      ],
+    },
+    {
+      heading: '8. 약관의 변경',
       body: [
         '약관이 바뀌면 이 페이지의 본문과 최종 수정일을 갱신합니다. 변경 이후에도 서비스를 계속 이용하면 바뀐 약관에 동의한 것으로 봅니다.',
       ],
     },
     {
-      heading: '8. 연락처',
+      heading: '9. 연락처',
       body: [`문의: ${contact()}`],
     },
   ],
@@ -138,13 +145,21 @@ export const TERMS: LegalDoc = {
       ],
     },
     {
-      heading: '7. Changes to these terms',
+      heading: '7. todolight Pro (paid subscription)',
+      body: [
+        'An organization can have up to 5 people, counting members and pending invitations, for free. If the owner subscribes to todolight Pro, organizations they own have no member limit.',
+        "In the iOS app, you subscribe through App Store in-app purchase for 1 month, 6 months, or 1 year. Payment is charged to your Apple account, and the subscription renews automatically for the same period unless cancelled at least 24 hours before it ends. Cancellation and refunds follow your App Store account settings and Apple's policies.",
+        'When a subscription ends, existing members and records stay as they are; only new invitations are limited again.',
+      ],
+    },
+    {
+      heading: '8. Changes to these terms',
       body: [
         'If these terms change, this page and its last-updated date are updated. Continuing to use the Service after a change means you accept the updated terms.',
       ],
     },
     {
-      heading: '8. Contact',
+      heading: '9. Contact',
       body: [`Contact: ${contact()}`],
     },
   ],
@@ -158,6 +173,7 @@ export const PRIVACY: LegalDoc = {
         '계정 정보 — 이메일 주소, 비밀번호(암호화되어 저장되며 운영자도 원문을 볼 수 없습니다), 가입 시각.',
         '프로필 — 팀원에게 보일 이름, 프로필 사진(올린 경우), 테마·언어·화면 표시 설정.',
         '서비스 이용 내용 — 할 일과 그 상태·마감일, 메모, 일정, 가계부 기록(금액·항목·쓴 날), 조직과 멤버 관계, 초대 이메일 주소.',
+        '구독 정보 — todolight Pro를 구독하면 상품·만료일·App Store 거래 번호. 카드 번호 등 결제 수단 정보는 Apple이 처리하며 저희는 받지 않습니다.',
         '별도의 광고 식별자나 위치 정보, 연락처 목록은 수집하지 않습니다. 광고를 붙이지 않고, 제3자 분석 도구도 쓰지 않습니다.',
       ],
     },
@@ -219,6 +235,7 @@ export const PRIVACY: LegalDoc = {
         'Account details — your email address, your password (stored hashed; the operator cannot read it), and when you signed up.',
         'Profile — the name your teammates see, a profile photo if you upload one, and your theme, language, and display preferences.',
         'Your use of the Service — todos with their status and due dates, notes, events, ledger entries (amount, title, date spent), organization membership, and the email addresses used for invitations.',
+        'Subscription — if you subscribe to todolight Pro, the plan, expiry date, and App Store transaction ID. Payment details such as card numbers are handled by Apple and never reach us.',
         'We do not collect advertising identifiers, location, or your contacts. There are no ads and no third-party analytics.',
       ],
     },

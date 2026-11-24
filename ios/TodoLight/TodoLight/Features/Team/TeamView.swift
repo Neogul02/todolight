@@ -27,6 +27,8 @@ struct TeamView: View {
     @State private var uploading = false
     @State private var toast: String?
     @State private var busy = false
+    @State private var plan: OrgPlan?
+    @State private var proOpen = false
 
     private var api: APIClient { Backend.shared.api }
     private var isOwner: Bool { org.role == .owner }
@@ -63,6 +65,9 @@ struct TeamView: View {
                 await onLeftOrg()
             }
         }
+        .sheet(isPresented: $proOpen, onDismiss: { Task { await load() } }) {
+            ProSheet(userId: userId)
+        }
     }
 
     // MARK: 머리 — 조직 아이콘 · 이름 · 멤버 수 (상단 바 제목은 '조직'이라 이름이 겹치지 않는다)
@@ -83,6 +88,34 @@ struct TeamView: View {
     private var inviteCard: some View {
         PageCard {
             Text(tr("팀원 초대", "Invite teammates")).font(.tlTitle).foregroundStyle(tk.ink)
+            if let plan, plan.isFull, let limit = plan.seatLimit {
+                // 무료 조직의 인원이 다 찼다 — 서버도 같은 규칙으로 막는다(문구만 미리 보여 준다)
+                Text(isOwner
+                     ? tr("무료 조직은 \(limit)명까지예요. Pro로 올리면 더 초대할 수 있어요.",
+                          "Free organizations can have up to \(limit) people. Upgrade to Pro to invite more.")
+                     : tr("무료 조직은 \(limit)명까지예요. 방장이 Pro를 쓰면 더 초대할 수 있어요.",
+                          "Free organizations can have up to \(limit) people. The owner can upgrade to Pro to invite more."))
+                    .font(.tlBodySm).foregroundStyle(tk.inkSecondary).padding(.top, 4)
+                if isOwner {
+                    Button(tr("Pro 알아보기", "See Pro")) { proOpen = true }
+                        .buttonStyle(TLButtonStyle(variant: .primary, fill: true))
+                        .padding(.top, 12)
+                }
+            } else {
+                inviteForm
+            }
+
+            if !invites.isEmpty {
+                VStack(spacing: 6) {
+                    ForEach(invites) { inviteRow($0) }
+                }
+                .padding(.top, 12)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var inviteForm: some View {
             // 메일이 나가지 않는다는 사실을 초대하기 **전에** 말한다 — 보내고 나서 알면 늦다
             Text(tr("초대 메일은 가지 않아요. 아직 가입 안 한 사람에게는 직접 알려 주세요.",
                     "No invite email is sent. Let people who haven't signed up know yourself."))
@@ -100,14 +133,6 @@ struct TeamView: View {
                     .disabled(busy || email.trimmingCharacters(in: .whitespaces).isEmpty)
             }
             .padding(.top, 12)
-
-            if !invites.isEmpty {
-                VStack(spacing: 6) {
-                    ForEach(invites) { inviteRow($0) }
-                }
-                .padding(.top, 12)
-            }
-        }
     }
 
     private func inviteRow(_ inv: OrgInvite) -> some View {
@@ -231,6 +256,7 @@ struct TeamView: View {
         async let i: [OrgInvite]? = isManager ? try? await api.fetchOrgInvites(orgId: org.id) : nil
         if let list = try? await m { members = list }
         if let list = await i { invites = list.filter { $0.status == .pending } }
+        if isManager { plan = try? await api.fetchOrgPlan(orgId: org.id) }
         loading = false
     }
 
@@ -255,6 +281,7 @@ struct TeamView: View {
         do {
             try await api.revokeInvite(inviteId: inv.id)
             invites.removeAll { $0.id == inv.id }
+            plan = try? await api.fetchOrgPlan(orgId: org.id)
         } catch {
             toast = BoardStore.message(error)
         }

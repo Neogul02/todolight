@@ -1,0 +1,111 @@
+{
+  "appPolicies": {
+    "eula": "",
+    "policies": []
+  },
+  "identifier": "8C3D2A10",
+  "nonRenewingSubscriptions": [],
+  "products": [],
+  "settings": {
+    "_applicationInternalID": "",
+    "_developerTeamID": "",
+    "_failTransactionsEnabled": false,
+    "_locale": "ko",
+    "_storefront": "KOR",
+    "_storeKitErrors": []
+  },
+  "subscriptionGroups": [
+    {
+      "id": "21600000",
+      "localizations": [],
+      "name": "todolight Pro",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "1.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "6700000001",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "방장인 조직에 인원 제한 없이 초대",
+              "displayName": "todolight Pro 1개월",
+              "locale": "ko"
+            },
+            {
+              "description": "Invite without limits to orgs you own",
+              "displayName": "todolight Pro Monthly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.neogul02.todolight.pro.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "todolight Pro Monthly",
+          "subscriptionGroupID": "21600000",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "10.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "6700000002",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "방장인 조직에 인원 제한 없이 초대",
+              "displayName": "todolight Pro 6개월",
+              "locale": "ko"
+            },
+            {
+              "description": "Invite without limits to orgs you own",
+              "displayName": "todolight Pro 6 Months",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.neogul02.todolight.pro.halfyear",
+          "recurringSubscriptionPeriod": "P6M",
+          "referenceName": "todolight Pro 6 Months",
+          "subscriptionGroupID": "21600000",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "19.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "6700000003",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "방장인 조직에 인원 제한 없이 초대",
+              "displayName": "todolight Pro 1년",
+              "locale": "ko"
+            },
+            {
+              "description": "Invite without limits to orgs you own",
+              "displayName": "todolight Pro Yearly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.neogul02.todolight.pro.yearly",
+          "recurringSubscriptionPeriod": "P1Y",
+          "referenceName": "todolight Pro Yearly",
+          "subscriptionGroupID": "21600000",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        }
+      ]
+    }
+  ],
+  "version": {
+    "major": 4,
+    "minor": 0
+  }
+}

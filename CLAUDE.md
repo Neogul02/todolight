@@ -130,6 +130,8 @@ profiles        id, email, display_name, avatar_color, avatar_url,
                 notify_my_todos, notify_org, notify_team_todos, member_order, deleted_at, created_at
 push_devices    token(PK), user_id, platform, updated_at
 push_log        id, user_id, kind, ref_id, created_at   — 연달아 고칠 때 알림 묶기
+pro_subscriptions user_id(PK), source('apple'|'web'), product_id, original_transaction_id(UNIQUE),
+                environment, expires_at, updated_at
                 — show_avatars 컬럼이 남아 있지만 코드에서는 쓰지 않는다(설정을 없앴다)
                 — **id는 더 이상 auth.users를 참조하지 않는다.** 아래 「계정 삭제」 참고
 organizations   id, name, owner_id, image_url, created_at
@@ -472,6 +474,28 @@ export const POST = apiRoute<{ todoId: string; status: TodoStatus }>(b =>
   `cron_secret` = 환경 변수 `CRON_SECRET`). **도메인을 바꾸면 그 잡의 URL도 고칠 것.**
 - iOS는 로그인한 뒤에 권한을 묻는다(`Push.start()`). 알림을 누르면 그 조직으로 가고,
   일정 알림은 달력, 초대는 메뉴를 연다(`BoardView.openFromPush`).
+
+### todolight Pro — 사람이 아니라 방장이 사서 조직이 쓴다
+
+무료 조직은 **멤버 + 대기 중 초대 5명**까지(`FREE_ORG_SEATS`). 방장이 Pro면 그 사람이 방장인 조직은
+제한이 없다. 대기 중 초대까지 세는 이유: 초대를 쌓아 두고 나중에 받게 하는 우회를 막는다.
+구독이 끝나도 이미 있는 멤버는 그대로다 — 새 초대만 막힌다.
+
+- **Pro인지는 서버의 `pro_subscriptions` 한 표가 답한다**(쓰기는 service_role만). 앱이 StoreKit만
+  보고 판정하면 웹에서 결제한 사람이 앱에서 무료로 보인다. `source`가 `apple`·`web`이고 웹 결제는
+  아직 없다 — 붙일 때 결제대행사 웹훅이 같은 표에 쓰면 된다.
+- 상품은 `com.neogul02.todolight.pro.{monthly,halfyear,yearly}`($1.99 / $10.99 / $19.99).
+  `lib/pro.ts`의 `PRO_PRODUCT_IDS`와 iOS `ProStore.productIDs`가 같아야 한다. 할인율은 iOS가
+  가격에서 계산한다 — App Store Connect에서 가격을 바꿔도 문구가 따라간다.
+- **Apple JWS는 루트를 Apple Root CA - G3 지문으로 고정해 검증한다**(`verifyAppleJws`). 실려 온
+  루트를 믿으면 누구나 자기 인증서로 서명해 Pro가 된다. Xcode 로컬 거래(`environment: "Xcode"`)는
+  개발 서버에서만 받는다.
+- 구매할 때 `appAccountToken`에 **사용자 id**를 심고, 서버는 토큰과 요청자가 같을 때만 반영한다 —
+  같은 Apple ID로 다른 계정에 로그인해도 구독은 산 계정에만 붙는다.
+- 앱은 서버가 받아 줬을 때만 `Transaction.finish()`한다. 실패하면 다음 실행 때 다시 온다.
+  App Store 서버 알림 V2(`/api/billing/apple-notifications`)가 갱신·환불을 따로 알려 준다.
+- **iOS 앱에는 웹 결제 링크·가격을 띄우지 않는다**(Guideline 3.1.1). 웹은 Apple 규정 밖이다.
+- 로컬 결제 시험은 Xcode ⌘R — 스킴에 `Pro.storekit`이 물려 있다(시뮬레이터에 .app만 올리면 상품이 안 뜬다).
 
 ### 실시간
 

@@ -252,6 +252,8 @@
     "inviteNoEmailNotice": "No invite email is sent. Let people who haven't signed up know yourself.",
     "inviteUnregisteredHint": "Has not signed up yet",
     "inviteShare": "Send it yourself",
+    "seatsFullOwner": "Free organizations can have up to {limit} people. You can start Pro from Settings in the iOS app.",
+    "seatsFull": "Free organizations can have up to {limit} people. The owner can upgrade to Pro to invite more.",
     "inviteShareMessage": "You are invited to {org}.\nSign up with {email} and the invitation will be waiting.\n{url}"
   },
   "landing": {
@@ -335,6 +337,8 @@
     "cannotInviteSelf": "You can't invite yourself.",
     "alreadyMember": "That person is already a member.",
     "inviteAlreadySent": "An invite was already sent.",
+    "seatLimitOwner": "Free organizations can have up to {limit} people. Upgrade to Pro to invite more.",
+    "seatLimit": "Free organizations can have up to {limit} people. The owner can upgrade to Pro to invite more.",
     "noEmailForInvite": "No email on file, so this invite can't be processed.",
     "inviteNotFound": "Couldn't find that invite.",
     "inviteAlreadyHandled": "That invite was already handled.",

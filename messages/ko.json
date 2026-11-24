@@ -252,6 +252,8 @@
     "inviteNoEmailNotice": "초대 메일은 가지 않아요. 아직 가입 안 한 사람에게는 직접 알려 주세요.",
     "inviteUnregisteredHint": "아직 가입하지 않았어요",
     "inviteShare": "알려 주기",
+    "seatsFullOwner": "무료 조직은 {limit}명까지예요. Pro는 iOS 앱의 내 설정에서 시작할 수 있어요.",
+    "seatsFull": "무료 조직은 {limit}명까지예요. 방장이 Pro를 쓰면 더 초대할 수 있어요.",
     "inviteShareMessage": "{org}에 초대했어요.\n{email} 주소로 가입하면 초대장이 떠요.\n{url}"
   },
   "landing": {
@@ -335,6 +337,8 @@
     "cannotInviteSelf": "본인은 초대할 수 없어요.",
     "alreadyMember": "이미 조직에 있는 멤버예요.",
     "inviteAlreadySent": "이미 초대장을 보냈어요.",
+    "seatLimitOwner": "무료 조직은 {limit}명까지예요. Pro로 올리면 더 초대할 수 있어요.",
+    "seatLimit": "무료 조직은 {limit}명까지예요. 방장이 Pro를 쓰면 더 초대할 수 있어요.",
     "noEmailForInvite": "이메일 정보가 없어서 초대를 처리할 수 없어요.",
     "inviteNotFound": "초대장을 찾을 수 없어요.",
     "inviteAlreadyHandled": "이미 처리한 초대장이에요.",

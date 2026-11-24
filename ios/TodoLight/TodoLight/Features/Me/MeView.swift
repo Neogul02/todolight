@@ -30,6 +30,8 @@ struct MeView: View {
     @State private var uploading = false
     @State private var toast: String?
     @State private var deleteOpen = false
+    @State private var proOpen = false
+    @State private var manageOpen = false
 
     private var api: APIClient { Backend.shared.api }
 
@@ -45,6 +47,7 @@ struct MeView: View {
                 langCard
                 viewCard
                 notifyCard
+                proCard
                 legalCard
                 deleteCard
             }
@@ -56,6 +59,9 @@ struct MeView: View {
         .task { await load() }
         .task(id: name) { await saveNameAfterPause() }
         .onChange(of: photoItem) { _, item in if let item { Task { await upload(item) } } }
+        .sheet(isPresented: $proOpen) { ProSheet(userId: userId) }
+        .manageSubscriptionsSheet(isPresented: $manageOpen)
+        .task { await ProStore.shared.refresh() }
         .sheet(isPresented: $deleteOpen) {
             DeleteAccountSheet { await session.signOut() }
         }
@@ -197,6 +203,35 @@ struct MeView: View {
                 }
             }
             .padding(.top, 12)
+        }
+    }
+
+    /// todolight Pro — 쓰는 중이면 기한과 관리, 아니면 알아보기
+    private var proCard: some View {
+        PageCard {
+            Text("todolight Pro").font(.tlTitle).foregroundStyle(tk.ink)
+            if let s = ProStore.shared.status, s.active {
+                if let end = s.expiresAt {
+                    Text(tr("\(end.formatted(.dateTime.year().month().day().locale(AppLang.locale)))까지 쓰고 있어요",
+                            "Active until \(end.formatted(.dateTime.year().month().day().locale(AppLang.locale)))"))
+                        .font(.tlBodySm).foregroundStyle(tk.inkSecondary).padding(.top, 4)
+                }
+                if s.source == "apple" {
+                    Button(tr("구독 관리", "Manage subscription")) { manageOpen = true }
+                        .buttonStyle(TLButtonStyle(variant: .outline, fill: true))
+                        .padding(.top, 12)
+                } else {
+                    Text(tr("웹에서 결제했어요. 해지도 웹에서 해요.", "Purchased on the web. Cancel it there."))
+                        .font(.tlCaption).foregroundStyle(tk.inkMuted).padding(.top, 4)
+                }
+            } else {
+                Text(tr("내가 방장인 조직에 \(FreeSeats.count)명 넘게 초대할 수 있어요.",
+                        "Invite more than \(FreeSeats.count) people to orgs you own."))
+                    .font(.tlBodySm).foregroundStyle(tk.inkSecondary).padding(.top, 4)
+                Button(tr("알아보기", "Learn more")) { proOpen = true }
+                    .buttonStyle(TLButtonStyle(variant: .outline, fill: true))
+                    .padding(.top, 12)
+            }
         }
     }
 

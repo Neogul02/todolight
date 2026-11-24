@@ -253,6 +253,22 @@ extension APIClient {
         let _: Empty = try await call("devices/unregister", body: ["token": token])
     }
 
+    // MARK: - todolight Pro
+
+    public func fetchMyPro() async throws -> MyPro {
+        try await call("billing/me")
+    }
+
+    /// 무료 조직의 인원 제한. `seatLimit`이 nil이면 제한 없음(방장이 Pro)
+    public func fetchOrgPlan(orgId: String) async throws -> OrgPlan {
+        try await call("billing/orgPlan", body: ["orgId": orgId])
+    }
+
+    /// StoreKit 2 거래(JWS)를 서버에 맞춘다 — 서버가 서명을 검증하고 이 계정이 산 것만 반영한다
+    public func syncAppleTransaction(_ signedTransaction: String) async throws -> MyPro {
+        try await call("billing/appleSync", body: ["signedTransaction": signedTransaction])
+    }
+
     /// **되돌릴 수 없다.** 성공하면 그 토큰은 더 이상 쓸 수 없으므로, 앱은 즉시 로컬 세션을
     /// 지우고 로그인 화면으로 가야 한다. 방장인 조직의 이양과 혼자인 조직 삭제는 서버가 한다.
     public func deleteMyAccount() async throws {

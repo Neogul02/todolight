@@ -174,6 +174,19 @@ type ApiResponse<T> = { success: true; data: T } | { success: false; error: stri
 | `devices/unregister` | `{ token }` | `null` |
 | `account/delete` | `{}` | `null` |
 
+### billing (todolight Pro)
+
+| 경로 | 본문 | `data` |
+|---|---|---|
+| `billing/me` | `{}` | `{ active, source: "apple"\|"web"\|null, productId, expiresAt }` |
+| `billing/orgPlan` | `{ orgId }` | `{ seatLimit: number\|null, seatsUsed }` — `null`이면 제한 없음 |
+| `billing/appleSync` | `{ signedTransaction }` (StoreKit 2 JWS) | `billing/me`와 같은 모양 |
+
+- 무료 조직은 멤버 + 대기 중 초대가 **5명**까지. 방장이 Pro면 제한이 없다. `orgs/invite`가 같은 규칙으로 막는다.
+- `appleSync`는 서버가 Apple 인증서 사슬로 서명을 검증하고, 거래의 `appAccountToken`이 요청자 id일 때만 반영한다.
+  앱은 구매할 때 `appAccountToken`에 사용자 id를 넣어야 한다.
+- 갱신·만료·환불은 App Store 서버 알림 V2가 `/api/billing/apple-notifications`(인증 없음, 서명으로 검증)로 알려 준다.
+
 - **`account/delete`는 되돌릴 수 없다.** App Store 5.1.1(v)가 요구하는 경로이고,
   성공하면 그 토큰은 더 이상 쓸 수 없다 — 앱은 즉시 로컬 세션을 지우고 로그인 화면으로 간다.
   방장인 조직의 소유권 이양과 혼자인 조직 삭제까지 서버가 알아서 한다.

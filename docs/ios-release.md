@@ -31,6 +31,23 @@ open TodoLight.xcodeproj
 
 appstoreconnect.apple.com → 앱 → + → 새로운 앱. 플랫폼 iOS, Bundle ID는 위 표의 앱 ID, SKU는 아무 문자열.
 
+### todolight Pro 구독 상품
+
+앱 → 수익화 → 구독 → 구독 그룹 **todolight Pro**를 만들고 상품 셋을 넣는다(ID는 코드와 같아야 한다):
+
+| 제품 ID | 기간 | 가격 |
+|---|---|---|
+| `com.neogul02.todolight.pro.monthly` | 1개월 | $1.99 |
+| `com.neogul02.todolight.pro.halfyear` | 6개월 | $10.99 (월 대비 8% 할인) |
+| `com.neogul02.todolight.pro.yearly` | 1년 | $19.99 (월 대비 16% 할인) |
+
+- 한국 가격은 Apple이 달러 가격에 맞춰 자동으로 채운다 — 그대로 두거나 가까운 값으로 고친다.
+- 앱 → App 정보 → **App Store 서버 알림**: 운영·샌드박스 둘 다
+  `https://todolight.vercel.app/api/billing/apple-notifications`, 버전 2.
+- 비즈니스 → **유료 앱 계약**에 서명하고 은행·세금 정보를 넣어야 상품이 살아난다.
+- **App Store 소규모 비즈니스 프로그램**을 신청하면 수수료가 30% → 15%다.
+- 심사 제출 때 구독 상품도 함께 제출한다(첫 구독은 앱 버전과 같이 심사된다).
+
 ## 4. Archive와 업로드
 
 1. Xcode 상단 기기를 **Any iOS Device (arm64)** 로 바꾼다.
@@ -54,7 +71,7 @@ appstoreconnect.apple.com → 앱 → + → 새로운 앱. 플랫폼 iOS, Bundle
   보드 · 달력 · 할 일 펼침 · 위젯 4~5장.
 - **개인정보 처리방침 URL · 지원 URL**: 위 표의 주소.
 - **App Privacy 설문** — `PrivacyInfo.xcprivacy`와 같아야 한다. 추적은 **안 함**, 전부 「계정에 연결됨 · 앱 기능」:
-  이메일 · 이름 · 사진 · 기타 사용자 콘텐츠(할 일·메모·일정) · 사용자 ID.
+  이메일 · 이름 · 사진 · 기타 사용자 콘텐츠(할 일·메모·일정) · 사용자 ID · 구입 내역.
 - 카테고리는 생산성.
 
 ## 7. 심사 제출
