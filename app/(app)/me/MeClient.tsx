@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { deleteMyAccount, updateMyProfile } from '@/app/actions/profile';
@@ -32,6 +33,7 @@ const NAME_SAVE_DELAY_MS = 700;
  */
 export default function MeClient() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const t = useTranslations('me');
   const tCommon = useTranslations('common');
   const tPhoto = useTranslations('photo');
@@ -62,15 +64,21 @@ export default function MeClient() {
    * 한 항목만 서버로 보낸다.
    * 실패하면 되돌리는 건 호출한 쪽 몫이다 — 무엇을 어떤 값으로 되돌릴지는 여기서 알 수 없다.
    */
-  async function save(patch: Parameters<typeof updateMyProfile>[0], onFail?: () => void) {
-    const res = await updateMyProfile(patch);
-    if (!res.success) {
-      showMsg(res.error, 'error');
-      onFail?.();
-      return false;
-    }
-    return true;
-  }
+  const save = useCallback(
+    async (patch: Parameters<typeof updateMyProfile>[0], onFail?: () => void) => {
+      const res = await updateMyProfile(patch);
+      if (!res.success) {
+        showMsg(res.error, 'error');
+        onFail?.();
+        return false;
+      }
+      // 셸(탭바의 달력·가계부 버튼, 아바타 등)은 ['my-profile'] 캐시를 본다. router.refresh()는
+      // 서버 프롭만 바꾸고 그 프롭은 initialData라 캐시에 안 들어간다 — 캐시를 직접 새로 읽힌다
+      queryClient.invalidateQueries({ queryKey: ['my-profile'] });
+      return true;
+    },
+    [queryClient]
+  );
 
   /*
     이름은 매 글자마다 보내면 서버를 두들기고, 포커스를 잃을 때만 보내면 폼이 없는 화면이라
@@ -91,7 +99,7 @@ export default function MeClient() {
       if (ok) router.refresh();
     }, NAME_SAVE_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [name, router]);
+  }, [name, router, save]);
 
   function pickTheme(key: string) {
     const before = theme;
